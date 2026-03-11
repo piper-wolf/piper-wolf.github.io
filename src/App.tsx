@@ -1,3 +1,5 @@
+import { motion } from "motion/react";
+
 function App() {
   return (
     <div
@@ -9,11 +11,28 @@ function App() {
         alignContent: "space-around",
       }}
     >
-      <h1 css={{ color: "pink" }}>Piper Wolf</h1>
-      <p>
+      <motion.h1
+        animate={{ color: ["#F5A9B8", "#5BCEFA"] }}
+        transition={{
+          duration: 2,
+          repeat: Infinity,
+          repeatType: "reverse",
+          ease: "linear",
+        }}
+      >
+        Piper Wolf
+      </motion.h1>
+      <motion.p
+        initial={{ x: -500 }}
+        animate={{ x: 0 }}
+        transition={{ type: "spring", duration: 2 }}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98, transition: { duration: 0.1 } }}
+        css={{ cursor: "pointer", userSelect: "none" }}
+      >
         The only way to learn is by playing. The only way to win is by learning.
         And the only way to begin is by beginning.
-      </p>
+      </motion.p>
       <img src="frog-spin.gif" />
     </div>
   );
