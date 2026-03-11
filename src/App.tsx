@@ -6,6 +6,7 @@ function App() {
       css={{
         maxWidth: "1280px",
         margin: "0 auto",
+        padding: "20px",
         textAlign: "center",
         height: "100%",
         alignContent: "space-around",
