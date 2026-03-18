@@ -32,6 +32,7 @@ function App() {
         whileTap={{ scale: 0.98, transition: { duration: 0.1 } }}
         css={{ cursor: "pointer", userSelect: "none" }}
         onClick={function () {
+          ribbetAudio.load();
           ribbetAudio.play();
         }}
       >
