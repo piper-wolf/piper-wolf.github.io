@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 
 function App() {
-  const ribbetAudio = new Audio("frog.wav");
+  const ribbetAudio = new Audio("/assets/ribbet.wav");
   return (
     <div
       css={{
@@ -38,7 +38,7 @@ function App() {
         The only way to learn is by playing. The only way to win is by learning.
         And the only way to begin is by beginning.
       </motion.p>
-      <img src="/frog-spin.gif" />
+      <img src="/assets/frog-spin.gif" />
     </div>
   );
 }
