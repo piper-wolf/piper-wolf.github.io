@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 
 function App() {
+  const ribbetAudio = new Audio("frog.wav");
   return (
     <div
       css={{
@@ -30,6 +31,9 @@ function App() {
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98, transition: { duration: 0.1 } }}
         css={{ cursor: "pointer", userSelect: "none" }}
+        onClick={function () {
+          ribbetAudio.play();
+        }}
       >
         The only way to learn is by playing. The only way to win is by learning.
         And the only way to begin is by beginning.
