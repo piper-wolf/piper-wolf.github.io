@@ -13,6 +13,16 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+html {
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
 html,
 body,
 #root {
@@ -26,4 +36,14 @@ body {
   width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
+}
+
+@keyframes frog-hop-frames {
+  from {
+    background-position: 0% 0%;
+  }
+
+  to {
+    background-position: 100% 0%;
+  }
 }
