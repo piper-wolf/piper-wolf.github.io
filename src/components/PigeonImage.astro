@@ -22,7 +22,7 @@ const {
 } = Astro.props;
 ---
 
-<span class={frameClass} style={`--image-ratio: ${src.width} / ${src.height};`}>
+<span class={frameClass}>
   <Image
     src={src}
     alt={alt}

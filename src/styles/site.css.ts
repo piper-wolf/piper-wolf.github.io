@@ -57,7 +57,7 @@ export const main = style({
 });
 
 export const eyebrow = style({
-  margin: 0,
+  margin: "0 0 5px 0",
   color: "#c25135",
   fontFamily: "Arial, Helvetica, sans-serif",
   fontSize: "0.72rem",
@@ -107,7 +107,6 @@ export const imageFrame = style({
   display: "block",
   position: "relative",
   width: "100%",
-  aspectRatio: "var(--image-ratio, 3 / 2)",
   overflow: "hidden",
   background: "#d7d9d0",
   padding: "10px",
@@ -196,43 +195,24 @@ export const supportLink = style({
 
 export const feed = style({
   display: "grid",
-  gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
-  gap: "56px 24px",
+  gap: "56px",
   "@media": {
     "screen and (max-width: 700px)": {
-      gridTemplateColumns: "1fr",
+      gap: "40px",
     },
   },
 });
 
 export const post = style({
-  gridColumn: "1 / -1",
   maxWidth: "none",
   display: "grid",
   gridTemplateColumns: "minmax(0, 1fr) minmax(9rem, 0.28fr)",
   alignItems: "start",
   gap: "24px",
-  selectors: {
-    "&:nth-child(1)": {
-      gridColumn: "1 / -1",
-      gridTemplateColumns: "minmax(0, 1fr) minmax(13rem, 0.28fr)",
-    },
-    "&:nth-child(4n + 2)": { gridColumn: "1 / -1" },
-    "&:nth-child(4n + 3)": {
-      gridColumn: "1 / -1",
-      gridTemplateColumns: "minmax(0, 1fr) minmax(9rem, 0.28fr)",
-    },
-    "&:nth-child(4n + 4)": { gridColumn: "1 / -1" },
-  },
   "@media": {
     "screen and (max-width: 700px)": {
-      gridColumn: "1 / -1",
       gridTemplateColumns: "1fr",
       gap: "16px",
-      selectors: {
-        "&:nth-child(1)": { gridTemplateColumns: "1fr" },
-        "&:nth-child(4n + 3)": { marginTop: 0, gridTemplateColumns: "1fr" },
-      },
     },
   },
 });
@@ -308,7 +288,6 @@ export const backLink = style({
 export const detailImageFrame = style({
   display: "block",
   width: "100%",
-  aspectRatio: "var(--image-ratio, 3 / 2)",
   overflow: "hidden",
   background: "#d7d9d0",
   padding: "12px",
