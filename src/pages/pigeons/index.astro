@@ -18,7 +18,7 @@ import { pigeonPosts } from "../../data/pigeons";
 
   <section class={styles.feed} aria-label="Pigeon posts" data-feed>
     {pigeonPosts.map((post, index) => (
-      <article class={styles.post}>
+      <article id={post.number} class={styles.post}>
         <div class={styles.postPhoto}>
           <a class={styles.imageButton} href={`/pigeons/${post.number}`} aria-label={`View pigeon no. ${post.number}`}>
             <PigeonImage

@@ -17,7 +17,7 @@ const { post } = Astro.props;
 <BaseLayout title={`Pigeon no. ${post.number}`} description={post.caption}>
   <article class={styles.detailPage}>
     <div class={styles.detailHeader}>
-      <a class={styles.backLink} href="/pigeons/">← All pigeons</a>
+      <a class={styles.backLink} href={`/pigeons/#${post.number}`}>← All pigeons</a>
       <div class={`${styles.postMeta} ${styles.detailMeta}`}>
         <span>Pigeon no. {post.number}</span>
         <time datetime={post.dateTime}>{post.date}</time>
@@ -30,7 +30,7 @@ const { post } = Astro.props;
       imageClass={styles.detailImage}
       frameClass={styles.detailImageFrame}
       loading="eager"
-      sizes="(max-width: 700px) calc(100vw - 48px), min(70rem, calc(100vw - 48px))"
+      sizes="90vw"
     />
   </article>
 </BaseLayout>

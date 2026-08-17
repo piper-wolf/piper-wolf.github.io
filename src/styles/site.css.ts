@@ -261,7 +261,7 @@ export const postCaption = style({
 });
 
 export const detailPage = style({
-  maxWidth: "70rem",
+  maxWidth: "74rem",
   margin: "0 auto",
 });
 
@@ -287,16 +287,31 @@ export const backLink = style({
 
 export const detailImageFrame = style({
   display: "block",
-  width: "100%",
-  overflow: "hidden",
+  width: "fit-content",
+  maxWidth: "90vw",
+  marginLeft: "50%",
+  transform: "translateX(-50%)",
   background: "#d7d9d0",
   padding: "12px",
+  "@media": {
+    "screen and (max-width: 700px)": {
+      maxWidth: "100%",
+      marginLeft: 0,
+      transform: "none",
+    },
+  },
 });
 
 export const detailImage = style({
   display: "block",
-  width: "100%",
-  height: "auto",
+  width: "auto",
+  maxWidth: "calc(90vw - 24px)",
+  maxHeight: "calc(80vh - 24px)",
+  "@media": {
+    "screen and (max-width: 700px)": {
+      maxWidth: "calc(100vw - 72px)",
+    },
+  },
 });
 
 export const feedEnd = style({
