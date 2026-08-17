@@ -1,3 +1,5 @@
+import photo_2026_08_17 from "../assets/2026-08-17.jpg";
+
 import type { ImageMetadata } from "astro";
 import may14 from "../assets/2026-05-14.jpg";
 import jul21 from "../assets/2026-07-21.jpg";
@@ -19,6 +21,13 @@ export type PigeonPost = PigeonPhoto & { number: string };
 
 // Add one object here for each new photo. Posts are sorted and numbered below.
 const pigeonPhotos: PigeonPhoto[] = [
+  {
+    image: photo_2026_08_17,
+    alt: "Bird staring into camera straight on",
+    date: "August 17, 2026",
+    dateTime: "2026-08-17",
+    caption: "I had this fellah's full attention today. Or at least it seems my bag of birdseed had his attention.",
+  },
   {
     image: aug01,
     alt: "Large imposing pigeon staring down the ground.",
