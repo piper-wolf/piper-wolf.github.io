@@ -78,5 +78,5 @@ export const pigeonPosts: PigeonPost[] = [...pigeonPhotos]
   .sort((a, b) => b.dateTime.localeCompare(a.dateTime))
   .map((photo, index) => ({
     ...photo,
-    number: String(index + 1).padStart(3, "0"),
+    number: String(pigeonPhotos.length - index).padStart(3, "0"),
   }));
