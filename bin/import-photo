@@ -10,7 +10,9 @@ fi
 from_path=$1
 size=${2:-1920x}
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-assets_dir="$repo_root/public/assets"
+assets_dir="$repo_root/src/assets"
+pigeon_data="$repo_root/src/data/pigeons.ts"
+copyright_notice="Copyright (C) $(date '+%Y') Piper Wolf. All rights reserved. For licensing inquiries or full-resolution copies, contact me@piper-wolf.com."
 
 if [[ ! -f "$from_path" ]]; then
   echo "Photo not found: $from_path" >&2
@@ -19,13 +21,21 @@ fi
 
 mkdir -p "$assets_dir"
 
-if creation_date=$(stat -f '%SB' -t '%Y-%m-%d' "$from_path" 2>/dev/null) && [[ "$creation_date" != "-" ]]; then
-  :
-elif creation_date=$(stat -c '%w' -- "$from_path" 2>/dev/null | cut -d' ' -f1) && [[ "$creation_date" != "-" ]]; then
-  :
+capture_datetime=$(magick identify -format '%[EXIF:DateTimeOriginal]' "$from_path" 2>/dev/null || true)
+if [[ "$capture_datetime" =~ ^([0-9]{4}):([0-9]{2}):([0-9]{2})[[:space:]]([0-9]{2}):([0-9]{2}):([0-9]{2})$ ]]; then
+  creation_date="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]}"
+  capture_notice="$copyright_notice Captured: ${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]} ${BASH_REMATCH[4]}:${BASH_REMATCH[5]}:${BASH_REMATCH[6]}."
 else
-  echo "Could not determine the photo creation date: $from_path" >&2
-  exit 1
+  capture_datetime=""
+  capture_notice="$copyright_notice"
+  if creation_date=$(stat -f '%SB' -t '%Y-%m-%d' "$from_path" 2>/dev/null) && [[ "$creation_date" != "-" ]]; then
+    :
+  elif creation_date=$(stat -c '%w' -- "$from_path" 2>/dev/null | cut -d' ' -f1) && [[ "$creation_date" != "-" ]]; then
+    :
+  else
+    echo "Could not determine the photo creation date: $from_path" >&2
+    exit 1
+  fi
 fi
 
 output_path="$assets_dir/$creation_date.jpg"
@@ -35,10 +45,70 @@ while [[ -e "$output_path" ]]; do
   suffix=$((suffix + 1))
 done
 
+if [[ ! -f "$pigeon_data" ]]; then
+  echo "Pigeon data file not found: $pigeon_data" >&2
+  exit 1
+fi
+
+if ! read -r -p "Alt text for the photo: " alt_text; then
+  echo "Could not read the photo metadata." >&2
+  exit 1
+fi
+if ! read -r -p "Blurb/caption (optional): " caption; then
+  echo "Could not read the photo metadata." >&2
+  exit 1
+fi
+
+escape_ts_string() {
+  local value=$1
+  value=${value//\\/\\\\}
+  value=${value//\"/\\\"}
+  printf '%s' "$value"
+}
+
+output_filename=${output_path##*/}
+image_import_name="photo_${output_filename%.jpg}"
+image_import_name=${image_import_name//-/_}
+image_import_path="../assets/$output_filename"
+escaped_image_import_path=$(escape_ts_string "$image_import_path")
+escaped_alt_text=$(escape_ts_string "$alt_text")
+escaped_caption=$(escape_ts_string "$caption")
+
+if date -j -f '%Y-%m-%d' "$creation_date" '+%B %-d, %Y' >/dev/null 2>&1; then
+  display_date=$(date -j -f '%Y-%m-%d' "$creation_date" '+%B %-d, %Y')
+else
+  display_date=$(date -d "$creation_date" '+%B %-d, %Y')
+fi
+
+metadata_tmp=$(mktemp "$pigeon_data.XXXXXX")
+trap 'rm -f "$metadata_tmp"' EXIT
+awk -v import_name="$image_import_name" \
+    -v import_path="$escaped_image_import_path" \
+    -v alt="$escaped_alt_text" \
+    -v date="$display_date" \
+    -v date_time="$creation_date" \
+    -v caption="$escaped_caption" '
+  NR == 1 {
+    printf "import %s from \"%s\";\n\n", import_name, import_path
+  }
+  /const pigeonPhotos: PigeonPhoto\[\] = \[/ {
+    print
+    printf "  {\n    image: %s,\n    alt: \"%s\",\n    date: \"%s\",\n    dateTime: \"%s\",\n    caption: \"%s\",\n  },\n", import_name, alt, date, date_time, caption
+    next
+  }
+  { print }
+' "$pigeon_data" > "$metadata_tmp"
+
 magick -- "$from_path" \
   -filter Lanczos \
   -resize "$size" \
+  -strip \
+  -set comment "$capture_notice" \
   "$output_path"
 
+mv -- "$metadata_tmp" "$pigeon_data"
+trap - EXIT
+
 echo "Imported: $output_path"
-echo "Website path: /assets/${output_path##*/}"
+echo "Astro asset import: $image_import_name"
+echo "Added pigeon photo; its post number is generated from the photo dates."

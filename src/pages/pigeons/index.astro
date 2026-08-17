@@ -1,0 +1,45 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PigeonImage from "../../components/PigeonImage.astro";
+import * as styles from "../../styles/site.css";
+import { pigeonPosts } from "../../data/pigeons";
+---
+
+<BaseLayout title="Seattle pigeons" description="A static collection of pigeon sightings from Seattle by Piper Wolf.">
+  <div class={styles.pageHeader}>
+    <div>
+      <p class={styles.eyebrow}>Are they smart? No. Are they endearing? Most certainly!</p>
+      <h1 class={styles.pageTitle}>Seattle pigeons</h1>
+    </div>
+    <a class={styles.supportLink} href="https://buymeacoffee.com/piperwolf" target="_blank" rel="noreferrer">
+      ☕️ Fund coffee and birdseed!
+    </a>
+  </div>
+
+  <section class={styles.feed} aria-label="Pigeon posts" data-feed>
+    {pigeonPosts.map((post, index) => (
+      <article class={styles.post}>
+        <div class={styles.postPhoto}>
+          <a class={styles.imageButton} href={`/pigeons/${post.number}`} aria-label={`View pigeon no. ${post.number}`}>
+            <PigeonImage
+              src={post.image}
+              alt={post.alt}
+              imageClass={styles.image}
+              loading={index === 0 ? "eager" : "lazy"}
+            />
+          </a>
+        </div>
+        <div class={styles.postDetails}>
+          <div class={styles.postMeta}>
+            <span>Pigeon no. {post.number}</span>
+            <time datetime={post.dateTime}>{post.date}</time>
+          </div>
+          <p class={styles.postCaption}>{post.caption}</p>
+        </div>
+      </article>
+    ))}
+  </section>
+  <div class={styles.feedEnd} data-feed-end aria-live="polite">
+    <span>More sightings soon.</span>
+  </div>
+</BaseLayout>

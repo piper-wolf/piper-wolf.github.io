@@ -1,0 +1,36 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PigeonImage from "../../components/PigeonImage.astro";
+import * as styles from "../../styles/site.css";
+import { pigeonPosts } from "../../data/pigeons";
+
+export function getStaticPaths() {
+  return pigeonPosts.map((post) => ({
+    params: { number: post.number },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+---
+
+<BaseLayout title={`Pigeon no. ${post.number}`} description={post.caption}>
+  <article class={styles.detailPage}>
+    <div class={styles.detailHeader}>
+      <a class={styles.backLink} href="/pigeons/">← All pigeons</a>
+      <div class={`${styles.postMeta} ${styles.detailMeta}`}>
+        <span>Pigeon no. {post.number}</span>
+        <time datetime={post.dateTime}>{post.date}</time>
+      </div>
+      <p class={styles.postCaption}>{post.caption}</p>
+    </div>
+    <PigeonImage
+      src={post.image}
+      alt={post.alt}
+      imageClass={styles.detailImage}
+      frameClass={styles.detailImageFrame}
+      loading="eager"
+      sizes="(max-width: 700px) calc(100vw - 48px), min(70rem, calc(100vw - 48px))"
+    />
+  </article>
+</BaseLayout>

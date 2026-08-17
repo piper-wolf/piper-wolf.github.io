@@ -1,21 +1,38 @@
 ---
-import * as styles from "../styles/homepage.css";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PigeonImage from "../components/PigeonImage.astro";
+import * as styles from "../styles/site.css";
+import { pigeonPosts } from "../data/pigeons";
+
+const latestPost = pigeonPosts[0];
 ---
 
-<!doctype html>
-<html lang="en" class={styles.boxSizing}>
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>Piper Wolf</title>
-  </head>
-  <body class={styles.body}>
-    <main class={styles.boxSizing}>
-      <h1 class={styles.boxSizing}>Hello, world!</h1>
-      <img
-        src="/assets/2026-08-16.jpg"
-        class={styles.image}
-      />
-    </main>
-  </body>
-</html>
+<BaseLayout title="Home">
+  <div class={styles.pageHeader}>
+    <div>
+      <p class={styles.eyebrow}>Hello, I’m Piper</p>
+      <h1 class={styles.pageTitle}>Seattle's premier pigeon photographer</h1>
+      <p>I take pigeon photos any days I'm commuting to the office I work at downtown. I want to bring awareness to how darn cute these little fellas are.</p>
+    </div>
+  </div>
+
+  <section class={styles.feature} aria-labelledby="latest-heading">
+    <div>
+      <a class={styles.imageButton} href="/pigeons/" aria-label={`View pigeon no. ${latestPost.number}`}>
+        <PigeonImage
+          src={latestPost.image}
+          alt={latestPost.alt}
+          imageClass={styles.image}
+          loading="eager"
+          sizes="(max-width: 700px) calc(100vw - 48px), 55vw"
+        />
+      </a>
+      <p class={styles.caption}>Pigeon no. {latestPost.number} · Seattle · {latestPost.date}</p>
+    </div>
+    <div class={styles.featureCopy}>
+      <p class={styles.eyebrow}>Latest sighting</p>
+      <h2 id="latest-heading" class={styles.subheading}>{latestPost.caption}</h2>
+      <a class={styles.link} href="/pigeons/">See all pigeon posts →</a>
+    </div>
+  </section>
+</BaseLayout>

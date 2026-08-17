@@ -1,0 +1,47 @@
+---
+import * as styles from "../styles/site.css";
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = "Piper Wolf — notes, photographs, and pigeons from Seattle." } = Astro.props;
+const currentPath = Astro.url.pathname;
+---
+
+<!doctype html>
+<html lang="en" class={styles.box}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description} />
+    <title>{title} — Piper Wolf</title>
+  </head>
+  <body class={styles.page}>
+    <header class={styles.header}>
+      <a class={styles.brand} href="/">Piper Wolf</a>
+      <nav class={styles.nav} aria-label="Main navigation">
+        <a class={styles.navLink} href="/" aria-current={currentPath === "/" ? "page" : undefined}>Home</a>
+        <a class={styles.navLink} href="/pigeons/" aria-current={currentPath.startsWith("/pigeons") ? "page" : undefined}>Seattle pigeons</a>
+      </nav>
+    </header>
+    <main class={styles.main}>
+      <slot />
+    </main>
+    <script
+      is:inline
+      data-name="BMC-Widget"
+      data-cfasync="false"
+      src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js"
+      data-id="piperwolf"
+      data-description="Support me on Buy me a coffee!"
+      data-message="Coo! coo! 🩷🐦"
+      data-color="#FF813F"
+      data-position="Right"
+      data-x_margin="18"
+      data-y_margin="18"
+    ></script>
+    <script is:inline data-goatcounter="https://piperwolf.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+  </body>
+</html>
