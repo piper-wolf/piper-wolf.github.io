@@ -305,8 +305,10 @@ export const detailImageFrame = style({
 export const detailImage = style({
   display: "block",
   width: "auto",
+  height: "auto",
   maxWidth: "calc(90vw - 24px)",
   maxHeight: "calc(80vh - 24px)",
+  objectFit: "contain",
   "@media": {
     "screen and (max-width: 700px)": {
       maxWidth: "calc(100vw - 72px)",
