@@ -1,3 +1,5 @@
+import photo_2026_09_01 from "../assets/2026-09-01.jpg";
+
 import photo_2026_08_31 from "../assets/2026-08-31.jpg";
 
 import photo_2026_08_18 from "../assets/2026-08-18.jpg";
@@ -25,6 +27,13 @@ export type PigeonPost = PigeonPhoto & { number: string };
 
 // Add one object here for each new photo. Posts are sorted and numbered below.
 const pigeonPhotos: PigeonPhoto[] = [
+  {
+    image: photo_2026_09_01,
+    alt: "pigeon leaping into the air with a leg kicked out in front of it",
+    date: "September 1, 2026",
+    dateTime: "2026-09-01",
+    caption: "Everybody was kung-fu fighting!!!",
+  },
   {
     image: photo_2026_08_31,
     alt: "Pigeon sitting on a ledge with white and blue graffiti in the background",
