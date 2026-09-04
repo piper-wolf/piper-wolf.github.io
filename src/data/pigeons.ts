@@ -27,7 +27,8 @@ export interface PigeonPhoto {
 
 export type PigeonPost = PigeonPhoto & { number: string };
 
-// Add one object here for each new photo. Posts are sorted and numbered below.
+// Add one object here for each new photo. Dates are publication dates; posts are
+// sorted and numbered below.
 const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_09_03,

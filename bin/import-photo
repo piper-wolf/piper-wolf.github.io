@@ -19,29 +19,62 @@ if [[ ! -f "$from_path" ]]; then
   exit 1
 fi
 
-mkdir -p "$assets_dir"
-
-capture_datetime=$(magick identify -format '%[EXIF:DateTimeOriginal]' "$from_path" 2>/dev/null || true)
-if [[ "$capture_datetime" =~ ^([0-9]{4}):([0-9]{2}):([0-9]{2})[[:space:]]([0-9]{2}):([0-9]{2}):([0-9]{2})$ ]]; then
-  creation_date="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]}"
-  capture_notice="$copyright_notice Captured: ${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]} ${BASH_REMATCH[4]}:${BASH_REMATCH[5]}:${BASH_REMATCH[6]}."
-else
-  capture_datetime=""
-  capture_notice="$copyright_notice"
-  if creation_date=$(stat -f '%SB' -t '%Y-%m-%d' "$from_path" 2>/dev/null) && [[ "$creation_date" != "-" ]]; then
-    :
-  elif creation_date=$(stat -c '%w' -- "$from_path" 2>/dev/null | cut -d' ' -f1) && [[ "$creation_date" != "-" ]]; then
-    :
-  else
-    echo "Could not determine the photo creation date: $from_path" >&2
-    exit 1
-  fi
+if ! command -v codex >/dev/null 2>&1; then
+  echo "Codex CLI not found. Install Codex before importing a photo." >&2
+  exit 1
 fi
 
-output_path="$assets_dir/$creation_date.jpg"
+if ! command -v git >/dev/null 2>&1 || ! git -C "$repo_root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "Git repository not found: $repo_root" >&2
+  exit 1
+fi
+
+if command -v magick >/dev/null 2>&1; then
+  image_command=(magick)
+  identify_command=(magick identify)
+elif command -v convert >/dev/null 2>&1 && command -v identify >/dev/null 2>&1; then
+  image_command=(convert)
+  identify_command=(identify)
+else
+  echo "ImageMagick not found. Install ImageMagick before importing a photo." >&2
+  exit 1
+fi
+
+mkdir -p "$assets_dir"
+
+source_tmp=$(mktemp "${TMPDIR:-/tmp}/import-photo-source.XXXXXX")
+resized_tmp=""
+metadata_tmp=""
+cleanup() {
+  rm -f -- "$source_tmp" "$resized_tmp" "$metadata_tmp"
+}
+trap cleanup EXIT
+
+if ! cp -- "$from_path" "$source_tmp"; then
+  echo "Could not read source photo: $from_path" >&2
+  case "$from_path" in
+    /sdcard/*|/storage/emulated/*|/mnt/sdcard/*)
+      echo "On Android, run termux-setup-storage in Termux and grant Termux access to photos/files, then try again." >&2
+      ;;
+    *)
+      echo "Check that the file is readable, for example with: chmod u+r -- '$from_path'" >&2
+      ;;
+  esac
+  exit 1
+fi
+
+capture_datetime=$("${identify_command[@]}" -format '%[EXIF:DateTimeOriginal]' "$source_tmp" 2>/dev/null || true)
+if [[ "$capture_datetime" =~ ^([0-9]{4}):([0-9]{2}):([0-9]{2})[[:space:]]([0-9]{2}):([0-9]{2}):([0-9]{2})$ ]]; then
+  capture_notice="$copyright_notice Captured: ${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]} ${BASH_REMATCH[4]}:${BASH_REMATCH[5]}:${BASH_REMATCH[6]}."
+else
+  capture_notice="$copyright_notice"
+fi
+
+post_date=$(date '+%Y-%m-%d')
+output_path="$assets_dir/$post_date.jpg"
 suffix=2
 while [[ -e "$output_path" ]]; do
-  output_path="$assets_dir/$creation_date-$suffix.jpg"
+  output_path="$assets_dir/$post_date-$suffix.jpg"
   suffix=$((suffix + 1))
 done
 
@@ -50,14 +83,35 @@ if [[ ! -f "$pigeon_data" ]]; then
   exit 1
 fi
 
-if ! read -r -p "Alt text for the photo: " alt_text; then
-  echo "Could not read the photo metadata." >&2
+printf '[import] Source: %s\n' "$from_path"
+printf '[import] Post date: %s\n' "$post_date"
+printf '[import] Generating alt text with Codex...\n'
+
+alt_prompt='Write concise, accessible alt text for the attached pigeon photo on a personal photo blog. Describe the meaningful subject, action, and setting; mention notable colors or details only when useful. Use one sentence, do not say "image" or "photo", and return only the alt text with no quotes or preamble.'
+if ! alt_text=$(codex exec \
+  --ephemeral \
+  --sandbox read-only \
+  --color never \
+  --image "$source_tmp" \
+  -C "$repo_root" \
+  "$alt_prompt" 2>/dev/null); then
+  echo "Could not generate alt text with Codex." >&2
   exit 1
 fi
-if ! read -r -p "Blurb/caption (optional): " caption; then
-  echo "Could not read the photo metadata." >&2
+
+alt_text=$(printf '%s' "$alt_text" | tr '\r\n' '  ' | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')
+if [[ -z "$alt_text" ]]; then
+  echo "Codex returned empty alt text." >&2
   exit 1
 fi
+printf '[import] Alt text: %s\n' "$alt_text"
+
+printf '[import] Caption (optional): '
+if ! IFS= read -r caption; then
+  echo "Could not read the photo caption." >&2
+  exit 1
+fi
+printf '\n'
 
 escape_ts_string() {
   local value=$1
@@ -74,19 +128,30 @@ escaped_image_import_path=$(escape_ts_string "$image_import_path")
 escaped_alt_text=$(escape_ts_string "$alt_text")
 escaped_caption=$(escape_ts_string "$caption")
 
-if date -j -f '%Y-%m-%d' "$creation_date" '+%B %-d, %Y' >/dev/null 2>&1; then
-  display_date=$(date -j -f '%Y-%m-%d' "$creation_date" '+%B %-d, %Y')
+if date -j -f '%Y-%m-%d' "$post_date" '+%B %-d, %Y' >/dev/null 2>&1; then
+  display_date=$(date -j -f '%Y-%m-%d' "$post_date" '+%B %-d, %Y')
 else
-  display_date=$(date -d "$creation_date" '+%B %-d, %Y')
+  display_date=$(date -d "$post_date" '+%B %-d, %Y')
 fi
 
+printf '[import] Resizing photo to %s...\n' "$size"
+resized_tmp=$(mktemp "$assets_dir/.import-photo.XXXXXX.jpg")
+"${image_command[@]}" "$source_tmp" \
+  -filter Lanczos \
+  -resize "$size" \
+  -strip \
+  -set comment "$capture_notice" \
+  "$resized_tmp"
+
+mv -- "$resized_tmp" "$output_path"
+resized_tmp=""
+
 metadata_tmp=$(mktemp "$pigeon_data.XXXXXX")
-trap 'rm -f "$metadata_tmp"' EXIT
 awk -v import_name="$image_import_name" \
     -v import_path="$escaped_image_import_path" \
     -v alt="$escaped_alt_text" \
     -v date="$display_date" \
-    -v date_time="$creation_date" \
+    -v date_time="$post_date" \
     -v caption="$escaped_caption" '
   NR == 1 {
     printf "import %s from \"%s\";\n\n", import_name, import_path
@@ -99,16 +164,25 @@ awk -v import_name="$image_import_name" \
   { print }
 ' "$pigeon_data" > "$metadata_tmp"
 
-magick -- "$from_path" \
-  -filter Lanczos \
-  -resize "$size" \
-  -strip \
-  -set comment "$capture_notice" \
-  "$output_path"
-
+printf '[import] Writing pigeon metadata...\n'
 mv -- "$metadata_tmp" "$pigeon_data"
-trap - EXIT
+metadata_tmp=""
 
-echo "Imported: $output_path"
-echo "Astro asset import: $image_import_name"
-echo "Added pigeon photo; its post number is generated from the photo dates."
+asset_relative_path=${output_path#"$repo_root/"}
+data_relative_path=${pigeon_data#"$repo_root/"}
+printf '[import] Committing imported photo...\n'
+git -C "$repo_root" add -- "$asset_relative_path" "$data_relative_path"
+git -C "$repo_root" commit --only -m "Import photo: $post_date" -- "$asset_relative_path" "$data_relative_path"
+
+branch_name=$(git -C "$repo_root" symbolic-ref --quiet --short HEAD || true)
+if [[ -z "$branch_name" ]]; then
+  echo "Import committed, but the current checkout is detached; push the commit manually." >&2
+  exit 1
+fi
+
+printf '[import] Pushing %s...\n' "$branch_name"
+git -C "$repo_root" push origin "$branch_name"
+
+printf '[import] Done: %s\n' "$output_path"
+printf '[import] Astro asset import: %s\n' "$image_import_name"
+printf '[import] Pigeon post number will be generated from the post date.\n'
