@@ -94,7 +94,7 @@ if ! alt_text=$(codex exec \
   --color never \
   --image "$source_tmp" \
   -C "$repo_root" \
-  "$alt_prompt" 2>/dev/null); then
+  "$alt_prompt" </dev/null 2>/dev/null); then
   echo "Could not generate alt text with Codex." >&2
   exit 1
 fi
