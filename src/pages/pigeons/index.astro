@@ -5,8 +5,7 @@ import * as styles from "../../styles/site.css";
 import { getImage } from "astro:assets";
 import { pigeonPosts } from "../../data/pigeons";
 
-const description =
-  "Browse Seattle pigeon photos by Piper Wolf, including close-up portraits, pigeons in flight, and candid city bird sightings from downtown Seattle.";
+const description = "A static collection of pigeon sightings from Seattle by Piper Wolf.";
 const optimizedSocialImage = await getImage({ src: pigeonPosts[0].image, width: 1200, format: "jpeg" });
 const socialImage = {
   src: optimizedSocialImage.src,
@@ -38,7 +37,7 @@ const structuredData = {
 ---
 
 <BaseLayout
-  title="Seattle Pigeon Photos"
+  title="Seattle pigeons"
   description={description}
   socialImage={socialImage}
   socialImageAlt={pigeonPosts[0].alt}
@@ -46,8 +45,8 @@ const structuredData = {
 >
   <div class={styles.pageHeader}>
     <div>
-      <p class={styles.eyebrow}>A growing collection of pigeon photography from downtown Seattle.</p>
-      <h1 class={styles.pageTitle}>Seattle pigeon photos</h1>
+      <p class={styles.eyebrow}>Are they smart? No. Are they endearing? Most certainly!</p>
+      <h1 class={styles.pageTitle}>Seattle pigeons</h1>
     </div>
     <a class={styles.supportLink} href="https://buymeacoffee.com/piperwolf" target="_blank" rel="noopener noreferrer">
       ☕️ Fund coffee and birdseed!
@@ -58,7 +57,7 @@ const structuredData = {
     {pigeonPosts.map((post, index) => (
       <article id={post.number} class={styles.post}>
         <div class={styles.postPhoto}>
-          <a class={styles.imageButton} href={`/pigeons/${post.number}/`} aria-label={`View Seattle pigeon photo no. ${post.number}`}>
+          <a class={styles.imageButton} href={`/pigeons/${post.number}/`} aria-label={`View pigeon no. ${post.number}`}>
             <PigeonImage
               src={post.image}
               alt={post.alt}
@@ -70,7 +69,7 @@ const structuredData = {
         <div class={styles.postDetails}>
           <div class={styles.postMeta}>
             <h2 class={styles.postTitle}>
-              <a class={styles.postTitleLink} href={`/pigeons/${post.number}/`}>Seattle pigeon no. {post.number}</a>
+              <a class={styles.postTitleLink} href={`/pigeons/${post.number}/`}>Pigeon no. {post.number}</a>
             </h2>
             <time datetime={post.dateTime}>{post.date}</time>
           </div>

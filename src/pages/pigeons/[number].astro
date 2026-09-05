@@ -13,7 +13,7 @@ export function getStaticPaths() {
 }
 
 const { post } = Astro.props;
-const description = `Seattle pigeon photo no. ${post.number} by Piper Wolf: ${post.alt}`;
+const description = post.caption;
 const optimizedSocialImage = await getImage({ src: post.image, width: 1200, format: "jpeg" });
 const socialImage = {
   src: optimizedSocialImage.src,
@@ -42,7 +42,7 @@ const structuredData = {
 ---
 
 <BaseLayout
-  title={`Seattle pigeon photo no. ${post.number}`}
+  title={`Pigeon no. ${post.number}`}
   description={description}
   type="article"
   publishedTime={post.dateTime}
@@ -52,12 +52,12 @@ const structuredData = {
 >
   <article class={styles.detailPage}>
     <div class={styles.detailHeader}>
-      <a class={styles.backLink} href={`/pigeons/#${post.number}`}>← All Seattle pigeons</a>
+      <a class={styles.backLink} href={`/pigeons/#${post.number}`}>← All pigeons</a>
       <div class={`${styles.postMeta} ${styles.detailMeta}`}>
         <span>Pigeon no. {post.number}</span>
         <time datetime={post.dateTime}>{post.date}</time>
       </div>
-      <h1 class={styles.detailTitle}>Seattle pigeon photo no. {post.number}</h1>
+      <h1 class={styles.detailTitle}>Pigeon no. {post.number}</h1>
       <p class={styles.postCaption}>{post.caption}</p>
     </div>
     <PigeonImage
