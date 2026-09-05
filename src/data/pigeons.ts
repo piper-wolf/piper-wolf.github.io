@@ -1,3 +1,5 @@
+import photo_2026_09_05 from "../assets/2026-09-05.jpg";
+
 import photo_2026_09_04 from "../assets/2026-09-04.jpg";
 
 import photo_2026_09_03 from "../assets/2026-09-03.jpg";
@@ -32,6 +34,13 @@ export type PigeonPost = PigeonPhoto & { number: string };
 // Add one object here for each new photo. Dates are publication dates; posts are
 // sorted and numbered below.
 const pigeonPhotos: PigeonPhoto[] = [
+  {
+    image: photo_2026_09_05,
+    alt: "A pigeon walks toward the camera while a sparrow stands behind it on a garden path.",
+    date: "September 5, 2026",
+    dateTime: "2026-09-05",
+    caption: "BIG STEPPAH NUMBER ON STEPPAH",
+  },
   {
     image: photo_2026_09_04,
     alt: "A dark pigeon flies past a blurred gray building with one wing raised and its feet tucked beneath it.",
