@@ -39,7 +39,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "A pigeon walks toward the camera while a sparrow stands behind it on a garden path.",
     date: "September 5, 2026",
     dateTime: "2026-09-05",
-    caption: "BIG STEPPAH NUMBER ON STEPPAH",
+    caption: "BIG STEPPAH NUMBER ONE STEPPAH",
   },
   {
     image: photo_2026_09_04,
