@@ -93,7 +93,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   },
   {
     image: jul21,
-    alt: "",
+    alt: "A gray pigeon bends down to pick up a seed on a bright city sidewalk.",
     date: "July 21, 2026",
     dateTime: "2026-07-21",
     caption:
@@ -101,7 +101,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   },
   {
     image: may14,
-    alt: "",
+    alt: "A gray-and-white pigeon stands against a soft pink and green background.",
     date: "May 14, 2026",
     dateTime: "2026-05-14",
     caption:
@@ -109,14 +109,14 @@ const pigeonPhotos: PigeonPhoto[] = [
   },
   {
     image: aug07,
-    alt: "",
+    alt: "A close-up portrait of a dark pigeon with a bright red eye against a dark background.",
     date: "August 7, 2026",
     dateTime: "2026-08-07",
     caption: "Incredible depth in the eyes of this lil pigeon.",
   },
   {
     image: aug06,
-    alt: "",
+    alt: "Three pigeons face the camera while a white seagull stands behind them.",
     date: "August 6, 2026",
     dateTime: "2026-08-06",
     caption:

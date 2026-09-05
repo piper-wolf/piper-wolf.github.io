@@ -4,10 +4,34 @@ import * as styles from "../styles/site.css";
 interface Props {
   title: string;
   description?: string;
+  type?: "website" | "article";
+  publishedTime?: string;
+  socialImage?: {
+    src: string;
+    width: number;
+    height: number;
+  };
+  socialImageAlt?: string;
+  structuredData?: Record<string, unknown>;
 }
 
-const { title, description = "Piper Wolf — notes, photographs, and pigeons from Seattle." } = Astro.props;
+const {
+  title,
+  description = "Seattle pigeon photography by Piper Wolf—close-up portraits and candid photos of the city's curious birds, photographed around downtown.",
+  type = "website",
+  publishedTime,
+  socialImage,
+  socialImageAlt = "Seattle pigeon photograph by Piper Wolf",
+  structuredData,
+} = Astro.props;
+const siteUrl = Astro.site ?? Astro.url;
 const currentPath = Astro.url.pathname;
+const canonicalPath = currentPath === "/" || currentPath.endsWith("/") ? currentPath : `${currentPath}/`;
+const canonicalUrl = new URL(canonicalPath, siteUrl);
+const pageTitle = `${title} — Piper Wolf`;
+const serializedStructuredData = structuredData
+  ? JSON.stringify(structuredData).replace(/</g, "\\u003c")
+  : undefined;
 ---
 
 <!doctype html>
@@ -15,9 +39,30 @@ const currentPath = Astro.url.pathname;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
+    <meta name="author" content="Piper Wolf" />
     <meta name="description" content={description} />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#f5f3ed" />
     <link rel="icon" type="image/jpeg" href="/favicon.jpg" />
-    <title>{title} — Piper Wolf</title>
+    <link rel="canonical" href={canonicalUrl} />
+    <meta property="og:site_name" content="Piper Wolf" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:type" content={type} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    {socialImage && <meta property="og:image" content={new URL(socialImage.src, siteUrl)} />}
+    {socialImage && <meta property="og:image:alt" content={socialImageAlt} />}
+    {socialImage && <meta property="og:image:width" content={String(socialImage.width)} />}
+    {socialImage && <meta property="og:image:height" content={String(socialImage.height)} />}
+    {type === "article" && publishedTime && <meta property="article:published_time" content={publishedTime} />}
+    <meta name="twitter:card" content={socialImage ? "summary_large_image" : "summary"} />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
+    {socialImage && <meta name="twitter:image" content={new URL(socialImage.src, siteUrl)} />}
+    {socialImage && <meta name="twitter:image:alt" content={socialImageAlt} />}
+    {serializedStructuredData && <script type="application/ld+json" set:html={serializedStructuredData} />}
+    <title>{pageTitle}</title>
   </head>
   <body class={styles.page}>
     <header class={styles.header}>

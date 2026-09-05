@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import PigeonImage from "../../components/PigeonImage.astro";
 import * as styles from "../../styles/site.css";
+import { getImage } from "astro:assets";
 import { pigeonPosts } from "../../data/pigeons";
 
 export function getStaticPaths() {
@@ -12,16 +13,51 @@ export function getStaticPaths() {
 }
 
 const { post } = Astro.props;
+const description = `Seattle pigeon photo no. ${post.number} by Piper Wolf: ${post.alt}`;
+const optimizedSocialImage = await getImage({ src: post.image, width: 1200, format: "jpeg" });
+const socialImage = {
+  src: optimizedSocialImage.src,
+  width: Number(optimizedSocialImage.attributes.width),
+  height: Number(optimizedSocialImage.attributes.height),
+};
+const siteUrl = Astro.site ?? Astro.url;
+const detailUrl = new URL(`/pigeons/${post.number}/`, siteUrl).href;
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "ImageObject",
+  "@id": `${detailUrl}#primaryimage`,
+  name: `Seattle pigeon photo no. ${post.number}`,
+  description: post.alt,
+  caption: post.caption,
+  contentUrl: new URL(socialImage.src, siteUrl).href,
+  url: detailUrl,
+  encodingFormat: "image/jpeg",
+  width: socialImage.width,
+  height: socialImage.height,
+  datePublished: post.dateTime,
+  creator: { "@type": "Person", name: "Piper Wolf", url: new URL("/", siteUrl).href },
+  contentLocation: { "@type": "Place", name: "Seattle, Washington" },
+  mainEntityOfPage: { "@type": "WebPage", "@id": detailUrl },
+};
 ---
 
-<BaseLayout title={`Pigeon no. ${post.number}`} description={post.caption}>
+<BaseLayout
+  title={`Seattle pigeon photo no. ${post.number}`}
+  description={description}
+  type="article"
+  publishedTime={post.dateTime}
+  socialImage={socialImage}
+  socialImageAlt={post.alt}
+  structuredData={structuredData}
+>
   <article class={styles.detailPage}>
     <div class={styles.detailHeader}>
-      <a class={styles.backLink} href={`/pigeons/#${post.number}`}>← All pigeons</a>
+      <a class={styles.backLink} href={`/pigeons/#${post.number}`}>← All Seattle pigeons</a>
       <div class={`${styles.postMeta} ${styles.detailMeta}`}>
         <span>Pigeon no. {post.number}</span>
         <time datetime={post.dateTime}>{post.date}</time>
       </div>
+      <h1 class={styles.detailTitle}>Seattle pigeon photo no. {post.number}</h1>
       <p class={styles.postCaption}>{post.caption}</p>
     </div>
     <PigeonImage

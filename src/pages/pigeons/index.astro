@@ -2,16 +2,54 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import PigeonImage from "../../components/PigeonImage.astro";
 import * as styles from "../../styles/site.css";
+import { getImage } from "astro:assets";
 import { pigeonPosts } from "../../data/pigeons";
+
+const description =
+  "Browse Seattle pigeon photos by Piper Wolf, including close-up portraits, pigeons in flight, and candid city bird sightings from downtown Seattle.";
+const optimizedSocialImage = await getImage({ src: pigeonPosts[0].image, width: 1200, format: "jpeg" });
+const socialImage = {
+  src: optimizedSocialImage.src,
+  width: Number(optimizedSocialImage.attributes.width),
+  height: Number(optimizedSocialImage.attributes.height),
+};
+const siteUrl = Astro.site ?? Astro.url;
+const collectionUrl = new URL("/pigeons/", siteUrl).href;
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "@id": `${collectionUrl}#webpage`,
+  url: collectionUrl,
+  name: "Seattle Pigeon Photos",
+  description,
+  isPartOf: { "@id": `${new URL("/", siteUrl).href}#website` },
+  about: { "@type": "Thing", name: "Seattle pigeons" },
+  mainEntity: {
+    "@type": "ItemList",
+    numberOfItems: pigeonPosts.length,
+    itemListElement: pigeonPosts.map((post, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: `Seattle pigeon photo no. ${post.number}`,
+      url: new URL(`/pigeons/${post.number}/`, siteUrl).href,
+    })),
+  },
+};
 ---
 
-<BaseLayout title="Seattle pigeons" description="A static collection of pigeon sightings from Seattle by Piper Wolf.">
+<BaseLayout
+  title="Seattle Pigeon Photos"
+  description={description}
+  socialImage={socialImage}
+  socialImageAlt={pigeonPosts[0].alt}
+  structuredData={structuredData}
+>
   <div class={styles.pageHeader}>
     <div>
-      <p class={styles.eyebrow}>Are they smart? No. Are they endearing? Most certainly!</p>
-      <h1 class={styles.pageTitle}>Seattle pigeons</h1>
+      <p class={styles.eyebrow}>A growing collection of pigeon photography from downtown Seattle.</p>
+      <h1 class={styles.pageTitle}>Seattle pigeon photos</h1>
     </div>
-    <a class={styles.supportLink} href="https://buymeacoffee.com/piperwolf" target="_blank" rel="noreferrer">
+    <a class={styles.supportLink} href="https://buymeacoffee.com/piperwolf" target="_blank" rel="noopener noreferrer">
       ☕️ Fund coffee and birdseed!
     </a>
   </div>
@@ -20,7 +58,7 @@ import { pigeonPosts } from "../../data/pigeons";
     {pigeonPosts.map((post, index) => (
       <article id={post.number} class={styles.post}>
         <div class={styles.postPhoto}>
-          <a class={styles.imageButton} href={`/pigeons/${post.number}`} aria-label={`View pigeon no. ${post.number}`}>
+          <a class={styles.imageButton} href={`/pigeons/${post.number}/`} aria-label={`View Seattle pigeon photo no. ${post.number}`}>
             <PigeonImage
               src={post.image}
               alt={post.alt}
@@ -31,7 +69,9 @@ import { pigeonPosts } from "../../data/pigeons";
         </div>
         <div class={styles.postDetails}>
           <div class={styles.postMeta}>
-            <span>Pigeon no. {post.number}</span>
+            <h2 class={styles.postTitle}>
+              <a class={styles.postTitleLink} href={`/pigeons/${post.number}/`}>Seattle pigeon no. {post.number}</a>
+            </h2>
             <time datetime={post.dateTime}>{post.date}</time>
           </div>
           <p class={styles.postCaption}>{post.caption}</p>

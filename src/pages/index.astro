@@ -2,23 +2,72 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import PigeonImage from "../components/PigeonImage.astro";
 import * as styles from "../styles/site.css";
+import { getImage } from "astro:assets";
 import { pigeonPosts } from "../data/pigeons";
 
 const latestPost = pigeonPosts[0];
+const description =
+  "Seattle pigeon photography by Piper Wolf—close-up portraits and candid photos of the city's curious birds, photographed around downtown.";
+const optimizedSocialImage = await getImage({ src: latestPost.image, width: 1200, format: "jpeg" });
+const socialImage = {
+  src: optimizedSocialImage.src,
+  width: Number(optimizedSocialImage.attributes.width),
+  height: Number(optimizedSocialImage.attributes.height),
+};
+const siteUrl = Astro.site ?? Astro.url;
+const homeUrl = new URL("/", siteUrl).href;
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${homeUrl}#website`,
+      url: homeUrl,
+      name: "Piper Wolf",
+      description,
+      publisher: { "@id": `${homeUrl}#person` },
+    },
+    {
+      "@type": "Person",
+      "@id": `${homeUrl}#person`,
+      name: "Piper Wolf",
+      url: homeUrl,
+    },
+    {
+      "@type": "WebPage",
+      "@id": `${homeUrl}#webpage`,
+      url: homeUrl,
+      name: "Seattle Pigeon Photography",
+      description,
+      isPartOf: { "@id": `${homeUrl}#website` },
+      about: { "@type": "Thing", name: "Seattle pigeons" },
+      primaryImageOfPage: {
+        "@type": "ImageObject",
+        contentUrl: new URL(socialImage.src, siteUrl).href,
+      },
+    },
+  ],
+};
 ---
 
-<BaseLayout title="Home">
+<BaseLayout
+  title="Seattle Pigeon Photography"
+  description={description}
+  socialImage={socialImage}
+  socialImageAlt={latestPost.alt}
+  structuredData={structuredData}
+>
   <div class={styles.pageHeader}>
     <div>
       <p class={styles.eyebrow}>Hello, I’m Piper</p>
-      <h1 class={styles.pageTitle}>Seattle's premier pigeon photographer</h1>
-      <p>I take pigeon photos any days I'm commuting to the office I work at downtown. I want to bring awareness to how darn cute these little fellas are.</p>
+      <h1 class={styles.pageTitle}>Seattle pigeon photography</h1>
+      <p>I photograph the pigeons I meet while commuting through downtown Seattle. This growing collection is a small argument for how darn cute these city birds are.</p>
     </div>
   </div>
 
   <section class={styles.feature} aria-labelledby="latest-heading">
     <div>
-      <a class={styles.imageButton} href="/pigeons/" aria-label={`View pigeon no. ${latestPost.number}`}>
+      <a class={styles.imageButton} href="/pigeons/" aria-label={`View Seattle pigeon photo no. ${latestPost.number}`}>
         <PigeonImage
           src={latestPost.image}
           alt={latestPost.alt}

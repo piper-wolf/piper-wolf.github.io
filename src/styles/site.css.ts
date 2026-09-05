@@ -247,6 +247,22 @@ export const postMeta = style({
 
 export const postDetails = style({ minWidth: 0 });
 
+export const postTitle = style({
+  margin: 0,
+  fontSize: "0.72rem",
+  fontWeight: "400",
+  letterSpacing: "0.05em",
+  textTransform: "uppercase",
+});
+
+export const postTitleLink = style({
+  color: "inherit",
+  textDecoration: "none",
+  selectors: {
+    "&:hover": { textDecoration: "underline", textUnderlineOffset: "3px" },
+  },
+});
+
 export const detailMeta = style({
   justifyContent: "flex-start",
   gap: "32px",
@@ -268,6 +284,14 @@ export const detailPage = style({
 export const detailHeader = style({
   maxWidth: "42rem",
   marginBottom: "24px",
+});
+
+export const detailTitle = style({
+  margin: "18px 0 0",
+  fontSize: "2rem",
+  fontWeight: "400",
+  letterSpacing: "-0.075em",
+  lineHeight: 0.95,
 });
 
 export const backLink = style({
