@@ -1,3 +1,5 @@
+import photo_2026_09_06 from "../assets/2026-09-06.jpg";
+
 import photo_2026_09_05 from "../assets/2026-09-05.jpg";
 
 import photo_2026_09_04 from "../assets/2026-09-04.jpg";
@@ -34,6 +36,13 @@ export type PigeonPost = PigeonPhoto & { number: string };
 // Add one object here for each new photo. Dates are publication dates; posts are
 // sorted and numbered below.
 const pigeonPhotos: PigeonPhoto[] = [
+  {
+    image: photo_2026_09_06,
+    alt: "Close-up of a pigeon’s dark gray and white feathers against a softly blurred background.",
+    date: "September 6, 2026",
+    dateTime: "2026-09-06",
+    caption: "No ohio pigeons sighted, but I have plenty more Seattle pigeons in the backlog.",
+  },
   {
     image: photo_2026_09_05,
     alt: "A pigeon walks toward the camera while a sparrow stands behind it on a garden path.",
