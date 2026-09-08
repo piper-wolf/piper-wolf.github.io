@@ -85,6 +85,15 @@ fi
 
 printf '[import] Source: %s\n' "$from_path"
 printf '[import] Post date: %s\n' "$post_date"
+printf '[import] Resizing photo to %s...\n' "$size"
+resized_tmp=$(mktemp "$assets_dir/.import-photo.XXXXXX.jpg")
+"${image_command[@]}" "$source_tmp" \
+  -filter Lanczos \
+  -resize "$size" \
+  -strip \
+  -set comment "$capture_notice" \
+  "$resized_tmp"
+
 printf '[import] Generating alt text with Codex...\n'
 
 alt_prompt='Write concise, accessible alt text for the attached pigeon photo on a personal photo blog. Describe the meaningful subject, action, and setting; mention notable colors or details only when useful. Use one sentence, do not say "image" or "photo", and return only the alt text with no quotes or preamble.'
@@ -92,7 +101,7 @@ if ! alt_text=$(codex exec \
   --ephemeral \
   --sandbox read-only \
   --color never \
-  --image "$source_tmp" \
+  --image "$resized_tmp" \
   -C "$repo_root" \
   "$alt_prompt" </dev/null 2>/dev/null); then
   echo "Could not generate alt text with Codex." >&2
@@ -133,15 +142,6 @@ if date -j -f '%Y-%m-%d' "$post_date" '+%B %-d, %Y' >/dev/null 2>&1; then
 else
   display_date=$(date -d "$post_date" '+%B %-d, %Y')
 fi
-
-printf '[import] Resizing photo to %s...\n' "$size"
-resized_tmp=$(mktemp "$assets_dir/.import-photo.XXXXXX.jpg")
-"${image_command[@]}" "$source_tmp" \
-  -filter Lanczos \
-  -resize "$size" \
-  -strip \
-  -set comment "$capture_notice" \
-  "$resized_tmp"
 
 mv -- "$resized_tmp" "$output_path"
 resized_tmp=""
