@@ -1,3 +1,5 @@
+import photo_2026_09_08 from "../assets/2026-09-08.jpg";
+
 import photo_2026_09_06 from "../assets/2026-09-06.jpg";
 
 import photo_2026_09_05 from "../assets/2026-09-05.jpg";
@@ -36,6 +38,13 @@ export type PigeonPost = PigeonPhoto & { number: string };
 // Add one object here for each new photo. Dates are publication dates; posts are
 // sorted and numbered below.
 const pigeonPhotos: PigeonPhoto[] = [
+  {
+    image: photo_2026_09_08,
+    alt: "A dark gray pigeon flaps its wings while landing on a concrete ledge beside a blue-tinted window.",
+    date: "September 8, 2026",
+    dateTime: "2026-09-08",
+    caption: "Photographed the moment of takeoff for a seed hunt",
+  },
   {
     image: photo_2026_09_06,
     alt: "Close-up of a pigeon’s dark gray and white feathers against a softly blurred background.",
