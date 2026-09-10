@@ -1,0 +1,16 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import * as styles from "../styles/site.css";
+---
+
+<BaseLayout title="Page not found" description="This page could not be found. Explore Piper Wolf’s Seattle pigeon photographs." noindex>
+  <div class={styles.homeHeader}>
+    <p class={styles.eyebrow}>404</p>
+    <h1 class={styles.pageTitle}>Page not found</h1>
+    <p class={styles.intro}>The page you’re looking for isn’t here. You can head home or browse the pigeon photos.</p>
+  </div>
+  <nav class={styles.nav} aria-label="Page recovery">
+    <a class={styles.navLink} href="/">Go home</a>
+    <a class={styles.navLink} href="/pigeons/">Browse pigeon photos →</a>
+  </nav>
+</BaseLayout>

@@ -4,6 +4,7 @@ import * as styles from "../styles/site.css";
 interface Props {
   title: string;
   description?: string;
+  noindex?: boolean;
   type?: "website" | "article";
   publishedTime?: string;
   socialImage?: {
@@ -19,6 +20,7 @@ const {
   title,
   description = "Piper Wolf — notes, photographs, and pigeons from Seattle.",
   type = "website",
+  noindex = false,
   publishedTime,
   socialImage,
   socialImageAlt = "Seattle pigeon photograph by Piper Wolf",
@@ -26,7 +28,7 @@ const {
 } = Astro.props;
 const siteUrl = Astro.site ?? Astro.url;
 const currentPath = Astro.url.pathname;
-const canonicalPath = currentPath === "/" || currentPath.endsWith("/") ? currentPath : `${currentPath}/`;
+const canonicalPath = currentPath === "/" || currentPath.endsWith("/") || currentPath.endsWith(".html") ? currentPath : `${currentPath}/`;
 const canonicalUrl = new URL(canonicalPath, siteUrl);
 const pageTitle = `${title} — Piper Wolf`;
 const serializedStructuredData = structuredData
@@ -41,10 +43,10 @@ const serializedStructuredData = structuredData
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="author" content="Piper Wolf" />
     <meta name="description" content={description} />
-    <meta name="robots" content="index, follow" />
+    <meta name="robots" content={noindex ? "noindex, follow" : "index, follow"} />
     <meta name="theme-color" content="#f5f3ed" />
     <link rel="icon" type="image/jpeg" href="/favicon.jpg" />
-    <link rel="canonical" href={canonicalUrl} />
+    {!noindex && <link rel="canonical" href={canonicalUrl} />}
     <meta property="og:site_name" content="Piper Wolf" />
     <meta property="og:locale" content="en_US" />
     <meta property="og:type" content={type} />
