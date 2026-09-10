@@ -99,3 +99,23 @@ for (const width of [320, 390, 768, 1440]) {
     });
   }
 }
+
+test("a touch phone uses its device width at high pixel density", async ({ browser }) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    hasTouch: true,
+  });
+  try {
+    const page = await context.newPage();
+    await page.route("https://**", (route) => route.abort());
+    await page.goto("http://127.0.0.1:4321/pigeons/");
+    expect(await page.evaluate(() => document.documentElement.clientWidth)).toBe(390);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+    await page.getByRole("link", { name: /^View pigeon no\./ }).first().tap();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Pigeon no\./);
+  } finally {
+    await context.close();
+  }
+});
