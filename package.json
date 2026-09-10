@@ -7,16 +7,22 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "test": "npm run build && playwright test",
-    "test:browser": "playwright test"
+    "test": "npm run check && npm run build && playwright test",
+    "test:browser": "playwright test",
+    "check": "astro check"
   },
   "dependencies": {
-    "astro": "^7.2.2"
+    "astro": "^7.3.2"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.10",
     "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.63.0",
     "@vanilla-extract/css": "^1.21.2",
-    "@vanilla-extract/vite-plugin": "^5.2.6"
+    "@vanilla-extract/vite-plugin": "^5.2.6",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

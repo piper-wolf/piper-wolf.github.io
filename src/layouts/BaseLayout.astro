@@ -61,7 +61,7 @@ const serializedStructuredData = structuredData
     <meta name="twitter:description" content={description} />
     {socialImage && <meta name="twitter:image" content={new URL(socialImage.src, siteUrl)} />}
     {socialImage && <meta name="twitter:image:alt" content={socialImageAlt} />}
-    {serializedStructuredData && <script type="application/ld+json" set:html={serializedStructuredData} />}
+    {serializedStructuredData && <script is:inline type="application/ld+json" set:html={serializedStructuredData} />}
     <title>{pageTitle}</title>
   </head>
   <body class={styles.page}>

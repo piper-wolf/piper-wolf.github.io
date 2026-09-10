@@ -21,7 +21,8 @@ On Android, grant Termux access to photos/files and run `termux-setup-storage` b
 
 Use Node.js 22.12 or later. Install dependencies with `npm ci`, then install the test browser once with `npx playwright install --with-deps chromium`.
 
-- `npm test` builds the static site and runs browser checks against Astro's production preview.
+- `npm run check` checks Astro and TypeScript diagnostics.
+- `npm test` type-checks and builds the static site and runs browser checks against Astro's production preview.
 - `npm run test:browser` checks an existing build.
 - `npm audit` checks dependencies for known advisories.
 
