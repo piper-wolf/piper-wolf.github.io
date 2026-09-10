@@ -9,8 +9,6 @@ export const page = style({
   overflowWrap: "anywhere",
 });
 
-export const box = style({ boxSizing: "border-box" });
-
 export const header = style({
   display: "flex",
   alignItems: "center",
@@ -50,7 +48,6 @@ export const navLink = style({
   selectors: {
     "&:hover": { color: "#a64128" },
     "&[aria-current]": { color: "#1d2826", fontWeight: "700", textDecoration: "underline" },
-    "&:focus-visible": { outline: "2px solid #a64128", outlineOffset: "4px" },
   },
 });
 
@@ -68,15 +65,6 @@ export const eyebrow = style({
   fontWeight: "700",
   letterSpacing: "0.14em",
   textTransform: "uppercase",
-});
-
-export const heading = style({
-  maxWidth: "32rem",
-  margin: "10px 0 24px",
-  fontSize: "2rem",
-  fontWeight: "400",
-  letterSpacing: "-0.035em",
-  lineHeight: "0.88",
 });
 
 export const intro = style({
@@ -136,13 +124,6 @@ export const subheading = style({
   lineHeight: 1.3,
 });
 
-export const text = style({
-  margin: 0,
-  color: "#53635d",
-  fontSize: "1.05rem",
-  lineHeight: 1.7,
-});
-
 export const link = style({
   display: "inline-block",
   marginTop: "24px",
@@ -190,7 +171,6 @@ export const supportLink = style({
   textTransform: "uppercase",
   selectors: {
     "&:hover": { textDecoration: "underline", textUnderlineOffset: "4px" },
-    "&:focus-visible": { outline: "2px solid #a64128", outlineOffset: "4px" },
   },
   "@media": {
     "screen and (max-width: 48rem)": {
@@ -232,9 +212,6 @@ export const imageButton = style({
   color: "inherit",
   textDecoration: "none",
   cursor: "pointer",
-  selectors: {
-    "&:focus-visible": { outline: "2px solid #a64128", outlineOffset: "5px" },
-  },
 });
 
 globalStyle(`${imageButton}:hover ${image}`, {
@@ -319,7 +296,6 @@ export const backLink = style({
   textTransform: "uppercase",
   selectors: {
     "&:hover": { textDecoration: "underline", textUnderlineOffset: "4px" },
-    "&:focus-visible": { outline: "2px solid #a64128", outlineOffset: "4px" },
   },
 });
 
@@ -357,7 +333,7 @@ export const feedEnd = style({
   textTransform: "uppercase",
 });
 
-globalStyle("*", { boxSizing: "border-box" });
+globalStyle("*, *::before, *::after", { boxSizing: "border-box" });
 globalStyle("body", { margin: 0 });
 globalStyle("::selection", { background: "#e6b39b", color: "#1d2826" });
 
