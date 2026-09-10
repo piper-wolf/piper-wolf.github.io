@@ -9,10 +9,12 @@
     "preview": "astro preview",
     "test": "npm run check && npm run build && playwright test",
     "test:browser": "playwright test",
+    "test:import": "node --test tests/import-photo.node.mjs",
     "check": "astro check"
   },
   "dependencies": {
-    "astro": "^7.3.2"
+    "astro": "^7.3.2",
+    "exifr": "^7.1.3"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",

@@ -14,6 +14,11 @@ assets_dir="$repo_root/src/assets"
 pigeon_data="$repo_root/src/data/pigeons.ts"
 copyright_notice="Copyright (C) $(date '+%Y') Piper Wolf. All rights reserved. For licensing inquiries or full-resolution copies, contact me@piper-wolf.com."
 
+if ! command -v exiftool >/dev/null 2>&1; then
+  echo "ExifTool not found. Install ExifTool before importing a photo." >&2
+  exit 1
+fi
+
 if [[ ! -f "$from_path" ]]; then
   echo "Photo not found: $from_path" >&2
   exit 1
@@ -88,10 +93,21 @@ printf '[import] Post date: %s\n' "$post_date"
 printf '[import] Resizing photo to %s...\n' "$size"
 resized_tmp=$(mktemp "$assets_dir/.import-photo.XXXXXX.jpg")
 "${image_command[@]}" "$source_tmp" \
+  -auto-orient \
   -filter Lanczos \
   -resize "$size" \
   -strip \
   -set comment "$capture_notice" \
+  "$resized_tmp"
+
+# Copy only photographic fields. Never copy GPS, XMP/IPTC location fields,
+# maker notes, serial numbers, or embedded thumbnails from the original.
+exiftool -overwrite_original -TagsFromFile "$source_tmp" \
+  -EXIF:Make -EXIF:Model -EXIF:LensMake -EXIF:LensModel \
+  -EXIF:DateTimeOriginal -EXIF:SubSecTimeOriginal -EXIF:OffsetTimeOriginal \
+  -EXIF:ExposureTime -EXIF:FNumber -EXIF:ISO -EXIF:FocalLength \
+  -EXIF:FocalLengthIn35mmFormat -EXIF:ExposureCompensation \
+  -EXIF:ExposureProgram -EXIF:MeteringMode -EXIF:Flash -EXIF:WhiteBalance \
   "$resized_tmp"
 
 printf '[import] Generating alt text with Codex...\n'

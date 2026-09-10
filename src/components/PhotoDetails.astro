@@ -1,0 +1,41 @@
+---
+import type { PigeonPost } from "../data/pigeons";
+import * as styles from "../styles/site.css";
+
+import type { readPhotoMetadata } from "../lib/photo-metadata.mjs";
+interface Props { post: PigeonPost; metadata: Partial<Awaited<ReturnType<typeof readPhotoMetadata>>> }
+const { post, metadata } = Astro.props;
+const camera = metadata.cameraModel?.toLowerCase().startsWith(metadata.cameraMake?.toLowerCase() ?? "")
+  ? metadata.cameraModel : [metadata.cameraMake, metadata.cameraModel].filter(Boolean).join(" ");
+// Format the camera's wall clock without converting it to the build/browser timezone.
+const captured = metadata.capturedAt;
+const captureDate = captured ? new Date(`${captured.slice(0, 19)}Z`) : undefined;
+const captureLabel = captureDate ? new Intl.DateTimeFormat("en-US", {
+  dateStyle: "long", timeStyle: "medium", timeZone: "UTC",
+}).format(captureDate) : undefined;
+const offset = captured?.match(/(Z|[+-]\d{2}:\d{2})$/)?.[1];
+const details = [
+  ["Camera", camera], ["Lens", metadata.lens],
+  ["Aperture", metadata.aperture && `ƒ/${metadata.aperture}`],
+  ["Shutter", metadata.shutterSpeed && `${metadata.shutterSpeed} s`],
+  ["ISO", metadata.iso], ["Focal length", metadata.focalLength],
+  ["35mm equivalent", metadata.focalLength35mm],
+  ["Exposure compensation", metadata.exposureCompensation && `${metadata.exposureCompensation} EV`],
+  ["Exposure program", metadata.exposureProgram], ["Metering", metadata.meteringMode],
+  ["Flash", metadata.flash], ["White balance", metadata.whiteBalance],
+].filter(([, value]) => value);
+---
+
+{(captured || details.length > 0) && <section class={styles.photoDetails} aria-labelledby="photo-details-title">
+  <h2 id="photo-details-title" class={styles.eyebrow}>Behind the photograph</h2>
+  <dl class={styles.photoDetailsGrid}>
+    <div><dt>Posted</dt><dd><time datetime={post.dateTime}>{post.date}</time></dd></div>
+    {captured && <div>
+      <dt>Captured</dt>
+      <dd><time datetime={captured}>{captureLabel}</time>
+        <span class={styles.captureTimezone}>{offset ? `UTC${offset === "Z" ? "" : offset}` : "Camera local time"}</span>
+      </dd>
+    </div>}
+    {details.map(([label, value]) => <div><dt>{label}</dt><dd>{value}</dd></div>)}
+  </dl>
+</section>}

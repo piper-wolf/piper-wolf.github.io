@@ -333,6 +333,41 @@ export const feedEnd = style({
   textTransform: "uppercase",
 });
 
+export const photoDetails = style({
+  marginTop: "32px",
+  padding: "24px clamp(16px, 3vw, 32px)",
+  background: "#eeeee5",
+  borderTop: "1px solid #cfd2c8",
+});
+
+export const photoDetailsGrid = style({
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 15rem), 1fr))",
+  gap: "24px 32px",
+  margin: "20px 0 0",
+});
+
+globalStyle(`${photoDetailsGrid} dt`, {
+  color: "#53635d",
+  fontFamily: "Arial, Helvetica, sans-serif",
+  fontSize: "0.75rem",
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+});
+
+globalStyle(`${photoDetailsGrid} dd`, {
+  margin: "4px 0 0",
+  fontSize: "1rem",
+  fontVariantNumeric: "tabular-nums",
+});
+
+export const captureTimezone = style({
+  display: "block",
+  color: "#53635d",
+  fontFamily: "Arial, Helvetica, sans-serif",
+  fontSize: "0.75rem",
+});
+
 globalStyle("*, *::before, *::after", { boxSizing: "border-box" });
 globalStyle("body", { margin: 0 });
 globalStyle("::selection", { background: "#e6b39b", color: "#1d2826" });

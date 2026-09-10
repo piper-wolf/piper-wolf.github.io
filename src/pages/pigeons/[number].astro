@@ -1,9 +1,13 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import PigeonImage from "../../components/PigeonImage.astro";
+import PhotoDetails from "../../components/PhotoDetails.astro";
 import * as styles from "../../styles/site.css";
 import { getImage } from "astro:assets";
 import { pigeonPosts } from "../../data/pigeons";
+import type { ImageMetadata } from "astro";
+import { resolve } from "node:path";
+import { readPhotoMetadata } from "../../lib/photo-metadata.mjs";
 
 export function getStaticPaths() {
   return pigeonPosts.map((post) => ({
@@ -13,6 +17,10 @@ export function getStaticPaths() {
 }
 
 const { post } = Astro.props;
+const images = import.meta.glob<ImageMetadata>("../../assets/*.jpg", { eager: true, import: "default" });
+const sourcePath = Object.entries(images).find(([, image]) => image.src === post.image.src)?.[0];
+const metadata: Partial<Awaited<ReturnType<typeof readPhotoMetadata>>> = sourcePath
+  ? await readPhotoMetadata(resolve("src/assets", sourcePath.split("/").at(-1)!)) : {};
 const description = post.caption;
 const optimizedSocialImage = await getImage({ src: post.image, width: 1200, format: "jpeg" });
 const socialImage = {
@@ -35,6 +43,7 @@ const structuredData = {
   width: socialImage.width,
   height: socialImage.height,
   datePublished: post.dateTime,
+  dateCreated: metadata.capturedAt,
   creator: { "@type": "Person", name: "Piper Wolf", url: new URL("/", siteUrl).href },
   contentLocation: { "@type": "Place", name: "Seattle, Washington" },
   mainEntityOfPage: { "@type": "WebPage", "@id": detailUrl },
@@ -54,7 +63,7 @@ const structuredData = {
     <div class={styles.detailHeader}>
       <a class={styles.backLink} href={`/pigeons/#${post.number}`}>← All pigeons</a>
       <div class={`${styles.postMeta} ${styles.detailMeta}`}>
-        <time datetime={post.dateTime}>{post.date}</time>
+        <span>Posted <time datetime={post.dateTime}>{post.date}</time></span>
       </div>
       <h1 class={styles.detailTitle}>Pigeon no. {post.number}</h1>
       <p class={styles.postCaption}>{post.caption}</p>
@@ -67,5 +76,6 @@ const structuredData = {
       loading="eager"
       variant="detail"
     />
+    <PhotoDetails post={post} metadata={metadata} />
   </article>
 </BaseLayout>
