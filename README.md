@@ -16,3 +16,13 @@ The default size is `1920x`. The converted JPEG is written to `src/assets/` usin
 The command stages the source photo locally, asks headless Codex to generate alt text, prompts for an optional caption, and then adds the new photo to `src/data/pigeons.ts`. Posts are sorted by post date and automatically assigned post numbers in chronological order, with the oldest post as number 1. When available, the original capture date is retained in the JPEG copyright comment. After a successful resize and metadata update, the command commits the generated asset and metadata and pushes the current Git branch. The image and metadata are only written after the resize succeeds.
 
 On Android, grant Termux access to photos/files and run `termux-setup-storage` before importing from `/sdcard/` or `/storage/emulated/`.
+
+## Validation
+
+Use Node.js 22.12 or later. Install dependencies with `npm ci`, then install the test browser once with `npx playwright install --with-deps chromium`.
+
+- `npm test` builds the static site and runs browser checks against Astro's production preview.
+- `npm run test:browser` checks an existing build.
+- `npm audit` checks dependencies for known advisories.
+
+The browser suite covers phone, tablet, and desktop layouts, enlarged text, keyboard navigation, touch targets, reduced motion, and automated WCAG accessibility checks. External requests are blocked in tests so they do not generate analytics traffic. Automated checks complement visual and keyboard review; they do not establish complete accessibility conformance.

@@ -66,7 +66,7 @@ const structuredData = {
 
   <section class={styles.feature} aria-labelledby="latest-heading">
     <div>
-      <a class={styles.imageButton} href="/pigeons/" aria-label={`View pigeon no. ${latestPost.number}`}>
+      <a class={styles.imageButton} href={`/pigeons/${latestPost.number}/`} aria-label={`View pigeon no. ${latestPost.number}`}>
         <PigeonImage
           src={latestPost.image}
           alt={latestPost.alt}
@@ -75,7 +75,7 @@ const structuredData = {
           sizes="(max-width: 700px) calc(100vw - 48px), 55vw"
         />
       </a>
-      <p class={styles.caption}>Pigeon no. {latestPost.number} · Seattle · {latestPost.date}</p>
+      <p class={styles.caption}>Pigeon no. {latestPost.number} · Seattle · <time datetime={latestPost.dateTime}>{latestPost.date}</time></p>
     </div>
     <div class={styles.featureCopy}>
       <p class={styles.eyebrow}>Latest sighting</p>

@@ -37,7 +37,7 @@ export const nav = style({
   flexWrap: "wrap",
   gap: "8px 16px",
   fontFamily: "Arial, Helvetica, sans-serif",
-  fontSize: "0.75rem",
+  fontSize: "0.875rem",
   letterSpacing: "0.04em",
   textTransform: "uppercase",
 });
@@ -46,10 +46,11 @@ export const navLink = style({
   color: "#53635d",
   textDecoration: "none",
   transition: "color 160ms ease",
+  "@media": { "(prefers-reduced-motion: reduce)": { transition: "none" } },
   selectors: {
-    "&:hover": { color: "#c25135" },
-    "&[aria-current='page']": { color: "#1d2826", fontWeight: "700" },
-    "&:focus-visible": { outline: "2px solid #c25135", outlineOffset: "4px" },
+    "&:hover": { color: "#a64128" },
+    "&[aria-current]": { color: "#1d2826", fontWeight: "700", textDecoration: "underline" },
+    "&:focus-visible": { outline: "2px solid #a64128", outlineOffset: "4px" },
   },
 });
 
@@ -61,9 +62,9 @@ export const main = style({
 
 export const eyebrow = style({
   margin: "0 0 5px 0",
-  color: "#c25135",
+  color: "#a64128",
   fontFamily: "Arial, Helvetica, sans-serif",
-  fontSize: "0.72rem",
+  fontSize: "0.8125rem",
   fontWeight: "700",
   letterSpacing: "0.14em",
   textTransform: "uppercase",
@@ -105,6 +106,7 @@ export const image = style({
   width: "100%",
   height: "auto",
   transition: "transform 220ms ease",
+  "@media": { "(prefers-reduced-motion: reduce)": { transition: "none" } },
 });
 
 export const imageFrame = style({
@@ -120,7 +122,7 @@ export const caption = style({
   marginTop: "14px",
   color: "#53635d",
   fontFamily: "Arial, Helvetica, sans-serif",
-  fontSize: "0.76rem",
+  fontSize: "0.8125rem",
   lineHeight: 1.5,
 });
 
@@ -144,9 +146,9 @@ export const text = style({
 export const link = style({
   display: "inline-block",
   marginTop: "24px",
-  color: "#c25135",
+  color: "#a64128",
   fontFamily: "Arial, Helvetica, sans-serif",
-  fontSize: "0.8rem",
+  fontSize: "0.875rem",
   fontWeight: "700",
   letterSpacing: "0.08em",
   textDecoration: "none",
@@ -179,16 +181,16 @@ export const pageTitle = style({
 
 export const supportLink = style({
   justifySelf: "end",
-  color: "#c25135",
+  color: "#a64128",
   fontFamily: "Arial, Helvetica, sans-serif",
-  fontSize: "0.72rem",
+  fontSize: "0.8125rem",
   fontWeight: "700",
   letterSpacing: "0.08em",
   textDecoration: "none",
   textTransform: "uppercase",
   selectors: {
     "&:hover": { textDecoration: "underline", textUnderlineOffset: "4px" },
-    "&:focus-visible": { outline: "2px solid #c25135", outlineOffset: "4px" },
+    "&:focus-visible": { outline: "2px solid #a64128", outlineOffset: "4px" },
   },
   "@media": {
     "screen and (max-width: 48rem)": {
@@ -231,21 +233,28 @@ export const imageButton = style({
   textDecoration: "none",
   cursor: "pointer",
   selectors: {
-    "&:focus-visible": { outline: "2px solid #c25135", outlineOffset: "5px" },
+    "&:focus-visible": { outline: "2px solid #a64128", outlineOffset: "5px" },
   },
 });
 
-globalStyle(`${imageButton}:hover ${image}`, { transform: "scale(1.015)" });
+globalStyle(`${imageButton}:hover ${image}`, {
+  "@media": {
+    "(hover: hover) and (prefers-reduced-motion: no-preference)": {
+      transform: "scale(1.015)",
+    },
+  },
+});
 
 export const postMeta = style({
   display: "flex",
+  alignItems: "center",
   flexWrap: "wrap",
   justifyContent: "space-between",
   gap: "8px 16px",
   marginTop: 0,
   color: "#53635d",
   fontFamily: "Arial, Helvetica, sans-serif",
-  fontSize: "0.72rem",
+  fontSize: "0.8125rem",
   letterSpacing: "0.05em",
   textTransform: "uppercase",
 });
@@ -254,7 +263,7 @@ export const postDetails = style({ minWidth: 0 });
 
 export const postTitle = style({
   margin: 0,
-  fontSize: "0.72rem",
+  fontSize: "0.8125rem",
   fontWeight: "400",
   letterSpacing: "0.05em",
   textTransform: "uppercase",
@@ -302,15 +311,15 @@ export const detailTitle = style({
 export const backLink = style({
   display: "inline-block",
   marginBottom: "24px",
-  color: "#c25135",
+  color: "#a64128",
   fontFamily: "Arial, Helvetica, sans-serif",
-  fontSize: "0.72rem",
+  fontSize: "0.8125rem",
   letterSpacing: "0.08em",
   textDecoration: "none",
   textTransform: "uppercase",
   selectors: {
     "&:hover": { textDecoration: "underline", textUnderlineOffset: "4px" },
-    "&:focus-visible": { outline: "2px solid #c25135", outlineOffset: "4px" },
+    "&:focus-visible": { outline: "2px solid #a64128", outlineOffset: "4px" },
   },
 });
 
@@ -340,9 +349,9 @@ export const detailImage = style({
 export const feedEnd = style({
   minHeight: "3rem",
   marginTop: "56px",
-  color: "#8b958e",
+  color: "#53635d",
   fontFamily: "Arial, Helvetica, sans-serif",
-  fontSize: "0.72rem",
+  fontSize: "0.8125rem",
   letterSpacing: "0.1em",
   textAlign: "center",
   textTransform: "uppercase",
@@ -355,4 +364,36 @@ globalStyle("::selection", { background: "#e6b39b", color: "#1d2826" });
 export const homeHeader = style({
   maxWidth: "42rem",
   marginBottom: "32px",
+});
+
+export const skipLink = style({
+  position: "absolute",
+  top: "1rem",
+  left: "1rem",
+  zIndex: 1,
+  padding: "8px 16px",
+  background: "#f5f3ed",
+  color: "#1d2826",
+  transform: "translateY(calc(-100% - 2rem))",
+  selectors: {
+    "&:focus": { transform: "none" },
+  },
+});
+
+export const footer = style({
+  width: "min(100% - 2 * clamp(1rem, 4vw, 1.5rem), 74rem)",
+  margin: "0 auto",
+  padding: "24px 0",
+  borderTop: "1px solid #cfd2c8",
+});
+
+globalStyle("a", {
+  display: "inline-flex",
+  alignItems: "center",
+  minHeight: "44px",
+  textUnderlineOffset: "4px",
+});
+globalStyle("a:focus-visible", {
+  outline: "3px solid #a64128",
+  outlineOffset: "4px",
 });

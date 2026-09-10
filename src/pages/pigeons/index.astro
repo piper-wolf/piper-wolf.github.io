@@ -48,12 +48,12 @@ const structuredData = {
       <p class={styles.eyebrow}>Are they smart? No. Are they endearing? Most certainly!</p>
       <h1 class={styles.pageTitle}>Seattle pigeons</h1>
     </div>
-    <a class={styles.supportLink} href="https://buymeacoffee.com/piperwolf" target="_blank" rel="noopener noreferrer">
+    <a class={styles.supportLink} href="https://buymeacoffee.com/piperwolf">
       ☕️ Fund coffee and birdseed!
     </a>
   </div>
 
-  <section class={styles.feed} aria-label="Pigeon posts" data-feed>
+  <section class={styles.feed} aria-label="Pigeon posts">
     {pigeonPosts.map((post, index) => (
       <article id={post.number} class={styles.post}>
         <div class={styles.postPhoto}>
@@ -78,7 +78,7 @@ const structuredData = {
       </article>
     ))}
   </section>
-  <div class={styles.feedEnd} data-feed-end aria-live="polite">
+  <div class={styles.feedEnd}>
     <span>More sightings soon.</span>
   </div>
 </BaseLayout>
