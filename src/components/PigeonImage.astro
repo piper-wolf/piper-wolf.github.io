@@ -9,7 +9,7 @@ interface Props {
   loading?: "lazy" | "eager";
   imageClass: string;
   frameClass?: string;
-  sizes?: string;
+  variant?: "feed" | "feature" | "detail";
 }
 
 const {
@@ -18,8 +18,21 @@ const {
   loading = "lazy",
   imageClass,
   frameClass = styles.imageFrame,
-  sizes = "(max-width: 700px) calc(100vw - 48px), 70vw",
+  variant = "feed",
 } = Astro.props;
+
+// Match the container, grid gaps, and 10px photo frames in site.css.ts.
+const contentWidth = "min(100vw - 2 * clamp(1rem, 4vw, 1.5rem), 74rem)";
+const fullWidth = `min(${src.width}px, ${contentWidth} - 20px)`;
+const desktopWidth = {
+  feed: `(${contentWidth} - 24px) / 1.28 - 20px`,
+  feature: `(${contentWidth} - 48px) / 1.72 - 20px`,
+  detail: `min(${fullWidth}, ${80 * src.width / src.height}svh)`,
+}[variant];
+const sizes = `(max-width: 48rem) calc(${fullWidth}), calc(${desktopWidth})`;
+const widths = [...new Set([320, 480, 640, 768, 1024, 1440, 1920, src.width])]
+  .filter((width) => width <= src.width)
+  .sort((a, b) => a - b);
 ---
 
 <span class={frameClass}>
@@ -27,8 +40,10 @@ const {
     src={src}
     alt={alt}
     class={imageClass}
-    widths={[480, 768, 1024, 1440, 1920]}
+    widths={widths}
     sizes={sizes}
     loading={loading}
+    fetchpriority={loading === "eager" ? "high" : "auto"}
+    decoding="async"
   />
 </span>
