@@ -1,3 +1,5 @@
+import photo_2026_09_11 from "../assets/2026-09-11.jpg";
+
 import photo_2026_09_10 from "../assets/2026-09-10.jpg";
 
 import photo_2026_09_08 from "../assets/2026-09-08.jpg";
@@ -40,6 +42,13 @@ export type PigeonPost = PigeonPhoto & { number: string };
 // Add one object here for each new photo. Dates are publication dates; posts are
 // sorted and numbered below.
 const pigeonPhotos: PigeonPhoto[] = [
+  {
+    image: photo_2026_09_11,
+    alt: "A gray pigeon with an orange eye bends down to eat scattered seeds on the pavement.",
+    date: "September 11, 2026",
+    dateTime: "2026-09-11",
+    caption: "New pigeon stopped by today! I'm naming her cookies and cream",
+  },
   {
     image: photo_2026_09_10,
     alt: "A pigeon banks in flight with its wings spread between tall city buildings.",
