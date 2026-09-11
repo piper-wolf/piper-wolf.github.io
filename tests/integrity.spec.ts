@@ -58,10 +58,57 @@ test("sitemap pages, internal links, fragments, images, and metadata are valid",
     for (const asset of result.assets) assets.add(new URL(asset, url).pathname);
   }
   for (const link of links) {
+    if (link.pathname === "/pigeons/rss.xml") {
+      expect((await request.get(link.pathname)).status()).toBe(200);
+      continue;
+    }
     expect(pages.has(link.pathname), link.href).toBeTruthy();
     if (link.hash) expect(pages.get(link.pathname), link.href).toContain(decodeURIComponent(link.hash.slice(1)));
   }
   for (const asset of assets) expect((await request.get(asset)).status(), asset).toBe(200);
+});
+
+test("pigeon RSS includes every post with photos and can be discovered", async ({ page, request }) => {
+  await page.goto("/pigeons/");
+  const feedPath = "/pigeons/rss.xml";
+  await expect(page.getByRole("link", { name: "Subscribe via RSS" })).toHaveAttribute("href", feedPath);
+  await expect(page.locator('link[rel="alternate"][type="application/rss+xml"]')).toHaveAttribute("href", `https://piper-wolf.com${feedPath}`);
+  const posts = await page.locator("article").evaluateAll((articles) => articles.map((article) => ({
+    title: article.querySelector("h2")!.textContent!.trim(),
+    date: article.querySelector("time")!.dateTime,
+    caption: article.querySelector("p")!.textContent,
+    alt: article.querySelector("img")!.alt,
+    link: new URL(article.querySelector("h2 a")!.getAttribute("href")!, "https://piper-wolf.com").href,
+  })));
+  const response = await request.get(feedPath);
+  expect(response.status()).toBe(200);
+  const feed = await page.evaluate((xml) => {
+    const doc = new DOMParser().parseFromString(xml, "application/xml");
+    return {
+      error: doc.querySelector("parsererror")?.textContent,
+      items: [...doc.querySelectorAll("item")].map((item) => {
+        const content = item.getElementsByTagNameNS("http://purl.org/rss/1.0/modules/content/", "encoded")[0]?.textContent ?? "";
+        const html = new DOMParser().parseFromString(content, "text/html");
+        return {
+          title: item.querySelector("title")?.textContent,
+          date: new Date(item.querySelector("pubDate")!.textContent!).toISOString().slice(0, 10),
+          caption: item.querySelector("description")?.textContent,
+          alt: html.querySelector("img")?.alt,
+          link: item.querySelector("link")?.textContent,
+          image: html.querySelector("img")?.getAttribute("src"),
+          contentCaption: html.querySelector("p:last-child")?.textContent,
+        };
+      }),
+    };
+  }, await response.text());
+  expect(feed.error).toBeUndefined();
+  expect(feed.items.map(({ image, contentCaption, ...post }) => post)).toEqual(posts);
+  for (const item of feed.items) {
+    expect(item.contentCaption).toBe(item.caption);
+    const image = new URL(item.image!);
+    expect(image.origin).toBe("https://piper-wolf.com");
+    expect((await request.get(image.pathname)).status()).toBe(200);
+  }
 });
 
 test.describe("without JavaScript", () => {

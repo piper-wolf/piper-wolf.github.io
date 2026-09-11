@@ -46,6 +46,7 @@ const serializedStructuredData = structuredData
     <meta name="robots" content={noindex ? "noindex, follow" : "index, follow"} />
     <meta name="theme-color" content="#f5f3ed" />
     <link rel="icon" type="image/jpeg" href="/favicon.jpg" />
+    <link rel="alternate" type="application/rss+xml" title="Seattle pigeons — Piper Wolf" href={new URL("/pigeons/rss.xml", siteUrl)} />
     {!noindex && <link rel="canonical" href={canonicalUrl} />}
     <meta property="og:site_name" content="Piper Wolf" />
     <meta property="og:locale" content="en_US" />
