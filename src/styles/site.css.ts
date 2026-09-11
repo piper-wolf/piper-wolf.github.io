@@ -308,6 +308,17 @@ export const detailImageFrame = style({
   padding: "10px",
 });
 
+export const mobileEdgeToEdge = style({
+  "@media": {
+    "screen and (max-width: 48rem) and (orientation: portrait)": {
+      width: "calc(100% + 2 * clamp(1rem, 4vw, 1.5rem))",
+      maxWidth: "none",
+      marginInline: "calc(-1 * clamp(1rem, 4vw, 1.5rem))",
+      padding: 0,
+    },
+  },
+});
+
 export const detailImage = style({
   display: "block",
   width: "auto",
@@ -318,6 +329,9 @@ export const detailImage = style({
   "@media": {
     "screen and (max-width: 48rem)": {
       maxHeight: "none",
+    },
+    "screen and (max-width: 48rem) and (orientation: portrait)": {
+      width: "100%",
     },
   },
 });

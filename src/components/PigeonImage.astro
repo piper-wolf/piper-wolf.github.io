@@ -29,13 +29,13 @@ const desktopWidth = {
   feature: `(${contentWidth} - 48px) / 1.72 - 20px`,
   detail: `min(${fullWidth}, ${80 * src.width / src.height}svh)`,
 }[variant];
-const sizes = `(max-width: 48rem) calc(${fullWidth}), calc(${desktopWidth})`;
+const sizes = `${variant !== "feature" ? "(max-width: 48rem) and (orientation: portrait) 100vw, " : ""}(max-width: 48rem) calc(${fullWidth}), calc(${desktopWidth})`;
 const widths = [...new Set([320, 480, 640, 768, 1024, 1440, 1920, src.width])]
   .filter((width) => width <= src.width)
   .sort((a, b) => a - b);
 ---
 
-<span class={frameClass}>
+<span class:list={[frameClass, variant !== "feature" && styles.mobileEdgeToEdge]}>
   <Image
     src={src}
     alt={alt}
