@@ -4,6 +4,19 @@ A minimal Astro site deployed to GitHub Pages at [piper-wolf.com](https://piper-
 
 ## Importing photos
 
+For unattended imports, both metadata fields can be provided explicitly:
+
+```sh
+bin/import /path/to/photo.jpg --caption 'A pigeon at the café' --alt-text 'A gray pigeon perched on a railing.'
+```
+
+`bin/import` is an alias for `bin/import-photo`. Supplying `--alt-text` skips
+Codex; supplying `--caption` skips the caption prompt (an empty string is valid).
+The importer requires a clean checkout and still commits and pushes the result.
+The pigeon queue uses `--prepared` to preserve its already resized JPEG and
+`--queue-id ID` to commit a publication receipt in `.pigeon-queue/`. Repeating an
+ID retries the push without creating a duplicate post. Keep those receipts.
+
 Use `bin/import-photo` to resize a photo into the site's public assets and add its pigeon photo metadata:
 
 ```sh

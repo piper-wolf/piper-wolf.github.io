@@ -2,17 +2,51 @@
 
 set -euo pipefail
 
-if [[ $# -lt 1 || $# -gt 2 ]]; then
-  echo "Usage: $0 <from-path> [size]" >&2
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $0 <from-path> [size] [--caption TEXT] [--alt-text TEXT] [--queue-id ID] [--prepared]" >&2
   exit 1
 fi
 
 from_path=$1
-size=${2:-1920x}
+shift
+size=1920x
+if [[ $# -gt 0 && $1 != --* ]]; then size=$1; shift; fi
+caption_set=false
+alt_set=false
+prepared=false
+queue_id=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --caption|--alt-text|--queue-id)
+      [[ $# -ge 2 ]] || { echo "Missing value for $1" >&2; exit 1; }
+      case "$1" in
+        --caption) caption=$2; caption_set=true ;;
+        --alt-text) alt_text=$2; alt_set=true ;;
+        --queue-id) queue_id=$2; [[ $queue_id =~ ^[a-zA-Z0-9_-]+$ ]] || exit 1 ;;
+      esac
+      shift 2 ;;
+    --prepared) prepared=true; shift ;;
+    *) echo "Unknown option: $1" >&2; exit 1 ;;
+  esac
+done
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 assets_dir="$repo_root/src/assets"
 pigeon_data="$repo_root/src/data/pigeons.ts"
 copyright_notice="Copyright (C) $(date '+%Y') Piper Wolf. All rights reserved. For licensing inquiries or full-resolution copies, contact me@piper-wolf.com."
+
+if [[ -n $(git -C "$repo_root" status --porcelain) ]]; then
+  echo "Commit or stash existing site changes before importing." >&2
+  exit 1
+fi
+receipt=""
+if [[ -n $queue_id ]]; then
+  receipt="$repo_root/.pigeon-queue/$queue_id"
+  if [[ -f $receipt ]]; then
+    git -C "$repo_root" push origin HEAD:main
+    echo "Queue entry already imported: $queue_id"
+    exit 0
+  fi
+fi
 
 if ! command -v exiftool >/dev/null 2>&1; then
   echo "ExifTool not found. Install ExifTool before importing a photo." >&2
@@ -24,7 +58,7 @@ if [[ ! -f "$from_path" ]]; then
   exit 1
 fi
 
-if ! command -v codex >/dev/null 2>&1; then
+if ! $alt_set && ! command -v codex >/dev/null 2>&1; then
   echo "Codex CLI not found. Install Codex before importing a photo." >&2
   exit 1
 fi
@@ -92,6 +126,9 @@ printf '[import] Source: %s\n' "$from_path"
 printf '[import] Post date: %s\n' "$post_date"
 printf '[import] Resizing photo to %s...\n' "$size"
 resized_tmp=$(mktemp "$assets_dir/.import-photo.XXXXXX.jpg")
+if $prepared; then
+  cp -- "$source_tmp" "$resized_tmp"
+else
 "${image_command[@]}" "$source_tmp" \
   -auto-orient \
   -filter Lanczos \
@@ -99,6 +136,7 @@ resized_tmp=$(mktemp "$assets_dir/.import-photo.XXXXXX.jpg")
   -strip \
   -set comment "$capture_notice" \
   "$resized_tmp"
+fi
 
 # Copy only photographic fields. Never copy GPS, XMP/IPTC location fields,
 # maker notes, serial numbers, or embedded thumbnails from the original.
@@ -110,6 +148,7 @@ exiftool -overwrite_original -TagsFromFile "$source_tmp" \
   -EXIF:ExposureProgram -EXIF:MeteringMode -EXIF:Flash -EXIF:WhiteBalance \
   "$resized_tmp"
 
+if ! $alt_set; then
 printf '[import] Generating alt text with Codex...\n'
 
 alt_prompt='Write concise, accessible alt text for the attached pigeon photo on a personal photo blog. Describe the meaningful subject, action, and setting; mention notable colors or details only when useful. Use one sentence, do not say "image" or "photo", and return only the alt text with no quotes or preamble.'
@@ -123,6 +162,7 @@ if ! alt_text=$(codex exec \
   echo "Could not generate alt text with Codex." >&2
   exit 1
 fi
+fi
 
 alt_text=$(printf '%s' "$alt_text" | tr '\r\n' '  ' | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')
 if [[ -z "$alt_text" ]]; then
@@ -131,17 +171,22 @@ if [[ -z "$alt_text" ]]; then
 fi
 printf '[import] Alt text: %s\n' "$alt_text"
 
+if ! $caption_set; then
 printf '[import] Caption (optional): '
 if ! IFS= read -r caption; then
   echo "Could not read the photo caption." >&2
   exit 1
 fi
 printf '\n'
+fi
 
 escape_ts_string() {
   local value=$1
   value=${value//\\/\\\\}
   value=${value//\"/\\\"}
+  value=${value//$'\n'/\\n}
+  value=${value//$'\r'/\\r}
+  value=${value//$'\t'/\\t}
   printf '%s' "$value"
 }
 
@@ -163,12 +208,11 @@ mv -- "$resized_tmp" "$output_path"
 resized_tmp=""
 
 metadata_tmp=$(mktemp "$pigeon_data.XXXXXX")
-awk -v import_name="$image_import_name" \
+IMPORT_ALT="$escaped_alt_text" IMPORT_CAPTION="$escaped_caption" awk -v import_name="$image_import_name" \
     -v import_path="$escaped_image_import_path" \
-    -v alt="$escaped_alt_text" \
     -v date="$display_date" \
     -v date_time="$post_date" \
-    -v caption="$escaped_caption" '
+    'BEGIN { alt = ENVIRON["IMPORT_ALT"]; caption = ENVIRON["IMPORT_CAPTION"] }
   NR == 1 {
     printf "import %s from \"%s\";\n\n", import_name, import_path
   }
@@ -187,8 +231,14 @@ metadata_tmp=""
 asset_relative_path=${output_path#"$repo_root/"}
 data_relative_path=${pigeon_data#"$repo_root/"}
 printf '[import] Committing imported photo...\n'
-git -C "$repo_root" add -- "$asset_relative_path" "$data_relative_path"
-git -C "$repo_root" commit --only -m "Import photo: $post_date" -- "$asset_relative_path" "$data_relative_path"
+commit_paths=("$asset_relative_path" "$data_relative_path")
+if [[ -n $receipt ]]; then
+  mkdir -p -- "${receipt%/*}"
+  printf '%s\n' "$post_date" > "$receipt"
+  commit_paths+=(".pigeon-queue/$queue_id")
+fi
+git -C "$repo_root" add -- "${commit_paths[@]}"
+git -C "$repo_root" commit --only -m "Import photo: $post_date" -- "${commit_paths[@]}"
 
 branch_name=$(git -C "$repo_root" symbolic-ref --quiet --short HEAD || true)
 if [[ -z "$branch_name" ]]; then
