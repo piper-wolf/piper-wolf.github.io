@@ -1,5 +1,6 @@
 ---
 import type { PigeonPost } from "../data/pigeons";
+import Icon from "./Icon.astro";
 import * as styles from "../styles/site.css";
 
 import type { readPhotoMetadata } from "../lib/photo-metadata.mjs";
@@ -27,7 +28,7 @@ const details = [
 ---
 
 {(captured || details.length > 0) && <section class={styles.photoDetails} aria-labelledby="photo-details-title">
-  <h2 id="photo-details-title" class={styles.eyebrow}>Behind the photograph</h2>
+  <h2 id="photo-details-title" class={`${styles.eyebrow} ${styles.iconLabel}`}><Icon name="camera" /><span>Behind the photograph</span></h2>
   <dl class={styles.photoDetailsGrid}>
     <div><dt>Posted</dt><dd><time datetime={post.dateTime}>{post.date}</time></dd></div>
     {captured && <div>

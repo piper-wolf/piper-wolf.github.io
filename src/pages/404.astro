@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import Icon from "../components/Icon.astro";
 import * as styles from "../styles/site.css";
 ---
 
@@ -10,7 +11,7 @@ import * as styles from "../styles/site.css";
     <p class={styles.intro}>The page you’re looking for isn’t here. You can head home or browse the pigeon photos.</p>
   </div>
   <nav class={styles.nav} aria-label="Page recovery">
-    <a class={styles.navLink} href="/">Go home</a>
-    <a class={styles.navLink} href="/pigeons/">Browse pigeon photos →</a>
+    <a class={styles.navLink} href="/"><Icon name="home" /><span>Go home</span></a>
+    <a class={styles.navLink} href="/pigeons/"><span>Browse pigeon photos</span><Icon name="arrowRight" /></a>
   </nav>
 </BaseLayout>

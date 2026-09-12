@@ -1,5 +1,6 @@
 ---
 import * as styles from "../styles/site.css";
+import Icon from "../components/Icon.astro";
 
 interface Props {
   title: string;
@@ -72,15 +73,15 @@ const serializedStructuredData = structuredData
     <header class={styles.header}>
       <a class={styles.brand} href="/">Piper Wolf</a>
       <nav class={styles.nav} aria-label="Main navigation">
-        <a class={styles.navLink} href="/" aria-current={currentPath === "/" ? "page" : undefined}>Home</a>
-        <a class={styles.navLink} href="/pigeons/" aria-current={currentPath === "/pigeons/" ? "page" : currentPath.startsWith("/pigeons/") ? "location" : undefined}>Seattle pigeons</a>
+        <a class={styles.navLink} href="/" aria-current={currentPath === "/" ? "page" : undefined}><Icon name="home" /><span>Home</span></a>
+        <a class={styles.navLink} href="/pigeons/" aria-current={currentPath === "/pigeons/" ? "page" : currentPath.startsWith("/pigeons/") ? "location" : undefined}><Icon name="dove" /><span>Seattle pigeons</span></a>
       </nav>
     </header>
     <main id="main-content" class={styles.main} tabindex="-1">
       <slot />
     </main>
     <footer class={styles.footer}>
-      <a class={styles.supportLink} href="https://buymeacoffee.com/piperwolf">☕️ Fund coffee and birdseed!</a>
+      <a class={styles.supportLink} href="https://buymeacoffee.com/piperwolf"><Icon name="coffee" /><span>Fund coffee and birdseed!</span></a>
     </footer>
     <script is:inline data-goatcounter="https://piperwolf.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
   </body>

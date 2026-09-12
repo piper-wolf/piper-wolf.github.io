@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import Icon from "../components/Icon.astro";
 import PigeonImage from "../components/PigeonImage.astro";
 import * as styles from "../styles/site.css";
 import { getImage } from "astro:assets";
@@ -57,15 +58,13 @@ const structuredData = {
   structuredData={structuredData}
 >
   <div class={styles.homeHeader}>
-    <div>
       <p class={styles.eyebrow}>Hello, I’m Piper</p>
       <h1 class={styles.pageTitle}>Seattle's premier pigeon photographer</h1>
       <p class={styles.intro}>I take pigeon photos any days I'm commuting to the office I work at downtown. I want to bring awareness to how darn cute these little fellas are.</p>
-    </div>
   </div>
 
   <section class={styles.feature} aria-labelledby="latest-heading">
-    <div>
+    <figure class={styles.featurePhoto}>
       <a class={styles.imageButton} href={`/pigeons/${latestPost.number}/`} aria-label={`View pigeon no. ${latestPost.number}`}>
         <PigeonImage
           src={latestPost.image}
@@ -75,12 +74,12 @@ const structuredData = {
           variant="feature"
         />
       </a>
-      <p class={styles.caption}>Pigeon no. {latestPost.number} · Seattle · <time datetime={latestPost.dateTime}>{latestPost.date}</time></p>
-    </div>
+      <figcaption class={styles.caption}>Pigeon no. {latestPost.number} · Seattle · <time datetime={latestPost.dateTime}>{latestPost.date}</time></figcaption>
+    </figure>
     <div class={styles.featureCopy}>
       <p class={styles.eyebrow}>Latest sighting</p>
       <h2 id="latest-heading" class={styles.subheading}>{latestPost.caption}</h2>
-      <a class={styles.link} href="/pigeons/">See all pigeon posts →</a>
+      <a class={styles.link} href="/pigeons/"><span>See all pigeon posts</span><Icon name="arrowRight" /></a>
     </div>
   </section>
 </BaseLayout>

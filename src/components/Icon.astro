@@ -1,0 +1,16 @@
+---
+import { faArrowLeft, faArrowRight, faCamera, faDove, faHouse, faMugHot, faRss } from "@fortawesome/free-solid-svg-icons";
+
+const icons = { arrowLeft: faArrowLeft, arrowRight: faArrowRight, camera: faCamera, dove: faDove, home: faHouse, coffee: faMugHot, rss: faRss };
+interface Props { name: keyof typeof icons }
+const [width, height, , , paths] = icons[Astro.props.name].icon;
+---
+
+<!-- Font Awesome Free by Fonticons, Inc. — https://fontawesome.com/license/free (CC BY 4.0) -->
+<svg viewBox={`0 0 ${width} ${height}`} width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false">
+  {(Array.isArray(paths) ? paths : [paths]).map((d) => <path d={d} />)}
+</svg>
+
+<style>
+  svg { display: inline-block; flex-shrink: 0; width: 1em; height: 1em; }
+</style>

@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import Icon from "../../components/Icon.astro";
 import PigeonImage from "../../components/PigeonImage.astro";
 import * as styles from "../../styles/site.css";
 import { getImage } from "astro:assets";
@@ -47,11 +48,11 @@ const structuredData = {
     <div>
       <p class={styles.eyebrow}>Are they smart? No. Are they endearing? Most certainly!</p>
       <h1 class={styles.pageTitle}>Seattle pigeons</h1>
-      <a class={styles.link} href="/pigeons/rss.xml">Subscribe via RSS</a>
     </div>
-    <a class={styles.supportLink} href="https://buymeacoffee.com/piperwolf">
-      ☕️ Fund coffee and birdseed!
-    </a>
+    <div class={styles.headerActions}>
+      <a class={styles.link} href="/pigeons/rss.xml"><Icon name="rss" /><span>Subscribe via RSS</span></a>
+      <a class={styles.supportLink} href="https://buymeacoffee.com/piperwolf"><Icon name="coffee" /><span>Fund coffee and birdseed!</span></a>
+    </div>
   </div>
 
   <section class={styles.feed} aria-label="Pigeon posts">

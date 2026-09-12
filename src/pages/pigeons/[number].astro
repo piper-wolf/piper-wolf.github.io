@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import Icon from "../../components/Icon.astro";
 import PigeonImage from "../../components/PigeonImage.astro";
 import PhotoDetails from "../../components/PhotoDetails.astro";
 import * as styles from "../../styles/site.css";
@@ -61,7 +62,7 @@ const structuredData = {
 >
   <article class={styles.detailPage}>
     <div class={styles.detailHeader}>
-      <a class={styles.backLink} href={`/pigeons/#${post.number}`}>← All pigeons</a>
+      <a class={styles.backLink} href={`/pigeons/#${post.number}`}><Icon name="arrowLeft" /><span>All pigeons</span></a>
       <div class={`${styles.postMeta} ${styles.detailMeta}`}>
         <span>Posted <time datetime={post.dateTime}>{post.date}</time></span>
       </div>

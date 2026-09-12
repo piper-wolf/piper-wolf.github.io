@@ -25,7 +25,7 @@ const {
 const contentWidth = "min(100vw - 2 * clamp(1rem, 4vw, 1.5rem), 74rem)";
 const fullWidth = `min(${src.width}px, ${contentWidth} - 20px)`;
 const desktopWidth = {
-  feed: `(${contentWidth} - 24px) / 1.28 - 20px`,
+  feed: `min((${contentWidth} - 24px) / 1.4, ${contentWidth} - 24px - 14rem) - 20px`,
   feature: `(${contentWidth} - 48px) / 1.72 - 20px`,
   detail: `min(${fullWidth}, ${80 * src.width / src.height}svh)`,
 }[variant];
