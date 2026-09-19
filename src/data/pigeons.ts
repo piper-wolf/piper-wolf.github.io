@@ -1,3 +1,5 @@
+import photo_2026_09_19 from "../assets/2026-09-19.jpg";
+
 import photo_2026_09_18 from "../assets/2026-09-18.jpg";
 
 import photo_2026_09_17 from "../assets/2026-09-17.jpg";
@@ -54,6 +56,13 @@ export type PigeonPost = PigeonPhoto & { number: string };
 // Add one object here for each new photo. Dates are publication dates; posts are
 // sorted and numbered below.
 const pigeonPhotos: PigeonPhoto[] = [
+  {
+    image: photo_2026_09_19,
+    alt: "Close-up of a pigeon facing the camera on a paved surface outdoors.",
+    date: "September 19, 2026",
+    dateTime: "2026-09-19",
+    caption: "The slanted dual tail fins indicate this model of pigeon is typically used for stealth operations in hostile airspace",
+  },
   {
     image: photo_2026_09_18,
     alt: "Several pigeons crowd together in a close-up outdoor photograph.",
