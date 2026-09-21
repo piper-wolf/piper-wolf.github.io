@@ -1,1 +1,40 @@
-2026-09-20
+{
+  "queueId": "31539f6dbc1025c483a29ad5d063f40e",
+  "permanentUrl": "https://piper-wolf.com/pigeons/026/",
+  "publicationDate": "2026-09-20",
+  "accountDid": "did:plc:m52ohjyeitxktdgm4jlqllyn",
+  "snapshot": {
+    "queueId": "31539f6dbc1025c483a29ad5d063f40e",
+    "number": "026",
+    "dateTime": "2026-09-20",
+    "caption": "Peekaboo!",
+    "alt": "Close-up of a pigeon facing the camera against a softly blurred dark background.",
+    "asset": "src/assets/2026-09-20.jpg",
+    "imageSha256": "7ec81b242d8d257365b3e12176830720c9e0bccba2a052a44c6dffeaf972768c",
+    "bluesky": {
+      "text": "Peekaboo! piper-wolf.com/pigeons/026/",
+      "facets": [
+        {
+          "index": {
+            "byteStart": 10,
+            "byteEnd": 37
+          },
+          "features": [
+            {
+              "$type": "app.bsky.richtext.facet#link",
+              "uri": "https://piper-wolf.com/pigeons/026/"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-09-21T04:30:59.680Z",
+      "image": {
+        "asset": ".pigeon-queue/images/31539f6dbc1025c483a29ad5d063f40e.jpg",
+        "sha256": "e20396cad8afcbe560424d1ecf618134510e35003123b59d9aafd4c52983309e",
+        "width": 1920,
+        "height": 1280
+      }
+    }
+  },
+  "blueskyRecordKey": "3mvyuvsi6qe6l"
+}

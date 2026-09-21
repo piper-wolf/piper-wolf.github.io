@@ -62,6 +62,7 @@ export type PigeonPost = PigeonPhoto;
 const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_09_20,
+    queueId: "31539f6dbc1025c483a29ad5d063f40e",
     alt: "Close-up of a pigeon facing the camera against a softly blurred dark background.",
     date: "September 20, 2026",
     number: "026",
