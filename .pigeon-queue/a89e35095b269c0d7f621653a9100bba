@@ -1,0 +1,40 @@
+{
+  "queueId": "a89e35095b269c0d7f621653a9100bba",
+  "permanentUrl": "https://piper-wolf.com/pigeons/027/",
+  "publicationDate": "2026-09-21",
+  "accountDid": "did:plc:m52ohjyeitxktdgm4jlqllyn",
+  "snapshot": {
+    "queueId": "a89e35095b269c0d7f621653a9100bba",
+    "number": "027",
+    "dateTime": "2026-09-21",
+    "caption": "Look at that joy in the pigeon's eyes, and the terror in the eyes of the seeds!!!!!",
+    "alt": "Close-up of a gray pigeon with iridescent green neck feathers and an orange eye, holding seeds in its open beak against a blurred background.",
+    "asset": "src/assets/2026-09-21.jpg",
+    "imageSha256": "2f5e6523499848f9a4ac0699217687d55425e4c6b8baa5ca1c6f1030ffdd96d8",
+    "bluesky": {
+      "text": "Look at that joy in the pigeon's eyes, and the terror in the eyes of the seeds!!!!! piper-wolf.com/pigeons/027/",
+      "facets": [
+        {
+          "index": {
+            "byteStart": 84,
+            "byteEnd": 111
+          },
+          "features": [
+            {
+              "$type": "app.bsky.richtext.facet#link",
+              "uri": "https://piper-wolf.com/pigeons/027/"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-09-21T18:10:42.324Z",
+      "image": {
+        "asset": ".pigeon-queue/images/a89e35095b269c0d7f621653a9100bba.jpg",
+        "sha256": "cd6a9ca60eb0cc16592c6c6d56a915c803f2a34bad0886d356184175089ee7b6",
+        "width": 1920,
+        "height": 1280
+      }
+    }
+  },
+  "blueskyRecordKey": "3mw2cpkx7kcvx"
+}

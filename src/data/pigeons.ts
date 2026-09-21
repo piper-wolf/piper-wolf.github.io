@@ -1,3 +1,4 @@
+import photo_2026_09_21 from "../assets/2026-09-21.jpg";
 import photo_2026_09_20 from "../assets/2026-09-20.jpg";
 
 import photo_2026_09_19 from "../assets/2026-09-19.jpg";
@@ -60,6 +61,15 @@ export type PigeonPost = PigeonPhoto;
 // Add one object here for each new photo. Dates are publication dates; posts are
 // sorted below. Numbers are permanent and must never be reassigned.
 const pigeonPhotos: PigeonPhoto[] = [
+  {
+    image: photo_2026_09_21,
+    number: "027",
+    queueId: "a89e35095b269c0d7f621653a9100bba",
+    alt: "Close-up of a gray pigeon with iridescent green neck feathers and an orange eye, holding seeds in its open beak against a blurred background.",
+    date: "September 21, 2026",
+    dateTime: "2026-09-21",
+    caption: "Look at that joy in the pigeon's eyes, and the terror in the eyes of the seeds!!!!!",
+  },
   {
     image: photo_2026_09_20,
     queueId: "31539f6dbc1025c483a29ad5d063f40e",
