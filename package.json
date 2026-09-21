@@ -9,7 +9,6 @@
     "preview": "astro preview",
     "test": "npm run check && npm run build && playwright test",
     "test:browser": "playwright test",
-    "test:import": "node --test tests/import-photo.node.mjs",
     "check": "astro check"
   },
   "dependencies": {
