@@ -36,5 +36,8 @@
       }
     }
   },
-  "blueskyRecordKey": "3mvyuvsi6qe6l"
+  "blueskyRecordKey": "3mvyuvsi6qe6l",
+  "blueskyUri": "at://did:plc:m52ohjyeitxktdgm4jlqllyn/app.bsky.feed.post/3mvyuvsi6qe6l",
+  "blueskyCid": "bafyreicx6rwkmdo6a7kcmyy34dtlpu3kneh7bzon64b7nrsdjd42wpr3ou",
+  "blueskyPublishedAt": "2026-09-21T04:34:05Z"
 }
