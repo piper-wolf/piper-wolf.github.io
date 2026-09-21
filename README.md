@@ -11,7 +11,10 @@ commits and pushes both together with a `.pigeon-queue/<id>` receipt. Keep these
 receipts: they prevent duplicate posts on retries and enforce the scheduled daily
 limit. This repository only renders and deploys the published content.
 
-Posts are sorted and numbered by publication date. Capture dates and photographic
+Posts are sorted by publication date and use permanent, explicit numbers in
+`src/data/pigeons.ts`; never reassign a number because it determines the public
+URL. New numbers increase monotonically. The publisher adds a queue ID marker to
+each new post so it can wait for deployment. Capture dates and photographic
 settings come from the source JPEG's EXIF; optimized image variants may omit EXIF.
 The queue strips location and other private metadata before saving uploads.
 

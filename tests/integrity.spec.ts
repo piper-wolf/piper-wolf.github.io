@@ -132,3 +132,16 @@ test.describe("without JavaScript", () => {
     await expect(page).toHaveURL("/");
   });
 });
+
+test("existing pigeon URLs retain their original publication dates", async ({ request }) => {
+  const originals = {
+    "001": "2026-05-14", "002": "2026-07-21", "003": "2026-08-01",
+    "004": "2026-08-06", "005": "2026-08-07", "006": "2026-08-11",
+    "007": "2026-08-13", "008": "2026-08-17", "026": "2026-09-20",
+  };
+  for (const [number, date] of Object.entries(originals)) {
+    const response = await request.get(`/pigeons/${number}/`);
+    expect(response.status()).toBe(200);
+    expect(await response.text()).toContain(`datetime="${date}"`);
+  }
+});

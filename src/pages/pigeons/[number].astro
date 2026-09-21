@@ -60,7 +60,7 @@ const structuredData = {
   socialImageAlt={post.alt}
   structuredData={structuredData}
 >
-  <article class={styles.detailPage}>
+  <article class={styles.detailPage} data-pigeon-queue-id={post.queueId}>
     <div class={styles.detailHeader}>
       <a class={styles.backLink} href={`/pigeons/#${post.number}`}><Icon name="arrowLeft" /><span>All pigeons</span></a>
       <div class={`${styles.postMeta} ${styles.detailMeta}`}>
