@@ -424,6 +424,24 @@ export const footer = style({
   borderTop: "1px solid #cfd2c8",
 });
 
+export const footerDetails = style({
+  display: "flex",
+  alignItems: "center",
+  flexWrap: "wrap",
+  gap: "8px 24px",
+  marginTop: "8px",
+  fontFamily: "Arial, Helvetica, sans-serif",
+  fontSize: "0.8125rem",
+});
+
+globalStyle(`${footerDetails} a`, { color: "#a64128" });
+
+export const copyright = style({
+  marginLeft: "auto",
+  color: "#697066",
+  textAlign: "right",
+});
+
 globalStyle("a", {
   display: "inline-flex",
   alignItems: "center",
