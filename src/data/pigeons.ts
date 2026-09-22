@@ -1,3 +1,4 @@
+import photo_2026_09_22 from "../assets/2026-09-22.jpg";
 import photo_2026_09_21 from "../assets/2026-09-21.jpg";
 import photo_2026_09_20 from "../assets/2026-09-20.jpg";
 
@@ -61,6 +62,15 @@ export type PigeonPost = PigeonPhoto;
 // Add one object here for each new photo. Dates are publication dates; posts are
 // sorted below. Numbers are permanent and must never be reassigned.
 const pigeonPhotos: PigeonPhoto[] = [
+  {
+    image: photo_2026_09_22,
+    number: "028",
+    queueId: "b5a6db979a4b45c61b7ad1af9c742670",
+    alt: "Close-up of a pigeon’s head and beak against a softly blurred blue and pink background.",
+    date: "September 22, 2026",
+    dateTime: "2026-09-22",
+    caption: "Fun fact, the white part of a pigeons beak is is called the Cere",
+  },
   {
     image: photo_2026_09_21,
     number: "027",
