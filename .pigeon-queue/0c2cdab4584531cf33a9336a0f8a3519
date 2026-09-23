@@ -9,6 +9,32 @@
     "caption": "What would the title of this movie be?",
     "alt": "Close-up of a pigeon’s eye and textured feathers against a blurred background.",
     "asset": "src/assets/2026-09-23.jpg",
-    "imageSha256": "968c46f81124234c4497005f7a71193796f7663418f027878b069504048afc34"
-  }
+    "imageSha256": "968c46f81124234c4497005f7a71193796f7663418f027878b069504048afc34",
+    "bluesky": {
+      "text": "What would the title of this movie be? piper-wolf.com/pigeons/029/",
+      "facets": [
+        {
+          "index": {
+            "byteStart": 39,
+            "byteEnd": 66
+          },
+          "features": [
+            {
+              "$type": "app.bsky.richtext.facet#link",
+              "uri": "https://piper-wolf.com/pigeons/029/"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-09-23T17:06:09.659Z",
+      "image": {
+        "asset": ".pigeon-queue/images/0c2cdab4584531cf33a9336a0f8a3519.jpg",
+        "sha256": "5a16e6250d4ebb3a76af1badbffb55187775eb7455405d0445540975a6f0df68",
+        "width": 1920,
+        "height": 1280
+      }
+    }
+  },
+  "accountDid": "did:plc:m52ohjyeitxktdgm4jlqllyn",
+  "blueskyRecordKey": "3mw77zymdkihm"
 }
