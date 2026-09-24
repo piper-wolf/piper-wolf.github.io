@@ -1,3 +1,4 @@
+import photo_2026_09_24 from "../assets/2026-09-24.jpg";
 import photo_2026_09_23 from "../assets/2026-09-23.jpg";
 import photo_2026_09_22 from "../assets/2026-09-22.jpg";
 import photo_2026_09_21 from "../assets/2026-09-21.jpg";
@@ -63,6 +64,15 @@ export type PigeonPost = PigeonPhoto;
 // Add one object here for each new photo. Dates are publication dates; posts are
 // sorted below. Numbers are permanent and must never be reassigned.
 const pigeonPhotos: PigeonPhoto[] = [
+  {
+    image: photo_2026_09_24,
+    number: "030",
+    queueId: "972ca3f2a11946e39f153e1a011fddd6",
+    alt: "Pigeons fly in front of large posters on a concrete wall beside a dark garage entrance.",
+    date: "September 24, 2026",
+    dateTime: "2026-09-24",
+    caption: "Attn: Federal Bureau of Control. Repeating pigeons sighted in downtown Seattle. Suspected AWE.",
+  },
   {
     image: photo_2026_09_23,
     number: "029",
