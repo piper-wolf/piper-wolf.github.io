@@ -9,6 +9,32 @@
     "caption": "He found a stick!!!!! WHOS A GOOD BIRD? YOU ARE!",
     "alt": "A gray pigeon stands on a stone ledge in front of large green leaves.",
     "asset": "src/assets/2026-09-25.jpg",
-    "imageSha256": "aafa57ff650833b08e07fa898d7683b21d770ca5adbd626db06e88bf4a6ff8f6"
-  }
+    "imageSha256": "aafa57ff650833b08e07fa898d7683b21d770ca5adbd626db06e88bf4a6ff8f6",
+    "bluesky": {
+      "text": "He found a stick!!!!! WHOS A GOOD BIRD? YOU ARE! piper-wolf.com/pigeons/031/",
+      "facets": [
+        {
+          "index": {
+            "byteStart": 49,
+            "byteEnd": 76
+          },
+          "features": [
+            {
+              "$type": "app.bsky.richtext.facet#link",
+              "uri": "https://piper-wolf.com/pigeons/031/"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-09-25T17:04:06.483Z",
+      "image": {
+        "asset": ".pigeon-queue/images/fe48a9311655fe30f6827b0a32eabaea.jpg",
+        "sha256": "ac1e4883458c421c37e378eb0411b7cc9b97bfb848287be0093c0d214eab7132",
+        "width": 1920,
+        "height": 1280
+      }
+    }
+  },
+  "accountDid": "did:plc:m52ohjyeitxktdgm4jlqllyn",
+  "blueskyRecordKey": "3mweau62s3pj7"
 }
