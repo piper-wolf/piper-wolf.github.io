@@ -1,0 +1,14 @@
+{
+  "queueId": "9fcd91cdd860c8a3c11f2a2cf41cf065",
+  "permanentUrl": "https://piper-wolf.com/pigeons/032/",
+  "publicationDate": "2026-09-26",
+  "snapshot": {
+    "queueId": "9fcd91cdd860c8a3c11f2a2cf41cf065",
+    "number": "032",
+    "dateTime": "2026-09-26",
+    "caption": "Impressive vertical",
+    "alt": "Close-up of a pigeon standing on a snowy surface, showing its dark feathers and red feet.",
+    "asset": "src/assets/2026-09-26.jpg",
+    "imageSha256": "4b4ede1c5df01ec9f308a0b78f684242dd66f168d2d176de32f6fe3a5c38a82e"
+  }
+}
