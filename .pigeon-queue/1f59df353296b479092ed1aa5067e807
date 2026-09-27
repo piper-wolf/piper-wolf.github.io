@@ -1,0 +1,14 @@
+{
+  "queueId": "1f59df353296b479092ed1aa5067e807",
+  "permanentUrl": "https://piper-wolf.com/pigeons/033/",
+  "publicationDate": "2026-09-27",
+  "snapshot": {
+    "queueId": "1f59df353296b479092ed1aa5067e807",
+    "number": "033",
+    "dateTime": "2026-09-27",
+    "caption": "Its giving three musketeers.",
+    "alt": "Three gray pigeons stand among scattered seeds on pavement beside a stone wall.",
+    "asset": "src/assets/2026-09-27.jpg",
+    "imageSha256": "1309361b7530f83a5a7b3b4140358e7a744c7e93028bb94162b1370a3859916d"
+  }
+}
