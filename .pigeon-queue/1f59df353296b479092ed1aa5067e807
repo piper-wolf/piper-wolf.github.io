@@ -9,6 +9,32 @@
     "caption": "Its giving three musketeers.",
     "alt": "Three gray pigeons stand among scattered seeds on pavement beside a stone wall.",
     "asset": "src/assets/2026-09-27.jpg",
-    "imageSha256": "1309361b7530f83a5a7b3b4140358e7a744c7e93028bb94162b1370a3859916d"
-  }
+    "imageSha256": "1309361b7530f83a5a7b3b4140358e7a744c7e93028bb94162b1370a3859916d",
+    "bluesky": {
+      "text": "Its giving three musketeers. piper-wolf.com/pigeons/033/",
+      "facets": [
+        {
+          "index": {
+            "byteStart": 29,
+            "byteEnd": 56
+          },
+          "features": [
+            {
+              "$type": "app.bsky.richtext.facet#link",
+              "uri": "https://piper-wolf.com/pigeons/033/"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-09-27T17:04:23.455Z",
+      "image": {
+        "asset": ".pigeon-queue/images/1f59df353296b479092ed1aa5067e807.jpg",
+        "sha256": "84d83027949b41c5cc6d403836a0b44a9342aeea48e08988aaa6241099628ec3",
+        "width": 1920,
+        "height": 1280
+      }
+    }
+  },
+  "accountDid": "did:plc:m52ohjyeitxktdgm4jlqllyn",
+  "blueskyRecordKey": "3mwjbsj67g6vc"
 }
