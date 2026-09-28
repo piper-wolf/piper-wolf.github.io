@@ -9,6 +9,32 @@
     "caption": "Cookies and cream wore his formal outfit today and he means pidge-ness!",
     "alt": "A dark pigeon stands on a city sidewalk near a group of feeding pigeons.",
     "asset": "src/assets/2026-09-28.jpg",
-    "imageSha256": "19ac0f41ff5b7d618744aebf055115a7bed2200db03f133a453f6ed4460e9a26"
-  }
+    "imageSha256": "19ac0f41ff5b7d618744aebf055115a7bed2200db03f133a453f6ed4460e9a26",
+    "bluesky": {
+      "text": "Cookies and cream wore his formal outfit today and he means pidge-ness! piper-wolf.com/pigeons/034/",
+      "facets": [
+        {
+          "index": {
+            "byteStart": 72,
+            "byteEnd": 99
+          },
+          "features": [
+            {
+              "$type": "app.bsky.richtext.facet#link",
+              "uri": "https://piper-wolf.com/pigeons/034/"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-09-28T17:04:52.289Z",
+      "image": {
+        "asset": ".pigeon-queue/images/91f96adeb88f4e4fc8acc4e9dcdee17c.jpg",
+        "sha256": "97c5f0d778a187361a1f3899b9eddf5f5f3d1c172bc28dd1c5c6051a2b38ff5c",
+        "width": 1920,
+        "height": 1280
+      }
+    }
+  },
+  "accountDid": "did:plc:m52ohjyeitxktdgm4jlqllyn",
+  "blueskyRecordKey": "3mwlscc4uafh4"
 }
