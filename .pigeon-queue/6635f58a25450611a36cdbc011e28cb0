@@ -1,0 +1,14 @@
+{
+  "queueId": "6635f58a25450611a36cdbc011e28cb0",
+  "permanentUrl": "https://piper-wolf.com/pigeons/035/",
+  "publicationDate": "2026-09-29",
+  "snapshot": {
+    "queueId": "6635f58a25450611a36cdbc011e28cb0",
+    "number": "035",
+    "dateTime": "2026-09-29",
+    "caption": "I don't know what the heck he is doing.",
+    "alt": "Three pigeons walk among scattered seeds on a paved path, with another pigeon blurred in the background.",
+    "asset": "src/assets/2026-09-29.jpg",
+    "imageSha256": "e52272153478f8e70ad45a498a0bc754912f69f5a18a4d5c76d825028bec20e7"
+  }
+}

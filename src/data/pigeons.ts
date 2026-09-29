@@ -1,3 +1,4 @@
+import photo_2026_09_29 from "../assets/2026-09-29.jpg";
 import photo_2026_09_28 from "../assets/2026-09-28.jpg";
 import photo_2026_09_27 from "../assets/2026-09-27.jpg";
 import photo_2026_09_26 from "../assets/2026-09-26.jpg";
@@ -68,6 +69,15 @@ export type PigeonPost = PigeonPhoto;
 // Add one object here for each new photo. Dates are publication dates; posts are
 // sorted below. Numbers are permanent and must never be reassigned.
 const pigeonPhotos: PigeonPhoto[] = [
+  {
+    image: photo_2026_09_29,
+    number: "035",
+    queueId: "6635f58a25450611a36cdbc011e28cb0",
+    alt: "Three pigeons walk among scattered seeds on a paved path, with another pigeon blurred in the background.",
+    date: "September 29, 2026",
+    dateTime: "2026-09-29",
+    caption: "I don't know what the heck he is doing.",
+  },
   {
     image: photo_2026_09_28,
     number: "034",
