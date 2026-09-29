@@ -36,5 +36,8 @@
     }
   },
   "accountDid": "did:plc:m52ohjyeitxktdgm4jlqllyn",
-  "blueskyRecordKey": "3mwocqdbxfj7h"
+  "blueskyRecordKey": "3mwocqdbxfj7h",
+  "blueskyUri": "at://did:plc:m52ohjyeitxktdgm4jlqllyn/app.bsky.feed.post/3mwocqdbxfj7h",
+  "blueskyCid": "bafyreihaew6fk4pcgr7glijnmhjjvvihp6kbbhgxkthgo3tfotcolbix3e",
+  "blueskyPublishedAt": "2026-09-29T17:04:27Z"
 }
