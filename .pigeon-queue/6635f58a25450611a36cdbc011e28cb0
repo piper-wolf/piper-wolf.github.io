@@ -9,6 +9,32 @@
     "caption": "I don't know what the heck he is doing.",
     "alt": "Three pigeons walk among scattered seeds on a paved path, with another pigeon blurred in the background.",
     "asset": "src/assets/2026-09-29.jpg",
-    "imageSha256": "e52272153478f8e70ad45a498a0bc754912f69f5a18a4d5c76d825028bec20e7"
-  }
+    "imageSha256": "e52272153478f8e70ad45a498a0bc754912f69f5a18a4d5c76d825028bec20e7",
+    "bluesky": {
+      "text": "I don't know what the heck he is doing. piper-wolf.com/pigeons/035/",
+      "facets": [
+        {
+          "index": {
+            "byteStart": 40,
+            "byteEnd": 67
+          },
+          "features": [
+            {
+              "$type": "app.bsky.richtext.facet#link",
+              "uri": "https://piper-wolf.com/pigeons/035/"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-09-29T17:04:22.612Z",
+      "image": {
+        "asset": ".pigeon-queue/images/6635f58a25450611a36cdbc011e28cb0.jpg",
+        "sha256": "b7084b5ffdff1013f592d97cf426342847c69c194f5cec377b61cfde2b5159c6",
+        "width": 1920,
+        "height": 1280
+      }
+    }
+  },
+  "accountDid": "did:plc:m52ohjyeitxktdgm4jlqllyn",
+  "blueskyRecordKey": "3mwocqdbxfj7h"
 }
