@@ -1,0 +1,14 @@
+{
+  "queueId": "a27d6fa7396f8e377e70f1aa546dcde2",
+  "permanentUrl": "https://piper-wolf.com/pigeons/036/",
+  "publicationDate": "2026-09-30",
+  "snapshot": {
+    "queueId": "a27d6fa7396f8e377e70f1aa546dcde2",
+    "number": "036",
+    "dateTime": "2026-09-30",
+    "caption": "Watch out when these three roll into town.",
+    "alt": "Three pigeons peck at scattered food on a concrete sidewalk.",
+    "asset": "src/assets/2026-09-30.jpg",
+    "imageSha256": "d7f4a05e5eddd0d5d3265920846c3b127fecdbd3032017698cae94b70868495c"
+  }
+}
