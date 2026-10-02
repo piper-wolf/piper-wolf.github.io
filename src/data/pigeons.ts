@@ -1,3 +1,4 @@
+import photo_2026_10_02 from "../assets/2026-10-02.jpg";
 import photo_2026_09_30 from "../assets/2026-09-30.jpg";
 import photo_2026_09_29 from "../assets/2026-09-29.jpg";
 import photo_2026_09_28 from "../assets/2026-09-28.jpg";
@@ -70,6 +71,15 @@ export type PigeonPost = PigeonPhoto;
 // Add one object here for each new photo. Dates are publication dates; posts are
 // sorted below. Numbers are permanent and must never be reassigned.
 const pigeonPhotos: PigeonPhoto[] = [
+  {
+    image: photo_2026_10_02,
+    number: "037",
+    queueId: "d12a0366d8cab5a1c7e98099eaa15935",
+    alt: "A brown-and-white hawk perches on the metal edge of a brick rooftop, with a blurred building behind it.",
+    date: "October 2, 2026",
+    dateTime: "2026-10-02",
+    caption: "POV spooky season is here and you're a pigeon.",
+  },
   {
     image: photo_2026_09_30,
     number: "036",
