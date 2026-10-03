@@ -9,6 +9,32 @@
     "caption": "Another day dawns for Seattle's birdies.",
     "alt": "A flock of pigeons flies beneath strings of lights against a pale, overcast sky.",
     "asset": "src/assets/2026-10-03.jpg",
-    "imageSha256": "2a68097761c6ad384aaa52d60ae70c2e979c829fb60ba469150271e0dd45a123"
-  }
+    "imageSha256": "2a68097761c6ad384aaa52d60ae70c2e979c829fb60ba469150271e0dd45a123",
+    "bluesky": {
+      "text": "Another day dawns for Seattle's birdies. piper-wolf.com/pigeons/038/",
+      "facets": [
+        {
+          "index": {
+            "byteStart": 41,
+            "byteEnd": 68
+          },
+          "features": [
+            {
+              "$type": "app.bsky.richtext.facet#link",
+              "uri": "https://piper-wolf.com/pigeons/038/"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-10-03T17:03:54.424Z",
+      "image": {
+        "asset": ".pigeon-queue/images/17a65e357e8c0942d504fc70a98ab4a3.jpg",
+        "sha256": "284433e5542b28f58f1d364d7532f18bb03117739b33af28663ff5cf745664bd",
+        "width": 1920,
+        "height": 1280
+      }
+    }
+  },
+  "accountDid": "did:plc:m52ohjyeitxktdgm4jlqllyn",
+  "blueskyRecordKey": "3mwyel6aogm2g"
 }
