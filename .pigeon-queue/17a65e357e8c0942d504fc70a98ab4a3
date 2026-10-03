@@ -1,0 +1,14 @@
+{
+  "queueId": "17a65e357e8c0942d504fc70a98ab4a3",
+  "permanentUrl": "https://piper-wolf.com/pigeons/038/",
+  "publicationDate": "2026-10-03",
+  "snapshot": {
+    "queueId": "17a65e357e8c0942d504fc70a98ab4a3",
+    "number": "038",
+    "dateTime": "2026-10-03",
+    "caption": "Another day dawns for Seattle's birdies.",
+    "alt": "A flock of pigeons flies beneath strings of lights against a pale, overcast sky.",
+    "asset": "src/assets/2026-10-03.jpg",
+    "imageSha256": "2a68097761c6ad384aaa52d60ae70c2e979c829fb60ba469150271e0dd45a123"
+  }
+}
