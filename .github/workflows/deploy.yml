@@ -13,6 +13,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Report dependency advisories independently: a newly published advisory must
+  # not freeze the daily static photo archive. Build and browser checks still gate deploy.
+  audit:
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=high
+
   build:
     timeout-minutes: 15
     runs-on: ubuntu-latest
@@ -23,7 +37,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm audit --audit-level=high
       - run: npm run check
       - run: npm run build
       - run: npx playwright install --with-deps chromium webkit
