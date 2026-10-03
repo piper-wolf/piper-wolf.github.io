@@ -9,6 +9,32 @@
     "caption": "POV spooky season is here and you're a pigeon.",
     "alt": "A brown-and-white hawk perches on the metal edge of a brick rooftop, with a blurred building behind it.",
     "asset": "src/assets/2026-10-02.jpg",
-    "imageSha256": "7d528ab0187fcca9561c16ceffc204f759c33ae6863a79467870000e7f833b3d"
-  }
+    "imageSha256": "7d528ab0187fcca9561c16ceffc204f759c33ae6863a79467870000e7f833b3d",
+    "bluesky": {
+      "text": "POV spooky season is here and you're a pigeon. piper-wolf.com/pigeons/037/",
+      "facets": [
+        {
+          "index": {
+            "byteStart": 47,
+            "byteEnd": 74
+          },
+          "features": [
+            {
+              "$type": "app.bsky.richtext.facet#link",
+              "uri": "https://piper-wolf.com/pigeons/037/"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-10-03T03:08:58.152Z",
+      "image": {
+        "asset": ".pigeon-queue/images/d12a0366d8cab5a1c7e98099eaa15935.jpg",
+        "sha256": "9b559b2d56798ee82ad1807d7fd47759b7add2d5675fe1a32dab72a2ffbd11a7",
+        "width": 1920,
+        "height": 1280
+      }
+    }
+  },
+  "accountDid": "did:plc:m52ohjyeitxktdgm4jlqllyn",
+  "blueskyRecordKey": "3mwwvw6pu7qy3"
 }
