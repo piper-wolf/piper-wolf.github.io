@@ -9,6 +9,32 @@
     "caption": "This is my new favorite pigeon.",
     "alt": "A gray and white pigeon faces right in a close-up against a blurred outdoor background.",
     "asset": "src/assets/2026-10-04.jpg",
-    "imageSha256": "c7f30c48b88dd7bc7335070ef2dbcdb8fc3c10117479e84c4fc3493519275ef3"
-  }
+    "imageSha256": "c7f30c48b88dd7bc7335070ef2dbcdb8fc3c10117479e84c4fc3493519275ef3",
+    "bluesky": {
+      "text": "This is my new favorite pigeon. piper-wolf.com/pigeons/039/",
+      "facets": [
+        {
+          "index": {
+            "byteStart": 32,
+            "byteEnd": 59
+          },
+          "features": [
+            {
+              "$type": "app.bsky.richtext.facet#link",
+              "uri": "https://piper-wolf.com/pigeons/039/"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-10-04T17:03:08.653Z",
+      "image": {
+        "asset": ".pigeon-queue/images/65f0f4bc473edc13f5b0e479efea8e88.jpg",
+        "sha256": "65219593989c4cb7a183543152b31973c47d661262d5874999b0f1de02ca90c8",
+        "width": 1920,
+        "height": 1280
+      }
+    }
+  },
+  "accountDid": "did:plc:m52ohjyeitxktdgm4jlqllyn",
+  "blueskyRecordKey": "3mx2uyq2ofzjg"
 }
