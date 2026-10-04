@@ -1,0 +1,14 @@
+{
+  "queueId": "65f0f4bc473edc13f5b0e479efea8e88",
+  "permanentUrl": "https://piper-wolf.com/pigeons/039/",
+  "publicationDate": "2026-10-04",
+  "snapshot": {
+    "queueId": "65f0f4bc473edc13f5b0e479efea8e88",
+    "number": "039",
+    "dateTime": "2026-10-04",
+    "caption": "This is my new favorite pigeon.",
+    "alt": "A gray and white pigeon faces right in a close-up against a blurred outdoor background.",
+    "asset": "src/assets/2026-10-04.jpg",
+    "imageSha256": "c7f30c48b88dd7bc7335070ef2dbcdb8fc3c10117479e84c4fc3493519275ef3"
+  }
+}
