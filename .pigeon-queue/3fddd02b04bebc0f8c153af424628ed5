@@ -9,6 +9,32 @@
     "caption": "Presenting the fire marshal of 2nd avenue. He's not quite sure what to do if a fire happens, but he is very proud of his fire hydrant.",
     "alt": "A gray pigeon perches on a yellow fire hydrant at a city intersection, with buildings and a red traffic light in the background.",
     "asset": "src/assets/2026-10-05.jpg",
-    "imageSha256": "ffdac0efbd92f3e744c03ec77c1ada6b0b7b18e8b6a44fe16c840aedae9c9869"
-  }
+    "imageSha256": "ffdac0efbd92f3e744c03ec77c1ada6b0b7b18e8b6a44fe16c840aedae9c9869",
+    "bluesky": {
+      "text": "Presenting the fire marshal of 2nd avenue. He's not quite sure what to do if a fire happens, but he is very proud of his fire hydrant. piper-wolf.com/pigeons/040/",
+      "facets": [
+        {
+          "index": {
+            "byteStart": 135,
+            "byteEnd": 162
+          },
+          "features": [
+            {
+              "$type": "app.bsky.richtext.facet#link",
+              "uri": "https://piper-wolf.com/pigeons/040/"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-10-05T17:03:53.107Z",
+      "image": {
+        "asset": ".pigeon-queue/images/3fddd02b04bebc0f8c153af424628ed5.jpg",
+        "sha256": "23a6883f617f26ed5b0b2432d3ea5be24470a77b8635694b59aa42391c74d0e7",
+        "width": 1920,
+        "height": 1280
+      }
+    }
+  },
+  "accountDid": "did:plc:m52ohjyeitxktdgm4jlqllyn",
+  "blueskyRecordKey": "3mx5fixw2fxhj"
 }
