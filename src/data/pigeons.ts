@@ -1,3 +1,4 @@
+import photo_2026_10_05 from "../assets/2026-10-05.jpg";
 import photo_2026_10_04 from "../assets/2026-10-04.jpg";
 import photo_2026_10_03 from "../assets/2026-10-03.jpg";
 import photo_2026_10_02 from "../assets/2026-10-02.jpg";
@@ -73,6 +74,15 @@ export type PigeonPost = PigeonPhoto;
 // Add one object here for each new photo. Dates are publication dates; posts are
 // sorted below. Numbers are permanent and must never be reassigned.
 const pigeonPhotos: PigeonPhoto[] = [
+  {
+    image: photo_2026_10_05,
+    number: "040",
+    queueId: "3fddd02b04bebc0f8c153af424628ed5",
+    alt: "A gray pigeon perches on a yellow fire hydrant at a city intersection, with buildings and a red traffic light in the background.",
+    date: "October 5, 2026",
+    dateTime: "2026-10-05",
+    caption: "Presenting the fire marshal of 2nd avenue. He's not quite sure what to do if a fire happens, but he is very proud of his fire hydrant.",
+  },
   {
     image: photo_2026_10_04,
     number: "039",

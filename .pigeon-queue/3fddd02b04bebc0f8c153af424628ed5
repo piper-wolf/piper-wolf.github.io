@@ -1,0 +1,14 @@
+{
+  "queueId": "3fddd02b04bebc0f8c153af424628ed5",
+  "permanentUrl": "https://piper-wolf.com/pigeons/040/",
+  "publicationDate": "2026-10-05",
+  "snapshot": {
+    "queueId": "3fddd02b04bebc0f8c153af424628ed5",
+    "number": "040",
+    "dateTime": "2026-10-05",
+    "caption": "Presenting the fire marshal of 2nd avenue. He's not quite sure what to do if a fire happens, but he is very proud of his fire hydrant.",
+    "alt": "A gray pigeon perches on a yellow fire hydrant at a city intersection, with buildings and a red traffic light in the background.",
+    "asset": "src/assets/2026-10-05.jpg",
+    "imageSha256": "ffdac0efbd92f3e744c03ec77c1ada6b0b7b18e8b6a44fe16c840aedae9c9869"
+  }
+}
