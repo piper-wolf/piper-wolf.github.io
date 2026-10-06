@@ -9,6 +9,32 @@
     "caption": "HE IS THE CHOSEN ONE.",
     "alt": "A pigeon flies with its wings spread above a flock on a city sidewalk, with colorful planters and a bicycle in the background.",
     "asset": "src/assets/2026-10-06.jpg",
-    "imageSha256": "42d8d6e7b05690faa6209c691ed0c66fd948efb86024aea6f665beeb87deaf7b"
-  }
+    "imageSha256": "42d8d6e7b05690faa6209c691ed0c66fd948efb86024aea6f665beeb87deaf7b",
+    "bluesky": {
+      "text": "HE IS THE CHOSEN ONE. piper-wolf.com/pigeons/041/",
+      "facets": [
+        {
+          "index": {
+            "byteStart": 22,
+            "byteEnd": 49
+          },
+          "features": [
+            {
+              "$type": "app.bsky.richtext.facet#link",
+              "uri": "https://piper-wolf.com/pigeons/041/"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-10-06T17:04:39.770Z",
+      "image": {
+        "asset": ".pigeon-queue/images/1a1b53a0e7f35a0bdaa12624f9a8b8e9.jpg",
+        "sha256": "0616cda89b4989dd75c1ec7648d0fb509cbf54678f135c42bf7b2d6e044d5545",
+        "width": 1920,
+        "height": 1280
+      }
+    }
+  },
+  "accountDid": "did:plc:m52ohjyeitxktdgm4jlqllyn",
+  "blueskyRecordKey": "3mx7vzbuu7uhb"
 }
