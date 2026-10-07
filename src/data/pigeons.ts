@@ -1,3 +1,4 @@
+import photo_2026_10_07 from "../assets/2026-10-07.jpg";
 import photo_2026_10_06 from "../assets/2026-10-06.jpg";
 import photo_2026_10_05 from "../assets/2026-10-05.jpg";
 import photo_2026_10_04 from "../assets/2026-10-04.jpg";
@@ -75,6 +76,15 @@ export type PigeonPost = PigeonPhoto;
 // Add one object here for each new photo. Dates are publication dates; posts are
 // sorted below. Numbers are permanent and must never be reassigned.
 const pigeonPhotos: PigeonPhoto[] = [
+  {
+    image: photo_2026_10_07,
+    number: "042",
+    queueId: "58b8cb8f51a6d2eb9121ea0a45f3df1b",
+    alt: "A gray pigeon with white-speckled neck feathers and an orange eye faces right against a blurred outdoor background.",
+    date: "October 7, 2026",
+    dateTime: "2026-10-07",
+    caption: "I need a name for this pigeon! Help! Get in the comments!",
+  },
   {
     image: photo_2026_10_06,
     number: "041",
