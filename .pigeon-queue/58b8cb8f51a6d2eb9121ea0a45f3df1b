@@ -9,6 +9,32 @@
     "caption": "I need a name for this pigeon! Help! Get in the comments!",
     "alt": "A gray pigeon with white-speckled neck feathers and an orange eye faces right against a blurred outdoor background.",
     "asset": "src/assets/2026-10-07.jpg",
-    "imageSha256": "ba4514ed98d88c48b4798247fd4d35f8eb9057c5de9a4864865497eb1ab90350"
-  }
+    "imageSha256": "ba4514ed98d88c48b4798247fd4d35f8eb9057c5de9a4864865497eb1ab90350",
+    "bluesky": {
+      "text": "I need a name for this pigeon! Help! Get in the comments! piper-wolf.com/pigeons/042/",
+      "facets": [
+        {
+          "index": {
+            "byteStart": 58,
+            "byteEnd": 85
+          },
+          "features": [
+            {
+              "$type": "app.bsky.richtext.facet#link",
+              "uri": "https://piper-wolf.com/pigeons/042/"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-10-07T17:04:34.770Z",
+      "image": {
+        "asset": ".pigeon-queue/images/58b8cb8f51a6d2eb9121ea0a45f3df1b.jpg",
+        "sha256": "faa9f47d0d2f76349f851bbf3bef2e800474fcdd28659f4b87c1f381eb776492",
+        "width": 1920,
+        "height": 1280
+      }
+    }
+  },
+  "accountDid": "did:plc:m52ohjyeitxktdgm4jlqllyn",
+  "blueskyRecordKey": "3mxcgi2kzyvak"
 }
