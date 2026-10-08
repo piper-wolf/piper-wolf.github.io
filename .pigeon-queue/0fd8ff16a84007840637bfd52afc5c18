@@ -9,6 +9,32 @@
     "caption": "He thinks he is a bird of prey, he is not.",
     "alt": "A flock of gray pigeons crowds a city street, with several birds flapping their wings and one airborne above the others.",
     "asset": "src/assets/2026-10-08.jpg",
-    "imageSha256": "0249454fa5daeb4283c187d2bc6975db6d69eeb9bdc6ec7d33228227ac3396a9"
-  }
+    "imageSha256": "0249454fa5daeb4283c187d2bc6975db6d69eeb9bdc6ec7d33228227ac3396a9",
+    "bluesky": {
+      "text": "He thinks he is a bird of prey, he is not. piper-wolf.com/pigeons/043/",
+      "facets": [
+        {
+          "index": {
+            "byteStart": 43,
+            "byteEnd": 70
+          },
+          "features": [
+            {
+              "$type": "app.bsky.richtext.facet#link",
+              "uri": "https://piper-wolf.com/pigeons/043/"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-10-08T17:05:22.347Z",
+      "image": {
+        "asset": ".pigeon-queue/images/0fd8ff16a84007840637bfd52afc5c18.jpg",
+        "sha256": "b84e6ff4e7e04aa72ea9d4d5ac9344d138fc28185218e5c1497469556675bb54",
+        "width": 1920,
+        "height": 1280
+      }
+    }
+  },
+  "accountDid": "did:plc:m52ohjyeitxktdgm4jlqllyn",
+  "blueskyRecordKey": "3mxewyffpqddw"
 }
