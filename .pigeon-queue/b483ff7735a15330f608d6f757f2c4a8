@@ -9,6 +9,32 @@
     "caption": "Just three gentlemen having a conversation about fine seed varietals.",
     "alt": "Three gray pigeons stand close to the camera, with more pigeons and a blurred city street behind them.",
     "asset": "src/assets/2026-10-09.jpg",
-    "imageSha256": "6d1e899a736265dde48bc6aeb3ec3aac0a63bc8b580955c35c04c70efb2ff7c6"
-  }
+    "imageSha256": "6d1e899a736265dde48bc6aeb3ec3aac0a63bc8b580955c35c04c70efb2ff7c6",
+    "bluesky": {
+      "text": "Just three gentlemen having a conversation about fine seed varietals. piper-wolf.com/pigeons/044/",
+      "facets": [
+        {
+          "index": {
+            "byteStart": 70,
+            "byteEnd": 97
+          },
+          "features": [
+            {
+              "$type": "app.bsky.richtext.facet#link",
+              "uri": "https://piper-wolf.com/pigeons/044/"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-10-09T17:03:55.548Z",
+      "image": {
+        "asset": ".pigeon-queue/images/b483ff7735a15330f608d6f757f2c4a8.jpg",
+        "sha256": "8e1b567da963662c3fe6a5bddc55a928f75ab46bfdd0a1befbf853c886536bfb",
+        "width": 1920,
+        "height": 1280
+      }
+    }
+  },
+  "accountDid": "did:plc:m52ohjyeitxktdgm4jlqllyn",
+  "blueskyRecordKey": "3mxhheq3kmbz5"
 }
