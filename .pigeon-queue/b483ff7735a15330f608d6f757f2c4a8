@@ -1,0 +1,14 @@
+{
+  "queueId": "b483ff7735a15330f608d6f757f2c4a8",
+  "permanentUrl": "https://piper-wolf.com/pigeons/044/",
+  "publicationDate": "2026-10-09",
+  "snapshot": {
+    "queueId": "b483ff7735a15330f608d6f757f2c4a8",
+    "number": "044",
+    "dateTime": "2026-10-09",
+    "caption": "Just three gentlemen having a conversation about fine seed varietals.",
+    "alt": "Three gray pigeons stand close to the camera, with more pigeons and a blurred city street behind them.",
+    "asset": "src/assets/2026-10-09.jpg",
+    "imageSha256": "6d1e899a736265dde48bc6aeb3ec3aac0a63bc8b580955c35c04c70efb2ff7c6"
+  }
+}
