@@ -1,3 +1,4 @@
+import photo_2026_10_10 from "../assets/2026-10-10.jpg";
 import photo_2026_10_09 from "../assets/2026-10-09.jpg";
 import photo_2026_10_08 from "../assets/2026-10-08.jpg";
 import photo_2026_10_07 from "../assets/2026-10-07.jpg";
@@ -78,6 +79,15 @@ export type PigeonPost = PigeonPhoto;
 // Add one object here for each new photo. Dates are publication dates; posts are
 // sorted below. Numbers are permanent and must never be reassigned.
 const pigeonPhotos: PigeonPhoto[] = [
+  {
+    image: photo_2026_10_10,
+    number: "045",
+    queueId: "584c8ebbbb050aa73a251c6f083c9ffc",
+    alt: "A crowded flock of gray pigeons fills the frame, with several birds spreading their wings.",
+    date: "October 10, 2026",
+    dateTime: "2026-10-10",
+    caption: "Lots of competition for Seattle's next top pigeon during the wing judging.",
+  },
   {
     image: photo_2026_10_09,
     number: "044",
