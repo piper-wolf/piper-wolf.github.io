@@ -9,6 +9,32 @@
     "caption": "Lots of competition for Seattle's next top pigeon during the wing judging.",
     "alt": "A crowded flock of gray pigeons fills the frame, with several birds spreading their wings.",
     "asset": "src/assets/2026-10-10.jpg",
-    "imageSha256": "7ce37443a4e0e5271b9fd7c701781fcb201628729d05c14c570eba6cf2f3a7f0"
-  }
+    "imageSha256": "7ce37443a4e0e5271b9fd7c701781fcb201628729d05c14c570eba6cf2f3a7f0",
+    "bluesky": {
+      "text": "Lots of competition for Seattle's next top pigeon during the wing judging. piper-wolf.com/pigeons/045/",
+      "facets": [
+        {
+          "index": {
+            "byteStart": 75,
+            "byteEnd": 102
+          },
+          "features": [
+            {
+              "$type": "app.bsky.richtext.facet#link",
+              "uri": "https://piper-wolf.com/pigeons/045/"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-10-10T17:03:56.687Z",
+      "image": {
+        "asset": ".pigeon-queue/images/584c8ebbbb050aa73a251c6f083c9ffc.jpg",
+        "sha256": "15cf1109d18c3ee56c31c1620ce1885b7e704f174165e76580901c8cb15ea338",
+        "width": 1920,
+        "height": 1280
+      }
+    }
+  },
+  "accountDid": "did:plc:m52ohjyeitxktdgm4jlqllyn",
+  "blueskyRecordKey": "3mxjxton2bjjp"
 }
