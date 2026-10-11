@@ -456,6 +456,12 @@ export const copyright = style({
   },
 });
 
+export const copyrightLink = style({ ...actionLink });
+
+export const copyrightContent = style({ maxWidth: "42rem" });
+globalStyle(`${copyrightContent} section`, { marginTop: "2rem" });
+globalStyle(`${copyrightContent} a`, { color: "#a64128" });
+
 // Inline prose links must stay inline; only navigation/actions get touch boxes.
 globalStyle("a", { textUnderlineOffset: "0.2em" });
 globalStyle(`${footerDetails} a`, { overflowWrap: "anywhere" });

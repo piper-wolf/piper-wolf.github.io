@@ -1,0 +1,29 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import * as styles from "../styles/site.css";
+---
+
+<BaseLayout
+  title="Photo copyright & licensing"
+  description="Copyright information for Piper Wolf’s photographs, full-resolution photo purchases, and commercial licensing inquiries."
+>
+  <article class={styles.copyrightContent}>
+    <header>
+      <p class={styles.eyebrow}>Photography</p>
+      <h1 class={styles.pageTitle}>Photo copyright &amp; licensing</h1>
+      <p class={styles.intro}>All photographs on this website are copyright Piper Wolf. All rights reserved.</p>
+    </header>
+
+    <section aria-labelledby="photo-copyright">
+      <h2 id="photo-copyright" class={styles.subheading}>Using my photographs</h2>
+      <p>Publishing a photograph here does not grant permission to reproduce, distribute, modify, or use it commercially. Please contact me to arrange permission or a license before using a photo.</p>
+      <p>You’re welcome to share links to the photo pages on this website.</p>
+    </section>
+
+    <section aria-labelledby="photo-purchases">
+      <h2 id="photo-purchases" class={styles.subheading}>Full-resolution photos &amp; commercial licenses</h2>
+      <p>Full-resolution photographs are available to purchase, and I offer licenses for commercial use. Contact me at <a href="mailto:me@piper-wolf.com">me@piper-wolf.com</a> to discuss pricing, available files, and licensing terms.</p>
+      <p>Please include the photo’s page link or pigeon number and describe how you’d like to use it. Purchasing a full-resolution file does not transfer copyright; any commercial use must be covered by an agreed license.</p>
+    </section>
+  </article>
+</BaseLayout>
