@@ -1,6 +1,9 @@
 # Repository workflow
 
 - Always commit and push repository changes unless the user says otherwise.
+- When adding a page, include it in `src/pages/sitemap.xml.ts`, provide structured
+  data through `BaseLayout`, and run `tests/integrity.spec.ts`; the integrity check
+  requires internal link destinations to be in the sitemap with page metadata.
 
 ## Generated content ownership
 
