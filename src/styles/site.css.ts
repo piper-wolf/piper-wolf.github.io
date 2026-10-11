@@ -478,12 +478,12 @@ export const copyright = style({
 
 export const copyrightLink = style({ ...actionLink });
 
-export const blueskyProfileLink = style({
+export const footerItem = style({
   ...actionLink,
-  justifyContent: "center",
-  minWidth: touchTarget,
-  fontSize: "1.25rem",
+  minWidth: 0,
 });
+
+globalStyle(`${footerItem} svg`, { color: "#a64128" });
 
 export const copyrightContent = style({ maxWidth: "42rem" });
 globalStyle(`${copyrightContent} section`, { marginTop: "2rem" });

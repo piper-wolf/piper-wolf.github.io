@@ -1,8 +1,8 @@
 ---
-import { faArrowLeft, faArrowRight, faCamera, faDove, faHouse, faMugHot, faRss } from "@fortawesome/free-solid-svg-icons";
+import { faArrowLeft, faArrowRight, faCamera, faDove, faEnvelope, faHouse, faMugHot, faRss } from "@fortawesome/free-solid-svg-icons";
 import { faBluesky } from "@fortawesome/free-brands-svg-icons";
 
-const icons = { arrowLeft: faArrowLeft, arrowRight: faArrowRight, camera: faCamera, dove: faDove, home: faHouse, coffee: faMugHot, rss: faRss, bluesky: faBluesky };
+const icons = { arrowLeft: faArrowLeft, arrowRight: faArrowRight, camera: faCamera, dove: faDove, mail: faEnvelope, home: faHouse, coffee: faMugHot, rss: faRss, bluesky: faBluesky };
 interface Props { name: keyof typeof icons }
 const [width, height, , , paths] = icons[Astro.props.name].icon;
 ---
