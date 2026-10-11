@@ -377,6 +377,26 @@ export const photoDetails = style({
   borderTop: "1px solid #cfd2c8",
 });
 
+export const postActions = style({
+  display: "flex",
+  flexWrap: "wrap",
+  marginTop: "1.25rem",
+});
+
+export const blueskyShareLink = style({
+  ...actionLink,
+  padding: "0.5rem 1rem",
+  border: "1px solid #cfd2c8",
+  borderRadius: "0.25rem",
+  color: "#1d2826",
+  fontFamily: "Arial, Helvetica, sans-serif",
+  fontSize: "0.875rem",
+  textDecoration: "none",
+  selectors: {
+    "&:hover": { background: "#eeeee5", borderColor: "#53635d" },
+  },
+});
+
 export const photoDetailsGrid = style({
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 15rem), 1fr))",
@@ -457,6 +477,13 @@ export const copyright = style({
 });
 
 export const copyrightLink = style({ ...actionLink });
+
+export const blueskyProfileLink = style({
+  ...actionLink,
+  justifyContent: "center",
+  minWidth: touchTarget,
+  fontSize: "1.25rem",
+});
 
 export const copyrightContent = style({ maxWidth: "42rem" });
 globalStyle(`${copyrightContent} section`, { marginTop: "2rem" });

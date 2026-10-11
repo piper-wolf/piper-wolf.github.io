@@ -31,6 +31,8 @@ const socialImage = {
 };
 const siteUrl = Astro.site ?? Astro.url;
 const detailUrl = new URL(`/pigeons/${post.number}/`, siteUrl).href;
+const blueskyShareUrl = new URL("https://bsky.app/intent/compose");
+blueskyShareUrl.searchParams.set("text", `${post.title}\n${detailUrl}`);
 const structuredData = {
   "@context": "https://schema.org",
   "@type": "ImageObject",
@@ -77,6 +79,11 @@ const structuredData = {
       loading="eager"
       variant="detail"
     />
+    <div class={styles.postActions}>
+      <a class={styles.blueskyShareLink} href={blueskyShareUrl.href} target="_blank" rel="noopener noreferrer">
+        <Icon name="bluesky" /><span>Share on Bluesky</span>
+      </a>
+    </div>
     <PhotoDetails post={post} metadata={metadata} />
   </article>
 </BaseLayout>
