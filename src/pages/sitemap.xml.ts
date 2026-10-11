@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { pigeonPosts } from "../data/pigeons";
+import { pigeonPosts } from "../data/pigeon-posts";
 
 const escapeXml = (value: string) =>
   value.replace(

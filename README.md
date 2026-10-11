@@ -11,6 +11,13 @@ commits and pushes both together with a `.pigeon-queue/<id>` receipt. Keep these
 receipts: they prevent duplicate posts on retries and enforce the scheduled daily
 limit. This repository only renders and deploys the published content.
 
+`src/data/pigeons.ts` is publisher-owned output, with an ownership warning kept
+at the top by `pigeon-queue/pigeon/website.py`. Do not hand-edit its photo records.
+Change publication output in that generator or unpublished content through the
+queue editor. Handwritten types live in `src/data/pigeon-photo.ts`; sorting and
+descriptive page titles live in `src/data/pigeon-posts.ts`. Titles use the existing
+published alt text instead of a second, independently maintained photo field.
+
 Posts are sorted by publication date and use permanent, explicit numbers in
 `src/data/pigeons.ts`; never reassign a number because it determines the public
 URL. New numbers increase monotonically. The publisher adds a queue ID marker to

@@ -38,6 +38,7 @@ test("sitemap pages, internal links, fragments, images, and metadata are valid",
       const doc = new DOMParser().parseFromString(html, "text/html");
       return {
         headings: doc.querySelectorAll("h1").length,
+        title: doc.title,
         canonical: doc.querySelector('link[rel="canonical"]')?.getAttribute("href"),
         description: doc.querySelector('meta[name="description"]')?.getAttribute("content"),
         structuredData: [...doc.querySelectorAll('script[type="application/ld+json"]')].map((script) => JSON.parse(script.textContent!)),
@@ -48,6 +49,11 @@ test("sitemap pages, internal links, fragments, images, and metadata are valid",
       };
     }, await response.text());
     expect(result.headings).toBe(1);
+    if (url.pathname === "/") {
+      expect(result.title).toBe("Seattle Pigeon Photography — Piper Wolf");
+    } else if (/^\/pigeons\/\d+\/$/.test(url.pathname)) {
+      expect(result.title).toMatch(/^Seattle pigeons: .+ — Pigeon no\. \d+ — Piper Wolf$/);
+    }
     expect(result.canonical).toBe(url.href);
     expect(result.description).toBeTruthy();
     expect(result.structuredData.length).toBeGreaterThan(0);

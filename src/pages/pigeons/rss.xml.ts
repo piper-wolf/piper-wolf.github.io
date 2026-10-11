@@ -1,7 +1,7 @@
 import rss from "@astrojs/rss";
 import { getImage } from "astro:assets";
 import type { APIRoute } from "astro";
-import { pigeonPosts } from "../../data/pigeons";
+import { pigeonPosts } from "../../data/pigeon-posts";
 
 const escapeHtml = (value: string) => value.replace(
   /[&<>"']/g,

@@ -4,7 +4,7 @@ import Icon from "../../components/Icon.astro";
 import PigeonImage from "../../components/PigeonImage.astro";
 import * as styles from "../../styles/site.css";
 import { getImage } from "astro:assets";
-import { pigeonPosts } from "../../data/pigeons";
+import { pigeonPosts } from "../../data/pigeon-posts";
 
 const description = "A static collection of pigeon sightings from Seattle by Piper Wolf.";
 const optimizedSocialImage = await getImage({ src: pigeonPosts[0].image, width: 1200, format: "jpeg" });
