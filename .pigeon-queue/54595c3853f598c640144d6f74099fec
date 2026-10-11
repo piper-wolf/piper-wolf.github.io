@@ -1,0 +1,14 @@
+{
+  "queueId": "54595c3853f598c640144d6f74099fec",
+  "permanentUrl": "https://piper-wolf.com/pigeons/046/",
+  "publicationDate": "2026-10-11",
+  "snapshot": {
+    "queueId": "54595c3853f598c640144d6f74099fec",
+    "number": "046",
+    "dateTime": "2026-10-11",
+    "caption": "A sea of tail feathers.",
+    "alt": "A flock of pigeons crowds a city sidewalk, with overlapping wings in the foreground and blurred traffic lights behind them.",
+    "asset": "src/assets/2026-10-11.jpg",
+    "imageSha256": "457ce60ca4461fb155b10f8432cc28ca457b24fe4a4c8330674d0370f72aeb55"
+  }
+}

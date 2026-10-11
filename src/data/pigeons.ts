@@ -4,6 +4,7 @@
 // output in that generator, not here; preserve existing snapshots and post numbers.
 // Website types, sorting, and page-title logic belong in pigeon-photo.ts and
 // pigeon-posts.ts, not in this generated file.
+import photo_2026_10_11 from "../assets/2026-10-11.jpg";
 import type { PigeonPhoto } from "./pigeon-photo";
 import photo_2026_10_10 from "../assets/2026-10-10.jpg";
 import photo_2026_10_09 from "../assets/2026-10-09.jpg";
@@ -71,6 +72,15 @@ import aug16Two from "../assets/2026-08-16-2.jpg";
 import aug16 from "../assets/2026-08-16.jpg";
 
 export const pigeonPhotos: PigeonPhoto[] = [
+  {
+    image: photo_2026_10_11,
+    number: "046",
+    queueId: "54595c3853f598c640144d6f74099fec",
+    alt: "A flock of pigeons crowds a city sidewalk, with overlapping wings in the foreground and blurred traffic lights behind them.",
+    date: "October 11, 2026",
+    dateTime: "2026-10-11",
+    caption: "A sea of tail feathers.",
+  },
   {
     image: photo_2026_10_10,
     number: "045",
