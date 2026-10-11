@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
 
 const pages = ["/", "/pigeons/", "/pigeons/016/", "/pigeons/001/"];
 
-for (const width of [320, 390, 768, 1024, 1440]) {
+for (const width of [320, 390, 768, 769, 1024, 1440]) {
   for (const path of pages) {
     test(`${path} fits a ${width}px viewport`, async ({ page }) => {
       await page.setViewportSize({ width, height: 844 });
@@ -15,7 +15,7 @@ for (const width of [320, 390, 768, 1024, 1440]) {
       await expect(page.locator("h1")).toBeVisible();
       const overflow = await page.evaluate(() => {
         const viewport = document.documentElement.clientWidth;
-        return [...document.querySelectorAll("header *, main *")]
+        return [...document.querySelectorAll("body > header *, main *, footer *")]
           .filter((element) => {
             const rect = element.getBoundingClientRect();
             return rect.width > 0 && (rect.right > viewport + 1 || rect.left < -1);
@@ -31,6 +31,8 @@ for (const width of [320, 390, 768, 1024, 1440]) {
 for (const width of [390, 1440]) {
   for (const path of pages) {
     test(`${path} is accessible at ${width}px`, async ({ page }) => {
+      // Axe examines the whole growing archive, including on slower ARM hosts.
+      test.setTimeout(120_000);
       await page.setViewportSize({ width, height: 844 });
       await page.goto(path);
       const { default: AxeBuilder } = await import("@axe-core/playwright");
@@ -42,7 +44,8 @@ for (const width of [390, 1440]) {
       await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();
       await page.keyboard.press("Enter");
       await expect(page.getByRole("main")).toBeFocused();
-      const smallLinks = await page.locator("a").evaluateAll((links) => links
+      // Inline prose links are exempt from target sizing; actions are not.
+      const smallLinks = await page.locator('a:not([href^="mailto:"])').evaluateAll((links) => links
         .filter((link) => link.getBoundingClientRect().height < 44)
         .map((link) => link.textContent));
       expect(smallLinks).toEqual([]);
@@ -119,3 +122,18 @@ test("a touch phone uses its device width at high pixel density", async ({ brows
     await context.close();
   }
 });
+
+for (const width of [320, 800, 1440]) {
+  test(`larger default text preserves layout and inline contact at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    for (const path of [...pages, "/404.html"]) {
+      await page.goto(path);
+      await page.addStyleTag({ content: "html { font-size: 200%; }" });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      await expect(page.locator('a[href^="mailto:"]')).toHaveCSS("display", "inline");
+      const clipped = await page.locator("main h1, main h2, main p, footer span").evaluateAll(elements =>
+        elements.filter(element => element.scrollWidth > element.clientWidth + 1).map(element => element.textContent));
+      expect(clipped).toEqual([]);
+    }
+  });
+}

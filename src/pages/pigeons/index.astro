@@ -44,7 +44,7 @@ const structuredData = {
   socialImageAlt={pigeonPosts[0].alt}
   structuredData={structuredData}
 >
-  <div class={styles.pageHeader}>
+  <header class={styles.pageHeader}>
     <div>
       <p class={styles.eyebrow}>Are they smart? No. Are they endearing? Most certainly!</p>
       <h1 class={styles.pageTitle}>Seattle pigeons</h1>
@@ -53,7 +53,7 @@ const structuredData = {
       <a class={styles.link} href="/pigeons/rss.xml"><Icon name="rss" /><span>Subscribe via RSS</span></a>
       <a class={styles.supportLink} href="https://buymeacoffee.com/piperwolf"><Icon name="coffee" /><span>Fund coffee and birdseed!</span></a>
     </div>
-  </div>
+  </header>
 
   <section class={styles.feed} aria-label="Pigeon posts">
     {pigeonPosts.map((post, index) => (

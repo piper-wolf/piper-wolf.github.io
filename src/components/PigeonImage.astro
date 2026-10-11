@@ -2,6 +2,7 @@
 import { Image } from "astro:assets";
 import type { ImageMetadata } from "astro";
 import * as styles from "../styles/site.css";
+import { layout } from "../styles/layout";
 
 interface Props {
   src: ImageMetadata;
@@ -21,15 +22,15 @@ const {
   variant = "feed",
 } = Astro.props;
 
-// Match the container, grid gaps, and 10px photo frames in site.css.ts.
-const contentWidth = "min(100vw - 2 * clamp(1rem, 4vw, 1.5rem), 74rem)";
-const fullWidth = `min(${src.width}px, ${contentWidth} - 20px)`;
+// Intrinsic pixels describe the source; rem dimensions mirror the CSS layout.
+const contentWidth = `min(100vw - 2 * ${layout.gutter}, ${layout.maxWidth})`;
+const fullWidth = `min(${src.width}px, ${contentWidth} - 2 * ${layout.frame})`;
 const desktopWidth = {
-  feed: `min((${contentWidth} - 24px) / 1.4, ${contentWidth} - 24px - 14rem) - 20px`,
-  feature: `(${contentWidth} - 48px) / 1.72 - 20px`,
+  feed: `(${contentWidth} - ${layout.postGap}) / 1.4 - 2 * ${layout.frame}`,
+  feature: `(${contentWidth} - ${layout.featureGap}) / 1.72 - 2 * ${layout.frame}`,
   detail: `min(${fullWidth}, ${80 * src.width / src.height}svh)`,
 }[variant];
-const sizes = `${variant !== "feature" ? "(max-width: 48rem) and (orientation: portrait) 100vw, " : ""}(max-width: 48rem) calc(${fullWidth}), calc(${desktopWidth})`;
+const sizes = `${variant !== "feature" ? `(max-width: ${layout.breakpoint}) and (orientation: portrait) 100vw, ` : ""}(max-width: ${layout.breakpoint}) calc(${fullWidth}), calc(${desktopWidth})`;
 const widths = [...new Set([320, 480, 640, 768, 1024, 1440, 1920, src.width])]
   .filter((width) => width <= src.width)
   .sort((a, b) => a - b);

@@ -1,11 +1,23 @@
 import { globalStyle, style } from "@vanilla-extract/css";
 
-const contentWidth = "min(100% - 2 * clamp(1rem, 4vw, 1.5rem), 74rem)";
+import { layout } from "./layout";
+
+const contentWidth = `min(100% - 2 * ${layout.gutter}, ${layout.maxWidth})`;
+// rem: text and layout rhythm; em: text-relative details; px: crisp borders/focus.
+const sectionSpace = "clamp(2rem, 1rem + 4vw, 3.5rem)";
+const headingSize = "clamp(2rem, 1.5rem + 2vw, 3rem)";
+const touchTarget = "max(44px, 2.75rem)";
+const actionLink = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "0.6em",
+  minHeight: touchTarget,
+} as const;
 
 export const iconLabel = style({ display: "inline-flex", alignItems: "center", gap: "0.6em" });
 
 export const page = style({
-  minHeight: "100vh",
+  minHeight: "100svh",
   display: "flex",
   flexDirection: "column",
   background: "#f5f3ed",
@@ -20,26 +32,27 @@ export const header = style({
   alignItems: "center",
   justifyContent: "space-between",
   flexWrap: "wrap",
-  gap: "8px 24px",
+  gap: "0.5rem 1.5rem",
   width: contentWidth,
   margin: "0 auto",
-  padding: "24px 0",
+  padding: "1.5rem 0",
   borderBottom: "1px solid #cfd2c8",
 });
 
 export const brand = style({
+  ...actionLink,
   color: "#1d2826",
   fontSize: "1.3rem",
   fontWeight: "700",
   letterSpacing: "-0.03em",
-  whiteSpace: "nowrap",
+  minWidth: 0,
   textDecoration: "none",
 });
 
 export const nav = style({
   display: "flex",
   flexWrap: "wrap",
-  gap: "8px 16px",
+  gap: "0.5rem 1rem",
   fontFamily: "Arial, Helvetica, sans-serif",
   fontSize: "0.875rem",
   letterSpacing: "0.04em",
@@ -47,6 +60,7 @@ export const nav = style({
 });
 
 export const navLink = style({
+  ...actionLink,
   color: "#53635d",
   textDecoration: "none",
   transition: "color 160ms ease",
@@ -61,11 +75,11 @@ export const main = style({
   width: contentWidth,
   flex: 1,
   margin: "0 auto",
-  padding: "clamp(24px, 4vw, 48px) 0 56px",
+  paddingBlock: sectionSpace,
 });
 
 export const eyebrow = style({
-  margin: "0 0 5px 0",
+  margin: "0 0 0.3125rem 0",
   color: "#a64128",
   fontFamily: "Arial, Helvetica, sans-serif",
   fontSize: "0.8125rem",
@@ -76,7 +90,7 @@ export const eyebrow = style({
 
 export const intro = style({
   maxWidth: "34rem",
-  margin: "16px 0 0",
+  margin: "1rem 0 0",
   color: "#53635d",
   fontSize: "1rem",
   lineHeight: 1.55,
@@ -84,14 +98,14 @@ export const intro = style({
 
 export const feature = style({
   display: "grid",
-  gridTemplateColumns: "minmax(0, 1fr) minmax(16rem, 0.72fr)",
+  gridTemplateColumns: "minmax(0, 1fr) minmax(0, 0.72fr)",
   alignItems: "start",
-  gap: "48px",
-  marginTop: "40px",
+  gap: layout.featureGap,
+  marginTop: sectionSpace,
   "@media": {
-    "screen and (max-width: 48rem)": {
+    [`screen and (max-width: ${layout.breakpoint})`]: {
       gridTemplateColumns: "minmax(0, 1fr)",
-      gap: "24px",
+      gap: "1.5rem",
     },
   },
 });
@@ -110,11 +124,11 @@ export const imageFrame = style({
   width: "100%",
   overflow: "hidden",
   background: "#d7d9d0",
-  padding: "10px",
+  padding: layout.frame,
 });
 
 export const caption = style({
-  margin: "14px 0 0",
+  margin: "0.875rem 0 0",
   color: "#53635d",
   fontFamily: "Arial, Helvetica, sans-serif",
   fontSize: "0.8125rem",
@@ -123,10 +137,10 @@ export const caption = style({
 
 export const featurePhoto = style({ minWidth: 0, margin: 0 });
 
-export const featureCopy = style({ maxWidth: "32rem", alignSelf: "center" });
+export const featureCopy = style({ minWidth: 0, maxWidth: "32rem", alignSelf: "center" });
 
 export const subheading = style({
-  margin: "0 0 16px",
+  margin: "0 0 1rem",
   fontSize: "1.5rem",
   fontWeight: "400",
   letterSpacing: "-0.05em",
@@ -134,7 +148,7 @@ export const subheading = style({
 });
 
 export const link = style({
-  display: "inline-flex",
+  ...actionLink,
   color: "#a64128",
   fontFamily: "Arial, Helvetica, sans-serif",
   fontSize: "0.875rem",
@@ -143,33 +157,34 @@ export const link = style({
   textDecoration: "none",
   textTransform: "uppercase",
   selectors: {
-    "&:hover": { textDecoration: "underline", textUnderlineOffset: "4px" },
+    "&:hover": { textDecoration: "underline", textUnderlineOffset: "0.2em" },
   },
 });
 
 export const pageHeader = style({
   display: "flex",
   flexDirection: "column",
-  gap: "20px",
-  marginBottom: "32px",
+  gap: "1.25rem",
+  marginBottom: "2rem",
 });
 
 export const headerActions = style({
   display: "flex",
   flexWrap: "wrap",
   alignItems: "center",
-  gap: "8px 32px",
+  gap: "0.5rem 2rem",
 });
 
 export const pageTitle = style({
-  margin: "10px 0 0",
-  fontSize: "clamp(2rem, 4vw, 3rem)",
+  margin: "0.625rem 0 0",
+  fontSize: headingSize,
   fontWeight: "400",
   letterSpacing: "-0.035em",
   lineHeight: 1.15,
 });
 
 export const supportLink = style({
+  ...actionLink,
   color: "#a64128",
   fontFamily: "Arial, Helvetica, sans-serif",
   fontSize: "0.8125rem",
@@ -178,30 +193,25 @@ export const supportLink = style({
   textDecoration: "none",
   textTransform: "uppercase",
   selectors: {
-    "&:hover": { textDecoration: "underline", textUnderlineOffset: "4px" },
+    "&:hover": { textDecoration: "underline", textUnderlineOffset: "0.2em" },
   },
 });
 
 export const feed = style({
   display: "grid",
-  gap: "56px",
-  "@media": {
-    "screen and (max-width: 48rem)": {
-      gap: "40px",
-    },
-  },
+  gap: sectionSpace,
 });
 
 export const post = style({
-  maxWidth: "none",
   display: "grid",
-  gridTemplateColumns: "minmax(0, 1fr) minmax(14rem, 0.4fr)",
+  gridTemplateColumns: "minmax(0, 1fr) minmax(0, 0.4fr)",
   alignItems: "start",
-  gap: "24px",
+  gap: layout.postGap,
+  scrollMarginBlockStart: "1.5rem",
   "@media": {
-    "screen and (max-width: 48rem)": {
-      gridTemplateColumns: "1fr",
-      gap: "16px",
+    [`screen and (max-width: ${layout.breakpoint})`]: {
+      gridTemplateColumns: "minmax(0, 1fr)",
+      gap: "1rem",
     },
   },
 });
@@ -230,7 +240,7 @@ export const postMeta = style({
   alignItems: "center",
   flexWrap: "wrap",
   justifyContent: "flex-start",
-  gap: "8px 16px",
+  gap: "0.5rem 1rem",
   marginTop: 0,
   color: "#53635d",
   fontFamily: "Arial, Helvetica, sans-serif",
@@ -244,9 +254,9 @@ export const postDetails = style({ minWidth: 0 });
 globalStyle(`${postDetails} ${postMeta}`, {
   flexDirection: "column",
   alignItems: "flex-start",
-  gap: "4px",
+  gap: "0.25rem",
   "@media": {
-    "screen and (max-width: 48rem)": { flexDirection: "row", alignItems: "center", gap: "8px 24px" },
+    [`screen and (max-width: ${layout.breakpoint})`]: { flexDirection: "row", alignItems: "center", gap: "0.5rem 1.5rem" },
   },
 });
 
@@ -259,21 +269,22 @@ export const postTitle = style({
 });
 
 export const postTitleLink = style({
+  ...actionLink,
   color: "inherit",
   textDecoration: "none",
   selectors: {
-    "&:hover": { textDecoration: "underline", textUnderlineOffset: "3px" },
+    "&:hover": { textDecoration: "underline", textUnderlineOffset: "0.2em" },
   },
 });
 
 export const detailMeta = style({
   justifyContent: "flex-start",
-  gap: "32px",
+  gap: "2rem",
 });
 
 export const postCaption = style({
   maxWidth: "34rem",
-  margin: "12px 0 0",
+  margin: "0.75rem 0 0",
   color: "#53635d",
   fontSize: "1rem",
   lineHeight: 1.6,
@@ -286,20 +297,20 @@ export const detailPage = style({
 
 export const detailHeader = style({
   maxWidth: "42rem",
-  marginBottom: "24px",
+  marginBottom: "1.5rem",
 });
 
 export const detailTitle = style({
-  margin: "18px 0 0",
-  fontSize: "clamp(2rem, 4vw, 3rem)",
+  margin: "1.125rem 0 0",
+  fontSize: headingSize,
   fontWeight: "400",
   letterSpacing: "-0.035em",
   lineHeight: 1.15,
 });
 
 export const backLink = style({
-  display: "inline-flex",
-  marginBottom: "24px",
+  ...actionLink,
+  marginBottom: "1.5rem",
   color: "#a64128",
   fontFamily: "Arial, Helvetica, sans-serif",
   fontSize: "0.8125rem",
@@ -307,7 +318,7 @@ export const backLink = style({
   textDecoration: "none",
   textTransform: "uppercase",
   selectors: {
-    "&:hover": { textDecoration: "underline", textUnderlineOffset: "4px" },
+    "&:hover": { textDecoration: "underline", textUnderlineOffset: "0.2em" },
   },
 });
 
@@ -317,15 +328,15 @@ export const detailImageFrame = style({
   maxWidth: "100%",
   margin: "0 auto",
   background: "#d7d9d0",
-  padding: "10px",
+  padding: layout.frame,
 });
 
 export const mobileEdgeToEdge = style({
   "@media": {
-    "screen and (max-width: 48rem) and (orientation: portrait)": {
-      width: "calc(100% + 2 * clamp(1rem, 4vw, 1.5rem))",
+    [`screen and (max-width: ${layout.breakpoint}) and (orientation: portrait)`]: {
+      width: `calc(100% + 2 * ${layout.gutter})`,
       maxWidth: "none",
-      marginInline: "calc(-1 * clamp(1rem, 4vw, 1.5rem))",
+      marginInline: `calc(-1 * ${layout.gutter})`,
       padding: 0,
     },
   },
@@ -339,10 +350,10 @@ export const detailImage = style({
   maxHeight: "80svh",
   objectFit: "contain",
   "@media": {
-    "screen and (max-width: 48rem)": {
+    [`screen and (max-width: ${layout.breakpoint})`]: {
       maxHeight: "none",
     },
-    "screen and (max-width: 48rem) and (orientation: portrait)": {
+    [`screen and (max-width: ${layout.breakpoint}) and (orientation: portrait)`]: {
       width: "100%",
     },
   },
@@ -350,7 +361,7 @@ export const detailImage = style({
 
 export const feedEnd = style({
   minHeight: "3rem",
-  marginTop: "56px",
+  marginTop: sectionSpace,
   color: "#53635d",
   fontFamily: "Arial, Helvetica, sans-serif",
   fontSize: "0.8125rem",
@@ -360,8 +371,8 @@ export const feedEnd = style({
 });
 
 export const photoDetails = style({
-  marginTop: "32px",
-  padding: "24px clamp(16px, 3vw, 32px)",
+  marginTop: "2rem",
+  padding: "clamp(1rem, 0.5rem + 2vw, 2rem)",
   background: "#eeeee5",
   borderTop: "1px solid #cfd2c8",
 });
@@ -369,8 +380,8 @@ export const photoDetails = style({
 export const photoDetailsGrid = style({
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 15rem), 1fr))",
-  gap: "24px 32px",
-  margin: "20px 0 0",
+  gap: "1.5rem 2rem",
+  margin: "1.25rem 0 0",
 });
 
 globalStyle(`${photoDetailsGrid} dt`, {
@@ -382,7 +393,7 @@ globalStyle(`${photoDetailsGrid} dt`, {
 });
 
 globalStyle(`${photoDetailsGrid} dd`, {
-  margin: "4px 0 0",
+  margin: "0.25rem 0 0",
   fontSize: "1rem",
   fontVariantNumeric: "tabular-nums",
 });
@@ -400,15 +411,15 @@ globalStyle("::selection", { background: "#e6b39b", color: "#1d2826" });
 
 export const homeHeader = style({
   maxWidth: "42rem",
-  marginBottom: "32px",
 });
 
 export const skipLink = style({
+  ...actionLink,
   position: "absolute",
   top: "1rem",
   left: "1rem",
   zIndex: 1,
-  padding: "8px 16px",
+  padding: "0.5rem 1rem",
   background: "#f5f3ed",
   color: "#1d2826",
   transform: "translateY(calc(-100% - 2rem))",
@@ -420,7 +431,7 @@ export const skipLink = style({
 export const footer = style({
   width: contentWidth,
   margin: "0 auto",
-  padding: "24px 0",
+  padding: "1.5rem 0",
   borderTop: "1px solid #cfd2c8",
 });
 
@@ -428,8 +439,8 @@ export const footerDetails = style({
   display: "flex",
   alignItems: "center",
   flexWrap: "wrap",
-  gap: "8px 24px",
-  marginTop: "8px",
+  gap: "0.5rem 1.5rem",
+  marginTop: "0.5rem",
   fontFamily: "Arial, Helvetica, sans-serif",
   fontSize: "0.8125rem",
 });
@@ -440,15 +451,15 @@ export const copyright = style({
   marginLeft: "auto",
   color: "#697066",
   textAlign: "right",
+  "@media": {
+    [`screen and (max-width: ${layout.breakpoint})`]: { marginLeft: 0, textAlign: "left", width: "100%" },
+  },
 });
 
-globalStyle("a", {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: "0.6em",
-  minHeight: "44px",
-  textUnderlineOffset: "4px",
-});
+// Inline prose links must stay inline; only navigation/actions get touch boxes.
+globalStyle("a", { textUnderlineOffset: "0.2em" });
+globalStyle(`${footerDetails} a`, { overflowWrap: "anywhere" });
+globalStyle(`${photoDetailsGrid} > div`, { minWidth: 0 });
 globalStyle("a:focus-visible", {
   outline: "3px solid #a64128",
   outlineOffset: "4px",

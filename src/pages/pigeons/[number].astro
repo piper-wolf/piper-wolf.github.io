@@ -61,14 +61,14 @@ const structuredData = {
   structuredData={structuredData}
 >
   <article class={styles.detailPage} data-pigeon-queue-id={post.queueId}>
-    <div class={styles.detailHeader}>
+    <header class={styles.detailHeader}>
       <a class={styles.backLink} href={`/pigeons/#${post.number}`}><Icon name="arrowLeft" /><span>All pigeons</span></a>
       <div class={`${styles.postMeta} ${styles.detailMeta}`}>
         <span>Posted <time datetime={post.dateTime}>{post.date}</time></span>
       </div>
       <h1 class={styles.detailTitle}>Pigeon no. {post.number}</h1>
       <p class={styles.postCaption}>{post.caption}</p>
-    </div>
+    </header>
     <PigeonImage
       src={post.image}
       alt={post.alt}
