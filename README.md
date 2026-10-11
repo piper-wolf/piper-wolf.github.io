@@ -5,25 +5,31 @@ A minimal Astro site deployed to GitHub Pages at [piper-wolf.com](https://piper-
 ## Publishing photos
 
 Manage photos through the sibling `pigeon-queue` repository's `./bin/serve` web UI.
-That app owns image preparation, captions, alt text, and publication. Its website
-target writes prepared JPEGs to `src/assets/`, updates `src/data/pigeons.ts`, and
-commits and pushes both together with a `.pigeon-queue/<id>` receipt. Keep these
-receipts: they prevent duplicate posts on retries and enforce the scheduled daily
-limit. This repository only renders and deploys the published content.
+That app owns image preparation, captions, alt text, scheduling, and independent
+website/Bluesky retries. Its website target writes prepared JPEGs to `src/assets/`,
+updates versioned `src/data/pigeons.json`, and commits both with a public
+`.pigeon-queue/<id>` website receipt. Preserve those receipts and permanent numbers.
+This repository only renders and deploys published content; it never reads the
+private queue or full upcoming schedule.
 
-`src/data/pigeons.ts` is publisher-owned output, with an ownership warning kept
-at the top by `pigeon-queue/pigeon/website.py`. Do not hand-edit its photo records.
-Change publication output in that generator or unpublished content through the
-queue editor. Handwritten types live in `src/data/pigeon-photo.ts`; sorting and
-descriptive page titles live in `src/data/pigeon-posts.ts`. Titles use the existing
-published alt text instead of a second, independently maintained photo field.
+`pigeon-queue/pigeon/publication.schema.json` owns the JSON Schema, copied here to
+`src/data/publication.schema.json`. The publisher validates before writing and the
+handwritten `src/data/pigeons.ts` adapter validates at build time with Ajv, then
+resolves JPEGs to Astro image metadata. Never hand-edit generated records. The
+adapter, `pigeon-photo.ts`, `pigeon-posts.ts`, and presentation are site-owned.
+Publisher writes do not depend on TypeScript formatting or rewrite these modules.
 
-Posts are sorted by publication date and use permanent, explicit numbers in
-`src/data/pigeons.ts`; never reassign a number because it determines the public
-URL. New numbers increase monotonically. The publisher adds a queue ID marker to
-each new post so it can wait for deployment. Capture dates and photographic
-settings come from the source JPEG's EXIF; optimized image variants may omit EXIF.
-The queue strips location and other private metadata before saving uploads.
+Posts have permanent explicit numbers and are sorted by publication date.
+Never reassign numbers: they determine public URLs, including links reserved
+before website publication succeeds. Each new post has a queue-ID marker for
+website-only deployment confirmation. Website failures cannot block Bluesky or
+later daily posts; Bluesky failures cannot block this site. A link may briefly
+return 404 if Bluesky succeeds first. Private queue state tracks unfinished targets.
+
+Descriptive titles derive from published alt text; capture dates and photographic
+settings come from source JPEG EXIF. The editor strips location/serial metadata
+before saving uploads. Minor exposure around an individual started publication is
+acceptable; keeping the full unpublished schedule private is the repo split's goal.
 
 ## Validation
 
