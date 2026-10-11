@@ -69,6 +69,7 @@ export interface PigeonPhoto {
   number: string;
   queueId?: string;
   alt: string;
+  title?: string;
   date: string;
   dateTime: string;
   caption: string;
@@ -82,6 +83,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_10_10,
     number: "045",
+    title: "Seattle pigeons spreading their wings",
     queueId: "584c8ebbbb050aa73a251c6f083c9ffc",
     alt: "A crowded flock of gray pigeons fills the frame, with several birds spreading their wings.",
     date: "October 10, 2026",
@@ -91,6 +93,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_10_09,
     number: "044",
+    title: "Three Seattle pigeons on a city street",
     queueId: "b483ff7735a15330f608d6f757f2c4a8",
     alt: "Three gray pigeons stand close to the camera, with more pigeons and a blurred city street behind them.",
     date: "October 9, 2026",
@@ -100,6 +103,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_10_08,
     number: "043",
+    title: "Seattle pigeons taking flight",
     queueId: "0fd8ff16a84007840637bfd52afc5c18",
     alt: "A flock of gray pigeons crowds a city street, with several birds flapping their wings and one airborne above the others.",
     date: "October 8, 2026",
@@ -109,6 +113,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_10_07,
     number: "042",
+    title: "White-speckled Seattle pigeon portrait",
     queueId: "58b8cb8f51a6d2eb9121ea0a45f3df1b",
     alt: "A gray pigeon with white-speckled neck feathers and an orange eye faces right against a blurred outdoor background.",
     date: "October 7, 2026",
@@ -118,6 +123,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_10_06,
     number: "041",
+    title: "Seattle pigeon flying above a sidewalk flock",
     queueId: "1a1b53a0e7f35a0bdaa12624f9a8b8e9",
     alt: "A pigeon flies with its wings spread above a flock on a city sidewalk, with colorful planters and a bicycle in the background.",
     date: "October 6, 2026",
@@ -127,6 +133,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_10_05,
     number: "040",
+    title: "Seattle pigeon perched on a fire hydrant",
     queueId: "3fddd02b04bebc0f8c153af424628ed5",
     alt: "A gray pigeon perches on a yellow fire hydrant at a city intersection, with buildings and a red traffic light in the background.",
     date: "October 5, 2026",
@@ -136,6 +143,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_10_04,
     number: "039",
+    title: "Gray-and-white Seattle pigeon portrait",
     queueId: "65f0f4bc473edc13f5b0e479efea8e88",
     alt: "A gray and white pigeon faces right in a close-up against a blurred outdoor background.",
     date: "October 4, 2026",
@@ -145,6 +153,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_10_03,
     number: "038",
+    title: "Seattle pigeons flying beneath string lights",
     queueId: "17a65e357e8c0942d504fc70a98ab4a3",
     alt: "A flock of pigeons flies beneath strings of lights against a pale, overcast sky.",
     date: "October 3, 2026",
@@ -154,6 +163,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_10_02,
     number: "037",
+    title: "Seattle rooftop hawk",
     queueId: "d12a0366d8cab5a1c7e98099eaa15935",
     alt: "A brown-and-white hawk perches on the metal edge of a brick rooftop, with a blurred building behind it.",
     date: "October 2, 2026",
@@ -163,6 +173,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_09_30,
     number: "036",
+    title: "Seattle pigeons sharing a sidewalk meal",
     queueId: "a27d6fa7396f8e377e70f1aa546dcde2",
     alt: "Three pigeons peck at scattered food on a concrete sidewalk.",
     date: "September 30, 2026",
@@ -172,6 +183,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_09_29,
     number: "035",
+    title: "Seattle pigeons foraging on a paved path",
     queueId: "6635f58a25450611a36cdbc011e28cb0",
     alt: "Three pigeons walk among scattered seeds on a paved path, with another pigeon blurred in the background.",
     date: "September 29, 2026",
@@ -181,6 +193,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_09_28,
     number: "034",
+    title: "Dark Seattle pigeon beside a feeding flock",
     queueId: "91f96adeb88f4e4fc8acc4e9dcdee17c",
     alt: "A dark pigeon stands on a city sidewalk near a group of feeding pigeons.",
     date: "September 28, 2026",
@@ -190,6 +203,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_09_27,
     number: "033",
+    title: "Seattle pigeons beside a stone wall",
     queueId: "1f59df353296b479092ed1aa5067e807",
     alt: "Three gray pigeons stand among scattered seeds on pavement beside a stone wall.",
     date: "September 27, 2026",
@@ -199,6 +213,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_09_26,
     number: "032",
+    title: "Seattle pigeon on a snowy surface",
     queueId: "9fcd91cdd860c8a3c11f2a2cf41cf065",
     alt: "Close-up of a pigeon standing on a snowy surface, showing its dark feathers and red feet.",
     date: "September 26, 2026",
@@ -208,6 +223,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_09_25,
     number: "031",
+    title: "Seattle pigeon perched beside green leaves",
     queueId: "fe48a9311655fe30f6827b0a32eabaea",
     alt: "A gray pigeon stands on a stone ledge in front of large green leaves.",
     date: "September 25, 2026",
@@ -217,6 +233,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_09_24,
     number: "030",
+    title: "Seattle pigeons flying past wall posters",
     queueId: "972ca3f2a11946e39f153e1a011fddd6",
     alt: "Pigeons fly in front of large posters on a concrete wall beside a dark garage entrance.",
     date: "September 24, 2026",
@@ -226,6 +243,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_09_23,
     number: "029",
+    title: "Seattle pigeon eye and feather close-up",
     queueId: "0c2cdab4584531cf33a9336a0f8a3519",
     alt: "Close-up of a pigeon’s eye and textured feathers against a blurred background.",
     date: "September 23, 2026",
@@ -235,6 +253,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_09_22,
     number: "028",
+    title: "Seattle pigeon head and beak portrait",
     queueId: "b5a6db979a4b45c61b7ad1af9c742670",
     alt: "Close-up of a pigeon’s head and beak against a softly blurred blue and pink background.",
     date: "September 22, 2026",
@@ -244,6 +263,7 @@ const pigeonPhotos: PigeonPhoto[] = [
   {
     image: photo_2026_09_21,
     number: "027",
+    title: "Seattle pigeon with seeds in its beak",
     queueId: "a89e35095b269c0d7f621653a9100bba",
     alt: "Close-up of a gray pigeon with iridescent green neck feathers and an orange eye, holding seeds in its open beak against a blurred background.",
     date: "September 21, 2026",
@@ -256,6 +276,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "Close-up of a pigeon facing the camera against a softly blurred dark background.",
     date: "September 20, 2026",
     number: "026",
+    title: "Seattle pigeon facing the camera",
     dateTime: "2026-09-20",
     caption: "Peekaboo!",
   },
@@ -264,6 +285,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "Close-up of a pigeon facing the camera on a paved surface outdoors.",
     date: "September 19, 2026",
     number: "025",
+    title: "Seattle pigeon portrait on the pavement",
     dateTime: "2026-09-19",
     caption: "The slanted dual tail fins indicate this model of pigeon is typically used for stealth operations in hostile airspace",
   },
@@ -272,6 +294,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "Several pigeons crowd together in a close-up outdoor photograph.",
     date: "September 18, 2026",
     number: "024",
+    title: "Seattle pigeon flock close-up",
     dateTime: "2026-09-18",
     caption: "Standing room only at the pigeon pit today",
   },
@@ -280,6 +303,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "Close-up of a dark pigeon facing right, with a blurred pigeon and green foliage in the background.",
     date: "September 17, 2026",
     number: "023",
+    title: "Dark Seattle pigeon profile",
     dateTime: "2026-09-17",
     caption: "Main character and sidekick energy",
   },
@@ -288,6 +312,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "Close-up of a dark gray pigeon standing outdoors against a softly blurred green and gray background.",
     date: "September 16, 2026",
     number: "022",
+    title: "Dark gray Seattle pigeon portrait",
     dateTime: "2026-09-16",
     caption: "Very demure, very mindful",
   },
@@ -296,6 +321,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "Close-up of a dark pigeon pecking at scattered seeds on the ground, with other pigeons blurred in the background.",
     date: "September 15, 2026",
     number: "021",
+    title: "Seattle pigeon pecking at scattered seeds",
     dateTime: "2026-09-15",
     caption: "Nom nom nom",
   },
@@ -304,6 +330,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "Close-up pigeon looking left against a softly blurred green outdoor background.",
     date: "September 14, 2026",
     number: "020",
+    title: "Seattle pigeon looking left",
     dateTime: "2026-09-14",
     caption: "I love the glint in her eye, she looks happy",
   },
@@ -312,6 +339,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "A gray pigeon with white patches, iridescent neck feathers, and an orange eye faces left against a blurred gray background.",
     date: "September 13, 2026",
     number: "019",
+    title: "White-patched Seattle pigeon portrait",
     dateTime: "2026-09-13",
     caption: "One more photo of cookies and cream from Friday!",
   },
@@ -320,6 +348,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "A gray pigeon with an orange eye bends down to eat scattered seeds on the pavement.",
     date: "September 11, 2026",
     number: "018",
+    title: "Seattle pigeon eating seeds on the pavement",
     dateTime: "2026-09-11",
     caption: "New pigeon stopped by today! I'm naming her cookies and cream",
   },
@@ -328,6 +357,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "A pigeon banks in flight with its wings spread between tall city buildings.",
     date: "September 10, 2026",
     number: "017",
+    title: "Seattle pigeon banking between city buildings",
     dateTime: "2026-09-10",
     caption: "My pigeons didn't show up today so I had to go on the hunt for other sources of pigeon. Found this fellah up on 2nd and stewart'ish",
   },
@@ -336,6 +366,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "A dark gray pigeon flaps its wings while landing on a concrete ledge beside a blue-tinted window.",
     date: "September 8, 2026",
     number: "016",
+    title: "Seattle pigeon landing beside a window",
     dateTime: "2026-09-08",
     caption: "Photographed the moment of takeoff for a seed hunt",
   },
@@ -344,6 +375,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "Close-up of a pigeon’s dark gray and white feathers against a softly blurred background.",
     date: "September 6, 2026",
     number: "015",
+    title: "Seattle pigeon feather close-up",
     dateTime: "2026-09-06",
     caption: "No ohio pigeons sighted, but I have plenty more Seattle pigeons in the backlog.",
   },
@@ -352,6 +384,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "A pigeon walks toward the camera while a sparrow stands behind it on a garden path.",
     date: "September 5, 2026",
     number: "014",
+    title: "Seattle pigeon and sparrow on a garden path",
     dateTime: "2026-09-05",
     caption: "BIG STEPPAH NUMBER ONE STEPPAH",
   },
@@ -360,6 +393,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "A dark pigeon flies past a blurred gray building with one wing raised and its feet tucked beneath it.",
     date: "September 4, 2026",
     number: "013",
+    title: "Seattle pigeon flying past a building",
     dateTime: "2026-09-04",
     caption: "Photo from earlier this week! Publishing from a plane on my phone that I just installed a full dev env onto.",
   },
@@ -368,6 +402,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "pigeon leaping from a building ledge and gaining speed",
     date: "September 3, 2026",
     number: "012",
+    title: "Seattle pigeon taking off from a ledge",
     dateTime: "2026-09-03",
     caption: "Will be flying to Ohio this weekend, hopefully I can find a midwestern pigeon",
   },
@@ -376,6 +411,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "pigeon leaping into the air with a leg kicked out in front of it",
     date: "September 1, 2026",
     number: "011",
+    title: "Seattle pigeon leaping into the air",
     dateTime: "2026-09-01",
     caption: "Everybody was kung-fu fighting!!!",
   },
@@ -384,6 +420,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "Pigeon sitting on a ledge with white and blue graffiti in the background",
     date: "August 31, 2026",
     number: "010",
+    title: "Seattle pigeon perched beside graffiti",
     dateTime: "2026-08-31",
     caption: "This pigeon keeps tagging buildings downtown! Look at how smug he is.",
   },
@@ -392,6 +429,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "pigeon in flight with brick building in background",
     date: "August 18, 2026",
     number: "009",
+    title: "Seattle pigeon flying past a brick building",
     dateTime: "2026-08-18",
     caption: "Today the pigeons came out to greet me before I even started throwing bird seed! I ended up having to rush getting some photos because I realized that I was on 5% battery for my camera. Will start bringing backups in the future.",
   },
@@ -400,6 +438,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "Bird staring into camera straight on",
     date: "August 17, 2026",
     number: "008",
+    title: "Seattle bird facing the camera",
     dateTime: "2026-08-17",
     caption: "I had this fellah's full attention today. Or at least it seems my bag of birdseed had his attention.",
   },
@@ -408,6 +447,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "Large imposing pigeon staring down the ground.",
     date: "August 1, 2026",
     number: "003",
+    title: "Seattle pigeon looking down",
     dateTime: "2026-08-01",
     caption:
       "This guy is definitely powering up before he unleashes his final attack.",
@@ -417,6 +457,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "A gray pigeon bends down to pick up a seed on a bright city sidewalk.",
     date: "July 21, 2026",
     number: "002",
+    title: "Seattle pigeon picking up a seed",
     dateTime: "2026-07-21",
     caption:
       "Don't worry folks, he did manage to catch his seed after dropping it.",
@@ -426,6 +467,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "A gray-and-white pigeon stands against a soft pink and green background.",
     date: "May 14, 2026",
     number: "001",
+    title: "Gray-and-white Seattle pigeon portrait",
     dateTime: "2026-05-14",
     caption:
       "Cutest little bublegum pigeon I've ever met. Can't believe how well the background showed up.",
@@ -435,6 +477,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "A close-up portrait of a dark pigeon with a bright red eye against a dark background.",
     date: "August 7, 2026",
     number: "005",
+    title: "Red-eyed Seattle pigeon portrait",
     dateTime: "2026-08-07",
     caption: "Incredible depth in the eyes of this lil pigeon.",
   },
@@ -443,6 +486,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "Three pigeons face the camera while a white seagull stands behind them.",
     date: "August 6, 2026",
     number: "004",
+    title: "Seattle pigeons with a seagull",
     dateTime: "2026-08-06",
     caption:
       "When you're just a seagull and no one invited you to the pigeon party.",
@@ -452,6 +496,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "pigeon splayed out on top of other pigeon looks like a plane",
     date: "August 13, 2026",
     number: "007",
+    title: "Seattle pigeons piled together",
     dateTime: "2026-08-13",
     caption: "WARNING! TERRAIN! TERRAIN! PULL. UP.",
   },
@@ -460,6 +505,7 @@ const pigeonPhotos: PigeonPhoto[] = [
     alt: "A curious dark pigeon looking into the camera",
     date: "August 11, 2026",
     number: "006",
+    title: "Curious Seattle pigeon portrait",
     dateTime: "2026-08-11",
     caption: "These bug eyes have stolen my heart.",
   },
