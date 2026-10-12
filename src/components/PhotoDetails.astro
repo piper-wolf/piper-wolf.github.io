@@ -27,7 +27,7 @@ const details = [
 ].filter(([, value]) => value);
 ---
 
-{(captured || details.length > 0) && <section class={styles.photoDetails} aria-labelledby="photo-details-title">
+{(captured || details.length > 0) && <section class={styles.photoDetails} aria-labelledby="photo-details-title" data-pigeon-landing="details">
   <h2 id="photo-details-title" class={`${styles.eyebrow} ${styles.iconLabel}`}><Icon name="camera" /><span>Behind the photograph</span></h2>
   <dl class={styles.photoDetailsGrid}>
     <div><dt>Posted</dt><dd><time datetime={post.dateTime}>{post.date}</time></dd></div>

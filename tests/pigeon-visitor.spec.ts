@@ -17,7 +17,7 @@ async function expectSafePerch(page: Page) {
       return Math.abs(feet - line) < 0.5 && b.left >= r.left && b.right <= r.right;
     });
     const visiblePixels = { left: b.left, right: b.right, top: b.top, bottom: feet };
-    const clear = [...document.querySelectorAll('header a, main a, main p, main h1, main h2, main h3, main time, main figcaption, main img, button, footer')]
+    const clear = [...document.querySelectorAll('header a, main a, main p, main h1, main h2, main h3, main time, main figcaption, main img, button, footer > *')]
       .filter((el) => !el.querySelector('img'))
       .every((el) => {
         const r = el.getBoundingClientRect();
@@ -117,6 +117,72 @@ test('idle gestures vary between looking, pecking and a half-wing stretch', asyn
   await expect(bird).not.toHaveAttribute('data-idle');
   await expect(page.locator('.pigeon-body')).toHaveCSS('animation-name', 'none');
 });
+
+test('entrances and off-screen returns vary their landing spot on the same edge', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.clock.install();
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  const entrances: number[] = [];
+  const returns: number[] = [];
+  for (const random of [0, 0.999]) {
+    await page.goto('/pigeons/');
+    // Isolate one real edge so choosing another perch cannot mask a fixed x.
+    await page.evaluate((value) => {
+      Math.random = () => value;
+      window.scrollTo(0, 0);
+      document.querySelectorAll('[data-pigeon-landing]:not([data-pigeon-landing="header"])')
+        .forEach((edge) => { edge.removeAttribute('data-pigeon-landing'); });
+    }, random);
+    await page.clock.runFor(2000);
+    await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-flying', '');
+    await land(page);
+    await expectSafePerch(page);
+    entrances.push((await page.locator('.pigeon-visitor').boundingBox())!.x);
+
+    await page.evaluate(() => {
+      window.scrollTo(0, 600);
+      const frame = [...document.querySelectorAll('main img')]
+        .map((image) => image.parentElement!)
+        .find((element) => {
+          const top = element.getBoundingClientRect().top;
+          return top > 60 && top < innerHeight - 8;
+        });
+      if (!frame) throw new Error('Expected a visible photo edge after scrolling');
+      frame.dataset.pigeonLanding = 'photo';
+    });
+    await page.clock.runFor(200);
+    await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-flying', '');
+    await land(page);
+    await expectSafePerch(page);
+    returns.push((await page.locator('.pigeon-visitor').boundingBox())!.x);
+  }
+  expect(entrances[1] - entrances[0]).toBeGreaterThan(60);
+  expect(returns[1] - returns[0]).toBeGreaterThan(60);
+});
+
+for (const width of [390, 1440]) {
+  for (const edge of ['details', 'footer']) {
+    test(`lands safely on the ${edge} divider at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.clock.install();
+      await page.clock.pauseAt(new Date(Date.now() + 1000));
+      await page.goto('/pigeons/047/');
+      const target = page.locator(`[data-pigeon-landing="${edge}"]`);
+      await expect(target).toHaveCount(1);
+      await target.evaluate((element) => {
+        // Center the divider, not the whole (potentially tall) section.
+        window.scrollTo(0, element.getBoundingClientRect().top + scrollY - 300);
+        document.querySelectorAll('[data-pigeon-landing]').forEach((other) => {
+          if (other !== element) other.removeAttribute('data-pigeon-landing');
+        });
+      });
+      await page.clock.runFor(2000);
+      await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-flying', '');
+      await land(page);
+      await expectSafePerch(page);
+    });
+  }
+}
 
 test('scrolling preserves the perch and only flies away once it is off screen', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });

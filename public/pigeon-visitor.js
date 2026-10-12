@@ -32,7 +32,7 @@ if (bird && perch) {
     const width = document.documentElement.clientWidth;
     // Text and controls are off limits, including their touch targets. Image-link
     // wrappers include the frame border, so test the actual image pixels instead.
-    const blockers = [...document.querySelectorAll('header a, main a, main p, main h1, main h2, main h3, main time, main figcaption, main img, button, input, select, textarea, footer')]
+    const blockers = [...document.querySelectorAll('header a, main a, main p, main h1, main h2, main h3, main time, main figcaption, main img, button, input, select, textarea, footer > *')]
       .filter((el) => !el.querySelector('img'))
       .map((el) => el.getBoundingClientRect())
       .filter((r) => r.width && r.height && r.bottom > 0 && r.top < innerHeight);
@@ -125,10 +125,9 @@ if (bird && perch) {
       position = current;
       bird.style.transform = transform(position);
     }
-    const rect = bird.getBoundingClientRect();
-    const visible = position && rect.top >= 0 && rect.top + feet <= innerHeight && rect.left >= 0 && rect.right <= innerWidth;
-    if (!visible && targets.length) { flyTo(targets[0]); return; }
-    if (!position) return;
+    // Entrances and returns from off screen should vary just like timed flights.
+    if (!current && targets.length) { flyTo(targets[Math.floor(Math.random() * targets.length)]); return; }
+    if (!current) { hide(); return; }
     perch.style.visibility = 'visible';
     bird.dataset.enhanced = '';
     scheduleIdle();
