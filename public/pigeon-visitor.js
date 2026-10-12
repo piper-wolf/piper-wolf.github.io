@@ -14,7 +14,7 @@ if (bird && perch) {
     clearTimeout(idleEnd);
     delete bird.dataset.idle;
   };
-  const cancel = () => {
+  const hide = () => {
     clearTimeout(flightTimer);
     stopIdle();
     if (flight) {
@@ -23,9 +23,6 @@ if (bird && perch) {
       flight = undefined;
     }
     delete bird.dataset.flying;
-  };
-  const hide = () => {
-    cancel();
     perch.style.visibility = 'hidden';
     delete bird.dataset.enhanced;
   };
@@ -56,7 +53,7 @@ if (bird && perch) {
         const x = left + 12 + (right - left - 64) * fraction;
         const y = line - feet;
         const clearance = { left: x - 10, right: x + size + 14, top: y - 6, bottom: line + 3 };
-        if (!blockers.some((r) => overlaps(clearance, r))) result.push({ x, y, element, fraction });
+        if (!blockers.some((r) => overlaps(clearance, r))) result.push({ x: x + scrollX, y: y + scrollY, element, fraction });
       }
     }
     return result;
@@ -74,15 +71,23 @@ if (bird && perch) {
   const scheduleFlight = () => { flightTimer = setTimeout(flutter, 30000 + Math.random() * 30000); };
 
   const flutter = () => {
-    if (document.hidden || motion.matches || !position) return;
+    if (document.hidden || motion.matches || flight || !position) return;
     const targets = places().filter((p) => Math.hypot(p.x - position.x, p.y - position.y) > 60);
     if (!targets.length) { scheduleFlight(); return; }
     // Prefer another horizontal edge, but a short hop along this one is fine.
     const otherEdges = targets.filter((p) => p.element !== position.element);
     const choices = otherEdges.length ? otherEdges : targets;
     const destination = choices[Math.floor(Math.random() * choices.length)];
-    const from = position;
+    flyTo(destination);
+  };
+
+  const flyTo = (destination) => {
+    clearTimeout(flightTimer);
+    const from = position ?? { x: destination.x, y: scrollY - size - 110 };
     stopIdle();
+    bird.style.transform = transform(from);
+    perch.style.visibility = 'visible';
+    bird.dataset.enhanced = '';
     bird.querySelector('svg').style.transform = destination.x >= from.x ? '' : 'scaleX(-1)';
     const distance = Math.hypot(destination.x - from.x, destination.y - from.y);
     const duration = Math.min(2600, 1600 + distance * 1.2);
@@ -93,7 +98,7 @@ if (bird && perch) {
       offset: t,
       transform: transform({
         x: from.x + (destination.x - from.x) * t,
-        y: Math.max(8, from.y + (destination.y - from.y) * t - Math.sin(Math.PI * t) * rise),
+        y: from.y + (destination.y - from.y) * t - Math.sin(Math.PI * t) * rise,
       }),
     }));
     flight = bird.animate(frames, { duration, easing: 'ease-in-out' });
@@ -102,35 +107,43 @@ if (bird && perch) {
       bird.style.transform = transform(position);
       delete bird.dataset.flying;
       flight = undefined;
-      scheduleIdle();
-      scheduleFlight();
+      if (!scrollTimer) settle();
     };
   };
 
-  const reset = () => {
+  const settle = () => {
     clearTimeout(scrollTimer);
-    hide();
-    if (motion.matches || document.hidden) return;
+    scrollTimer = undefined;
+    clearTimeout(flightTimer);
+    stopIdle();
+    if (motion.matches || document.hidden) { hide(); return; }
+    if (flight) return;
     const targets = places();
-    // Keep the same spot on the same edge during resize/image loading/scroll.
-    position = targets.find((p) => p.element === position?.element && p.fraction === position.fraction) ?? targets[0];
+    // Re-measure the same perch after layout changes, without moving on scroll.
+    const current = targets.find((p) => p.element === position?.element && p.fraction === position.fraction);
+    if (current) {
+      position = current;
+      bird.style.transform = transform(position);
+    }
+    const rect = bird.getBoundingClientRect();
+    const visible = position && rect.top >= 0 && rect.top + feet <= innerHeight && rect.left >= 0 && rect.right <= innerWidth;
+    if (!visible && targets.length) { flyTo(targets[0]); return; }
     if (!position) return;
-    bird.style.transform = transform(position);
     perch.style.visibility = 'visible';
     bird.dataset.enhanced = '';
     scheduleIdle();
     scheduleFlight();
   };
-  window.addEventListener('resize', reset, { passive: true });
-  // Do not leave a fixed bird floating over content while its edge scrolls away.
+  window.addEventListener('resize', settle, { passive: true });
   window.addEventListener('scroll', () => {
-    hide();
+    clearTimeout(flightTimer);
+    stopIdle();
     clearTimeout(scrollTimer);
-    scrollTimer = setTimeout(reset, 150);
+    scrollTimer = setTimeout(() => { scrollTimer = undefined; settle(); }, 150);
   }, { passive: true });
-  document.addEventListener('visibilitychange', reset);
-  motion.addEventListener('change', reset);
+  document.addEventListener('visibilitychange', settle);
+  motion.addEventListener('change', settle);
   window.addEventListener('pagehide', () => { clearTimeout(scrollTimer); hide(); });
-  window.addEventListener('pageshow', reset);
-  reset();
+  window.addEventListener('pageshow', settle);
+  settle();
 }
