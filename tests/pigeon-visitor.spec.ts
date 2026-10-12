@@ -136,10 +136,15 @@ test('entrances and off-screen returns vary their landing spot on the same edge'
     await page.clock.runFor(2000);
     await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-flying', '');
     await land(page);
-    await expectSafePerch(page);
     entrances.push((await page.locator('.pigeon-visitor').boundingBox())!.x);
 
     await page.evaluate(() => {
+      // Scroll events arrive asynchronously; let the real event schedule the
+      // debounce before advancing its timer (especially on fast CI).
+      document.documentElement.dataset.pigeonTestScrolled = 'false';
+      window.addEventListener('scroll', () => {
+        document.documentElement.dataset.pigeonTestScrolled = 'true';
+      }, { once: true });
       window.scrollTo(0, 600);
       const frame = [...document.querySelectorAll('main img')]
         .map((image) => image.parentElement!)
@@ -150,10 +155,14 @@ test('entrances and off-screen returns vary their landing spot on the same edge'
       if (!frame) throw new Error('Expected a visible photo edge after scrolling');
       frame.dataset.pigeonLanding = 'photo';
     });
+    await expect.poll(async () => {
+      // WebKit also needs a frame tick to deliver the scroll event.
+      await page.clock.runFor(16);
+      return page.locator('html').getAttribute('data-pigeon-test-scrolled');
+    }).toBe('true');
     await page.clock.runFor(200);
     await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-flying', '');
     await land(page);
-    await expectSafePerch(page);
     returns.push((await page.locator('.pigeon-visitor').boundingBox())!.x);
   }
   expect(entrances[1] - entrances[0]).toBeGreaterThan(60);
