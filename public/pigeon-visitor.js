@@ -6,7 +6,6 @@ const motion = matchMedia('(prefers-reduced-motion: reduce)');
 if (bird && perch && !motion.matches) {
   let timer;
   let flight;
-  let bob;
   let position;
   let right = false;
 
@@ -17,38 +16,26 @@ if (bird && perch && !motion.matches) {
       flight.cancel();
       flight = undefined;
     }
-    bob?.cancel();
     bird.removeAttribute('data-flying');
   };
 
   const home = () => {
     cancel();
     bird.style.cssText = '';
+    perch.style.visibility = '';
     position = undefined;
     right = false;
     delete bird.dataset.enhanced;
   };
 
-  // Only use viewport gutters wide enough to contain the entire bird + clearance.
-  // Otherwise it stays within the footer's dedicated, empty 64px strip.
+  // Only existing viewport gutters, never reserved space or footer landings.
   const places = () => {
     const content = document.querySelector('main').getBoundingClientRect();
     const width = document.documentElement.clientWidth;
-    if (Math.min(content.left, width - content.right) >= 64) {
-      bird.style.position = 'fixed';
-      bird.style.left = '0';
-      bird.style.top = '0';
-      return [
-        { x: content.left - 52, y: Math.min(innerHeight * 0.3, Math.max(0, innerHeight - 48)) },
-        { x: content.left - 52, y: Math.min(innerHeight * 0.65, Math.max(0, innerHeight - 48)) },
-      ];
-    }
-    bird.style.position = 'absolute';
-    bird.style.left = '0';
-    bird.style.top = '0';
+    if (Math.min(content.left, width - content.right) < 64 || innerHeight < 64) return [];
     return [
-      { x: Math.max(0, perch.clientWidth * 0.25 - 20), y: 12 },
-      { x: Math.max(0, perch.clientWidth * 0.75 - 20), y: 12 },
+      { x: content.left - 52, y: Math.min(innerHeight * 0.3, innerHeight - 48) },
+      { x: content.left - 52, y: Math.min(innerHeight * 0.65, innerHeight - 48) },
     ];
   };
 
@@ -61,11 +48,7 @@ if (bird && perch && !motion.matches) {
   const flutter = () => {
     if (document.hidden || motion.matches) return;
     const targets = places();
-    // Narrow screens: don't animate an offscreen footer.
-    if (bird.style.position !== 'fixed') {
-      const rect = perch.getBoundingClientRect();
-      if (rect.top < 0 || rect.bottom > innerHeight) { schedule(); return; }
-    }
+    if (!targets.length) { reset(); return; }
     right = !right;
     const destination = targets[Number(right)];
     const from = position;
@@ -81,9 +64,6 @@ if (bird && perch && !motion.matches) {
       bird.style.transform = transform(position);
       bird.removeAttribute('data-flying');
       flight = undefined;
-      bob = bird.querySelector('.pigeon-head').animate([
-        { transform: 'rotate(0)' }, { transform: 'rotate(8deg)' }, { transform: 'rotate(0)' },
-      ], { duration: 450 });
       schedule();
     };
   };
@@ -92,6 +72,10 @@ if (bird && perch && !motion.matches) {
     home();
     if (motion.matches || document.hidden) return;
     position = places()[0];
+    if (!position) { perch.style.visibility = 'hidden'; return; }
+    perch.style.visibility = 'visible';
+    bird.style.left = '0';
+    bird.style.top = '0';
     bird.style.transform = transform(position);
     bird.dataset.enhanced = '';
     schedule();
