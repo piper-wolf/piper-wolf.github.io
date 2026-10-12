@@ -1,6 +1,7 @@
 ---
 import * as styles from "../styles/site.css";
 import Icon from "../components/Icon.astro";
+import PigeonVisitor from "../components/PigeonVisitor.astro";
 
 interface Props {
   title: string;
@@ -87,6 +88,7 @@ const serializedStructuredData = structuredData
         <a class={styles.footerItem} href="https://bsky.app/profile/piper-wolf.com" rel="me"><Icon name="bluesky" /><span>Follow me on Bluesky</span></a>
         <span class={styles.copyright}><a class={styles.copyrightLink} href="/copyright/">© {new Date().getFullYear()} Piper Wolf</a></span>
       </div>
+      <PigeonVisitor />
     </footer>
     <script is:inline data-goatcounter="https://piperwolf.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
   </body>
