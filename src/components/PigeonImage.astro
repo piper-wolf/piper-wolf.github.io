@@ -36,7 +36,7 @@ const widths = [...new Set([320, 480, 640, 768, 1024, 1440, 1920, src.width])]
   .sort((a, b) => a - b);
 ---
 
-<span class:list={[frameClass, variant !== "feature" && styles.mobileEdgeToEdge]}>
+<span class:list={[frameClass, variant !== "feature" && styles.mobileEdgeToEdge]} data-pigeon-landing="photo">
   <Image
     src={src}
     alt={alt}

@@ -1,22 +1,40 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
-// These exercise the built site, including the real delayed network request.
-test('pigeon is decorative and usable without JavaScript', async ({ browser }) => {
+async function expectSafePerch(page: Page) {
+  const safe = await page.locator('.pigeon-visitor').evaluate((bird) => {
+    const b = bird.getBoundingClientRect();
+    const feet = b.top + 58 * 40 / 64;
+    const edges = [...document.querySelectorAll('[data-pigeon-landing]')];
+    const onEdge = edges.some((edge) => {
+      const r = edge.getBoundingClientRect();
+      const line = (edge as HTMLElement).dataset.pigeonLanding === 'header' ? r.bottom - 1 : r.top;
+      return Math.abs(feet - line) < 0.5 && b.left >= r.left && b.right <= r.right;
+    });
+    const visiblePixels = { left: b.left, right: b.right, top: b.top, bottom: feet };
+    const clear = [...document.querySelectorAll('header a, main a, main p, main h1, main h2, main h3, main time, main figcaption, main img, button, footer')]
+      .filter((el) => !el.querySelector('img'))
+      .every((el) => {
+        const r = el.getBoundingClientRect();
+        return !(visiblePixels.left < r.right && visiblePixels.right > r.left && visiblePixels.top < r.bottom && visiblePixels.bottom > r.top);
+      });
+    return onEdge && clear && getComputedStyle(bird).pointerEvents === 'none' && b.left >= 0 && b.right <= innerWidth && b.top >= 0 && feet < innerHeight;
+  });
+  expect(safe).toBe(true);
+}
+
+// Real production HTML and the actual delayed module, not a hydrated test island.
+test('page works without JS and decoration adds no unsafe fallback', async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   await page.goto('/');
-  await expect(page.locator('.pigeon-visitor svg')).toBeAttached();
   await expect(page.locator('.pigeon-perch')).toHaveAttribute('aria-hidden', 'true');
-  const safe = await page.locator('.pigeon-visitor').evaluate((bird) => {
-    return getComputedStyle(bird).pointerEvents === 'none' && getComputedStyle(bird).visibility === 'hidden';
-  });
-  expect(safe).toBe(true);
+  await expect(page.locator('.pigeon-visitor')).toHaveCSS('visibility', 'hidden');
   await page.getByRole('link', { name: 'Seattle pigeons', exact: true }).click();
   await expect(page).toHaveURL(/\/pigeons\/$/);
   await context.close();
 });
 
-test('reduced motion does not fetch the optional module', async ({ page }) => {
+test('reduced motion skips the optional module', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const requests: string[] = [];
   page.on('request', (r) => requests.push(r.url()));
@@ -26,50 +44,94 @@ test('reduced motion does not fetch the optional module', async ({ page }) => {
   await expect(page.locator('.pigeon-visitor')).not.toHaveAttribute('data-enhanced');
 });
 
-for (const width of [1440]) {
-  test(`delayed module and safe flight at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 });
-    await page.clock.install();
-    await page.goto('/');
-    await page.clock.runFor(2000);
-    await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-enhanced', '', { timeout: 10000 });
-
-    const before = await page.locator('.pigeon-visitor').evaluate((bird) => (bird as HTMLElement).style.transform);
-    await page.clock.runFor(61000);
-    await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-flying', '');
-    // Finish any in-progress native animation without waiting another real minute.
-    await page.locator('.pigeon-visitor').evaluate((bird) => bird.getAnimations().forEach((a) => a.finish()));
-    await expect(page.locator('.pigeon-visitor')).not.toHaveAttribute('data-flying');
-    expect(await page.locator('.pigeon-visitor').evaluate((bird) => (bird as HTMLElement).style.transform)).not.toBe(before);
-    const safe = await page.locator('.pigeon-visitor').evaluate((bird) => {
-      const b = bird.getBoundingClientRect();
-      const main = document.querySelector('main')!.getBoundingClientRect();
-      return getComputedStyle(bird).pointerEvents === 'none' && b.right < main.left && b.left >= 0 && b.top >= 0 && b.bottom <= innerHeight;
-    });
-    expect(safe).toBe(true);
-    await page.screenshot({ path: `/tmp/pigeon-${width}-${test.info().project.name}.png`, fullPage: width === 390 });
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    await expect(page.locator('.pigeon-visitor')).not.toHaveAttribute('data-enhanced');
-  });
-}
-
-test('animation request is after page load, without preload', async ({ page }) => {
+test('starts on the header line then flies to a photo edge', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/');
+  await page.clock.install();
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  await page.addInitScript(() => { Math.random = () => 0; });
+  await page.goto('/pigeons/');
+  await page.clock.runFor(2000);
   await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-enhanced', '');
-  const timings = await page.evaluate(() => ({
-    load: (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming).loadEventStart,
-    module: performance.getEntriesByName(`${location.origin}/pigeon-visitor.js`)[0]?.startTime,
-    preloads: [...document.querySelectorAll('link[rel="preload"],link[rel="modulepreload"]')].some((link) => (link as HTMLLinkElement).href.includes('pigeon-visitor')),
-  }));
-  expect(timings.module).toBeGreaterThanOrEqual(timings.load + 1100);
-  expect(timings.preloads).toBe(false);
+  await expectSafePerch(page);
+  const before = await page.locator('.pigeon-visitor').evaluate((bird) => (bird as HTMLElement).style.transform);
+  await page.clock.runFor(30001);
+  await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-flying', '');
+  // Inspect and finish in one browser call: slow cross-process assertions must
+  // not let WebKit finish the short native animation before we inspect it.
+  const flying = await page.locator('.pigeon-visitor').evaluate((bird) => {
+    const animations = bird.getAnimations();
+    const wing = getComputedStyle(bird.querySelector('.pigeon-flight-wing')!).display;
+    const frames = (animations[0]?.effect as KeyframeEffect)?.getKeyframes().length;
+    animations.forEach((a) => a.finish());
+    return { wing, frames };
+  });
+  expect(flying.wing).toBe('block');
+  expect(flying.frames).toBe(9);
+  await expect(page.locator('.pigeon-visitor')).not.toHaveAttribute('data-flying');
+  expect(await page.locator('.pigeon-visitor').evaluate((bird) => (bird as HTMLElement).style.transform)).not.toBe(before);
+  await expectSafePerch(page);
+  const photoLanding = await page.locator('.pigeon-visitor').evaluate((bird) => {
+    const feet = bird.getBoundingClientRect().top + 58 * 40 / 64;
+    return [...document.querySelectorAll('[data-pigeon-landing="photo"]')].some((frame) => Math.abs(feet - frame.getBoundingClientRect().top) < 0.5);
+  });
+  expect(photoLanding).toBe(true);
+  await page.screenshot({ path: `/tmp/pigeon-photo-perch-${test.info().project.name}.png` });
+});
+
+test('idle gestures vary between looking, pecking and a half-wing stretch', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.clock.install();
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  await page.addInitScript(() => { Math.random = () => 0; });
+  await page.goto('/pigeons/');
+  await page.clock.runFor(2000);
+  const bird = page.locator('.pigeon-visitor');
+  await expect(bird).toHaveAttribute('data-enhanced', '');
+  await expect(page.locator('.pigeon-body')).toHaveCSS('animation-name', 'pigeon-breathe');
+  await expect(page.locator('.pigeon-eye')).toHaveCSS('animation-name', 'pigeon-blink');
+  for (const [index, action] of ['look', 'peck', 'stretch'].entries()) {
+    await page.clock.runFor(index === 0 ? 6001 : 7900);
+    await expect(bird).toHaveAttribute('data-idle', action);
+    const part = action === 'stretch' ? '.pigeon-wing' : '.pigeon-head';
+    await expect(page.locator(part)).toHaveCSS('animation-name', `pigeon-${action === 'peck' ? 'peck-head' : action}`);
+    await expectSafePerch(page);
+  }
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(bird).not.toHaveAttribute('data-enhanced');
+  await expect(bird).not.toHaveAttribute('data-idle');
+  await expect(page.locator('.pigeon-body')).toHaveCSS('animation-name', 'none');
+});
+
+test('scrolling cancels a flight and finds a visible photo edge', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.clock.install();
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  await page.addInitScript(() => { Math.random = () => 0; });
+  await page.goto('/pigeons/');
+  await page.clock.runFor(2000);
+  const bird = page.locator('.pigeon-visitor');
+  await expect(bird).toHaveAttribute('data-enhanced', '');
+  await page.clock.runFor(30001);
+  await expect(bird).toHaveAttribute('data-flying', '');
+  await page.evaluate(() => window.scrollTo(0, 600));
+  await expect(bird).not.toHaveAttribute('data-flying');
+  await page.clock.runFor(200);
+  await expect(bird).toHaveAttribute('data-enhanced', '');
+  await expectSafePerch(page);
+  await page.screenshot({ path: `/tmp/pigeon-scrolled-perch-${test.info().project.name}.png` });
 });
 
 for (const width of [390, 1280, 1440]) {
-  test(`decoration adds no layout space at ${width}px`, async ({ page }) => {
+  test(`only existing space is used at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');
+    if (width === 390) {
+      // No room above the photo or between header links: hide, never add space.
+      await expect(page.locator('.pigeon-visitor')).toHaveCSS('visibility', 'hidden');
+    } else {
+      await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-enhanced', '');
+      await expectSafePerch(page);
+    }
     const unchanged = await page.evaluate(() => {
       const measure = () => ({
         height: document.documentElement.scrollHeight,
@@ -85,34 +147,24 @@ for (const width of [390, 1280, 1440]) {
   });
 }
 
-test('resting pigeon idles, pauses in flight, and hides when space disappears', async ({ page }) => {
+test('no safe edge means no bird, rather than covering mobile content', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto('/pigeons/');
+  await page.waitForFunction(() => !!document.querySelector('script[src="/pigeon-visitor.js"]'));
+  await page.waitForTimeout(300);
+  await expect(page.locator('.pigeon-visitor')).not.toHaveAttribute('data-enhanced');
+  await expect(page.locator('.pigeon-visitor')).toHaveCSS('visibility', 'hidden');
+});
+
+test('animation request is after page load, without preload', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
   await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-enhanced', '');
-  const head = page.locator('.pigeon-head');
-  await expect(head).toHaveCSS('animation-name', 'pigeon-curious');
-  await expect(page.locator('.pigeon-eye')).toHaveCSS('animation-name', 'pigeon-blink');
-  await page.locator('.pigeon-visitor').evaluate((bird) => bird.setAttribute('data-flying', ''));
-  await expect(head).toHaveCSS('animation-name', 'none');
-  await page.setViewportSize({ width: 390, height: 900 });
-  await expect(page.locator('.pigeon-visitor')).not.toHaveAttribute('data-enhanced');
-  await expect(page.locator('.pigeon-visitor')).toHaveCSS('visibility', 'hidden');
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await expect(head).toHaveCSS('animation-name', 'pigeon-curious');
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await expect(head).toHaveCSS('animation-name', 'none');
-});
-
-test('desktop no-JS fallback rests entirely in the existing gutter', async ({ browser }) => {
-  const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } });
-  const page = await context.newPage();
-  await page.goto('/');
-  await expect(page.locator('.pigeon-visitor')).toHaveCSS('visibility', 'visible');
-  const safe = await page.locator('.pigeon-visitor').evaluate((bird) => {
-    const b = bird.getBoundingClientRect();
-    const main = document.querySelector('main')!.getBoundingClientRect();
-    return b.left >= 0 && b.right < main.left && b.top >= 0 && b.bottom <= innerHeight;
-  });
-  expect(safe).toBe(true);
-  await context.close();
+  const timings = await page.evaluate(() => ({
+    load: (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming).loadEventStart,
+    module: performance.getEntriesByName(`${location.origin}/pigeon-visitor.js`)[0]?.startTime,
+    preloads: [...document.querySelectorAll('link[rel="preload"],link[rel="modulepreload"]')].some((link) => (link as HTMLLinkElement).href.includes('pigeon-visitor')),
+  }));
+  expect(timings.module).toBeGreaterThanOrEqual(timings.load + 1100);
+  expect(timings.preloads).toBe(false);
 });

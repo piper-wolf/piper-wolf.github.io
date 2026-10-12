@@ -1,15 +1,10 @@
----
-import { layout } from '../styles/layout';
-const roomy = `screen and (min-width: calc(${layout.maxWidth} + 128px))`;
----
-
-<!-- Fixed decoration: never reserves page space or lands in the footer. -->
-<div class="pigeon-perch" aria-hidden="true" style={`--content-width: ${layout.maxWidth}`}>
+<!-- Optional decoration; safe horizontal perches are measured after load + idle. -->
+<div class="pigeon-perch" aria-hidden="true">
   <span class="pigeon-visitor">
     <svg viewBox="0 0 64 64" width="40" height="40" focusable="false">
       <!-- Tapered tail, plump breast, small head, short beak and pink toes. -->
-      <path d="M24 39 5 47q-2 2 1 3l22-3" fill="#525b6a" />
-      <path d="m27 49-1 8m0-1-5 2m5-2 5 2m9-9-1 8m0-1-5 2m5-2 5 2" fill="none" stroke="#c17a83" stroke-width="2" stroke-linecap="round" />
+      <path class="pigeon-tail" d="M24 39 5 47q-2 2 1 3l22-3" fill="#525b6a" />
+      <path class="pigeon-feet" d="m27 49-1 8m0-1-5 2m5-2 5 2m9-9-1 8m0-1-5 2m5-2 5 2" fill="none" stroke="#c17a83" stroke-width="2" stroke-linecap="round" />
       <g class="pigeon-body">
         <path d="M16 35c3-7 12-9 18-10l5-10 13 5-2 12c5 9 0 20-13 21-14 1-25-6-21-18Z" fill="#99a3af" />
         <path d="M37 24q0-7 5-10l10 6-2 12q-5 5-14 0Z" fill="#55887f" />
@@ -19,6 +14,10 @@ const roomy = `screen and (min-width: calc(${layout.maxWidth} + 128px))`;
           <path d="M17 34c7-7 19-5 23 3-3 7-12 11-24 10-2-4-3-9 1-13Z" fill="#bdc5ce" />
           <path d="m27 32-6 11m13-9-6 11" fill="none" stroke="#535e70" stroke-width="3.5" stroke-linecap="round" />
           <path d="m18 46 13-2" fill="none" stroke="#929dab" stroke-width="1.5" stroke-linecap="round" />
+        </g>
+        <g class="pigeon-flight-wing">
+          <path d="M34 35C23 32 11 22 3 9q-1-3 2-2l8 4-1-5q2-2 5 2l4 6 1-5q3-1 5 5l2 6 3-3q5 5 6 12Z" fill="#b8c3cf" />
+          <path d="m14 19 13 11m-7-15 12 13" fill="none" stroke="#59677b" stroke-width="3" stroke-linecap="round" />
         </g>
         <g class="pigeon-head">
           <path d="M36 17c-1-6 3-10 9-10 7 0 11 4 10 10-1 6-5 10-11 9-5-1-8-4-8-9Z" fill="#7c899a" />
@@ -37,24 +36,43 @@ const roomy = `screen and (min-width: calc(${layout.maxWidth} + 128px))`;
 
 <style>
   .pigeon-perch { position: fixed; inset: 0; pointer-events: none; visibility: hidden; }
-  .pigeon-visitor { position: fixed; left: max(12px, calc((100vw - var(--content-width)) / 2 - 52px)); top: clamp(0px, 30vh, calc(100vh - 48px)); width: 40px; height: 40px; pointer-events: none; }
-  .pigeon-visitor svg { display: block; }
-  .pigeon-wing { transform-origin: 31px 34px; }
+  .pigeon-visitor { position: fixed; left: 0; top: 0; width: 40px; height: 40px; pointer-events: none; }
+  .pigeon-visitor svg { display: block; overflow: visible; }
+  .pigeon-wing, .pigeon-flight-wing { transform-origin: 31px 34px; }
+  .pigeon-flight-wing { display: none; }
   .pigeon-head { transform-origin: 42px 25px; }
   .pigeon-body { transform-origin: 34px 51px; }
   .pigeon-eye { transform-origin: 49px 15px; }
+  .pigeon-feet { transform-origin: 33px 49px; }
+  .pigeon-tail { transform-origin: 24px 43px; }
   .pigeon-visitor[data-enhanced]:not([data-flying]) .pigeon-body { animation: pigeon-breathe 4s ease-in-out infinite; }
-  .pigeon-visitor[data-enhanced]:not([data-flying]) .pigeon-head { animation: pigeon-curious 9s ease-in-out infinite; }
   .pigeon-visitor[data-enhanced]:not([data-flying]) .pigeon-eye { animation: pigeon-blink 7s linear infinite; }
-  .pigeon-visitor[data-flying] .pigeon-wing { animation: pigeon-flap 140ms ease-in-out infinite alternate; }
+  .pigeon-visitor[data-idle="look"] .pigeon-head { animation: pigeon-look 1500ms ease-in-out; }
+  .pigeon-visitor[data-enhanced][data-idle="peck"] .pigeon-body { animation: pigeon-peck-body 1200ms ease-in-out; }
+  .pigeon-visitor[data-idle="peck"] .pigeon-head { animation: pigeon-peck-head 1200ms ease-in-out; }
+  .pigeon-visitor[data-idle="stretch"] .pigeon-wing { animation: pigeon-stretch 1800ms ease-in-out; }
+  .pigeon-visitor[data-flying] .pigeon-wing { display: none; }
+  .pigeon-visitor[data-flying] .pigeon-flight-wing { display: block; animation: pigeon-flight-wing var(--flight-duration) linear; }
+  .pigeon-visitor[data-flying] .pigeon-body { animation: pigeon-flight-body var(--flight-duration) ease-in-out; }
+  .pigeon-visitor[data-flying] .pigeon-feet { animation: pigeon-tuck var(--flight-duration) ease-in-out; }
+  .pigeon-visitor[data-flying] .pigeon-tail { transform: rotate(8deg); }
   @keyframes pigeon-breathe { 50% { transform: scaleY(1.025); } }
-  @keyframes pigeon-curious { 0%, 65%, 85%, 100% { transform: rotate(0); } 72%, 78% { transform: translateY(1px) rotate(7deg); } }
+  @keyframes pigeon-look { 30% { transform: translateY(-1px) rotate(-9deg); } 65% { transform: rotate(8deg); } }
+  @keyframes pigeon-peck-body { 35%, 55% { transform: translateY(4px) rotate(22deg); } }
+  @keyframes pigeon-peck-head { 35%, 55% { transform: translateY(10px) rotate(45deg); } 45% { transform: translateY(12px) rotate(48deg); } }
+  @keyframes pigeon-stretch { 20%, 65% { transform: rotate(-38deg) scaleY(0.8); } 40% { transform: rotate(-20deg) scaleY(0.9); } }
   @keyframes pigeon-blink { 0%, 94%, 98%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
-  @keyframes pigeon-flap { to { transform: rotate(-65deg) scaleY(0.65); } }
+  /* Rapid takeoff beats, an open-wing glide, then braking beats before landing. */
+  @keyframes pigeon-flight-wing {
+    0%, 12%, 24%, 36%, 76%, 90%, 100% { transform: rotate(10deg) scaleY(1); }
+    6%, 18%, 30%, 70%, 83%, 96% { transform: rotate(-105deg) scaleY(0.7); }
+    44%, 62% { transform: rotate(-25deg) scaleY(0.9); }
+  }
+  @keyframes pigeon-flight-body { 12%, 70% { transform: rotate(-8deg); } 88% { transform: rotate(5deg); } }
+  @keyframes pigeon-tuck { 15%, 70% { transform: translateY(-3px) scaleY(0.55); } }
   @media (prefers-reduced-motion: reduce) { .pigeon-visitor svg * { animation: none !important; } }
   @media print { .pigeon-perch { display: none; } }
 </style>
-<style is:global set:html={`@media ${roomy} { .pigeon-perch.pigeon-perch { visibility: visible; } }`} />
 
 <script is:inline>
   (() => {
