@@ -22,7 +22,6 @@ export const pigeon = {
   actions: ['look', 'peck', 'stretch'],
 } as const;
 
-export const companionAppearances = ['red', 'white', 'dark'] as const;
 export const entranceDelays = [100, 10000, 40000, 180000] as const;
 
 export const perchMargin = 12;

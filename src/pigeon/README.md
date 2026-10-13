@@ -10,7 +10,8 @@ that the scene is absent from preload links.
   maximum waits (sampled from zero) and escape radii. Birds render at 28px on narrow
   screens and 40px on desktop; geometry scales the foot anchor to the rendered
   size. Borderless photo tops remain valid perches. Four birds use the same
-  behavior; the first has the city palette and others choose red, white, or dark.
+  behavior; the first is a blue bar rock pigeon and companions choose from the
+  catalog in `appearances.ts`.
 - `scene.ts` owns page lifecycle and cached geometry. It observes sizes, DOM/style
   edits, image completion, and fonts. Invalidation debounces reconciliation
   without canceling actions or resetting deadlines. Count and colors survive
@@ -75,6 +76,18 @@ suspended. Birds stay hidden when no safe space exists.
 To add a gesture, extend the action catalog and definition's choices. Another
 SVG anatomy must provide the named parts plus its own size, foot anchor, and
 clearance. Palettes share anatomy and behavior.
+
+`appearances.ts` separates the palette, wing pattern, and breed for each variant.
+Add a catalog entry to make it available to companions automatically. Palette keys
+map to `--pigeon-*` custom properties, including iris color. `applyAppearance`
+sets those properties and `data-pattern` / `data-breed`; the SVG switches reusable
+marking and feather layers without changing animation anchors or foot placement.
+Patterns include bars, checker, plain, grizzle, and pied. The Fantail adds a radial
+tail fan, the Jacobin a feather hood, and the Old German Owl a crest and breast
+frill. These are stylized breed cues, not show-standard illustrations. Large eyes
+and catchlights deliberately exaggerate the otherwise pigeon-shaped silhouette.
+The anatomy follows [Cornell's rock pigeon identification](https://www.allaboutbirds.org/guide/rock_pigeon/id):
+full breast, small head, thin bill, paired wing bars, and a dark tail band.
 
 Browser coverage lives in `tests/pigeon-animation.spec.ts`, grouped by loading,
 actions/transitions, and independent birds/layout. Shared helpers control JS

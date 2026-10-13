@@ -1,4 +1,5 @@
-import { pigeon, companionAppearances, entranceDelays } from './definition';
+import { pigeon, entranceDelays } from './definition';
+import { companionAppearances, applyAppearance } from './appearances';
 import { Bird } from './bird';
 import { Geometry, type Point } from './geometry';
 const scenes = new WeakMap<HTMLElement, Scene>();
@@ -13,7 +14,7 @@ class Scene {
     const slots = [...overlay.querySelectorAll<HTMLElement>('.pigeon-visitor')];
     this.birds = slots.slice(0, entranceDelays.length).map((element, index) => {
       const appearance = index === 0 ? 'city' : companionAppearances[Math.floor(Math.random() * companionAppearances.length)];
-      element.dataset.appearance = appearance;
+      applyAppearance(element, appearance);
       return new Bird(element, pigeon, this, entranceDelays[index]);
     });
     overlay.style.visibility = 'visible';

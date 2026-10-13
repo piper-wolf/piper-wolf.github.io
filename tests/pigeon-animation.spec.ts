@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { appearances, companionAppearances } from '../src/pigeon/appearances';
 import { movement } from '../src/pigeon/actions';
 import { prepare, enter, start, land, finishGesture, dueMovement, expectSafePerch, scrollTo, runtime } from './helpers/pigeons';
 
@@ -797,7 +798,7 @@ test.describe('independent birds and layout', () => {
   });
   test('four pigeons enter at 100ms, 10s, 40s and 3 minutes with independent flights', async ({ page }) => {
     const count = 4;
-    await start(page, { count, colors: [.999, .5, 0], facings: [0, .999, 0, .999] });
+    await start(page, { count, colors: [2.5 / companionAppearances.length, 1.5 / companionAppearances.length, 0], facings: [0, .999, 0, .999] });
     expect(await page.locator('.pigeon-visitor svg').evaluateAll(birds => birds.map(bird => (bird as SVGElement).style.transform))).toEqual(['', 'scaleX(-1)', '', 'scaleX(-1)']);
     await land(page);
     await expect(page.locator('.pigeon-visitor')).toHaveCount(count);
@@ -846,5 +847,27 @@ test.describe('independent birds and layout', () => {
       wing: getComputedStyle(b.querySelector('.pigeon-wing path')!).fill,
     })))).toEqual(colors);
     await expectSafePerch(page);
+    // Exercise every catalog entry through real scene selection and both wing poses.
+    for (const [index, name] of companionAppearances.entries()) {
+      await page.goto('/pigeons/');
+      await page.evaluate(value => { Math.random = () => value; }, (index + .5) / companionAppearances.length);
+      await enter(page);
+      const variant = page.locator('.pigeon-visitor').nth(1);
+      const appearance = appearances[name];
+      await expect(variant).toHaveAttribute('data-appearance', name);
+      await expect(variant).toHaveAttribute('data-pattern', appearance.pattern);
+      await expect(variant).toHaveAttribute('data-breed', appearance.breed);
+      await expect(variant.locator('.pigeon-wing > path').first()).toHaveCSS('fill', `rgb(${appearance.palette.wing.slice(1).match(/../g)!.map(n => parseInt(n, 16)).join(', ')})`);
+      const visible = await variant.evaluate(el => {
+        const shown = (selector: string) => getComputedStyle(el.querySelector(selector)!).display !== 'none';
+        return { checks: shown('.pigeon-checks'), grizzle: shown('.pigeon-grizzle'), pied: shown('.pigeon-pied'), fan: shown('.pigeon-fan'), hood: shown('.pigeon-hood'), frill: shown('.pigeon-frill'), bars: shown('.pigeon-bars') };
+      });
+      expect(visible).toEqual({ checks: appearance.pattern === 'checker', grizzle: appearance.pattern === 'grizzle', pied: appearance.pattern === 'pied', fan: appearance.breed === 'fantail', hood: appearance.breed === 'jacobin', frill: appearance.breed === 'owl', bars: !['plain', 'checker'].includes(appearance.pattern) });
+      await page.clock.runFor(180000);
+      await expect(variant).toHaveAttribute('data-state', 'flying');
+      await expect(variant.locator('.pigeon-flight-wing')).toHaveCSS('display', 'block');
+      await land(page);
+      await expectSafePerch(page);
+    }
   });
 });

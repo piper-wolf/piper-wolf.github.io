@@ -3,26 +3,42 @@ import { pigeon as definition, entranceDelays } from "../pigeon/definition";
 ---
 <!-- Optional decoration; safe horizontal perches are measured after load + idle. -->
 <div class="pigeon-perch" aria-hidden="true">
-  {Array.from({ length: entranceDelays.length }, () => <span class="pigeon-visitor" data-state="suspended" data-appearance="city" style={`--pigeon-size: ${definition.size}px`}>
+  {Array.from({ length: entranceDelays.length }, () => <span class="pigeon-visitor" data-state="suspended" data-appearance="city" data-pattern="bar" data-breed="rock" style={`--pigeon-size: ${definition.size}px`}>
     <svg viewBox="0 0 64 64" width={definition.size} height={definition.size} focusable="false">
-      <!-- Tapered tail, plump breast, small head, short beak and pink toes. -->
-      <path class="pigeon-tail" d="M24 39 5 47q-2 2 1 3l22-3" fill="var(--pigeon-tail, #525b6a)" />
+      <!-- All variants share the same anchors, including the fancy feather layers. -->
+      <g class="pigeon-tail">
+        <g class="pigeon-tail-normal">
+          <path d="M27 38 3 46 4 51 29 47Z" fill="var(--pigeon-tail, #525b6a)" />
+          <path d="m7 45 1 5" stroke="var(--pigeon-bars, #535e70)" stroke-width="4" />
+        </g>
+        <g class="pigeon-fan" fill="var(--pigeon-wing, #bdc5ce)" stroke="var(--pigeon-feather, #929dab)" stroke-width=".7">
+          {[-60, -40, -20, 0, 20, 40, 60].map(angle => <path d="M23 45Q8 34 5 18q0-4 4-3c9 5 15 18 14 30Z" transform={`rotate(${angle} 23 45)`} />)}
+        </g>
+      </g>
       <g class="pigeon-feet" fill="none" stroke="#c17a83" stroke-width="2" stroke-linecap="round">
         <path class="pigeon-foot-back" d="m27 49-1 8m0-1-5 2m5-2 5 2" />
         <path class="pigeon-foot-front" d="m40 49-1 8m0-1-5 2m5-2 5 2" />
       </g>
       <g class="pigeon-breath">
         <g class="pigeon-body">
-          <path d="M16 35c3-7 12-9 18-10q12-2 16 7c5 9 0 20-13 21-14 1-25-6-21-18Z" fill="var(--pigeon-breast, #99a3af)" />
+          <path d="M14 38C18 31 27 29 35 26L43 21Q51 24 52 36C55 46 46 53 35 53 22 53 12 47 14 38Z" fill="var(--pigeon-breast, #99a3af)" />
           <g class="pigeon-neck">
-            <path d="M37 24q0-7 5-10l10 6-2 12q-5 5-14 0Z" fill="var(--pigeon-neck, #55887f)" />
-            <path d="M37 28q7 6 13 1l-1 6q-7 3-13-2Z" fill="var(--pigeon-iridescence, #887398)" />
+            <path d="M35 30C38 24 37 20 40 17L51 20Q48 25 51 33C48 39 39 39 35 30Z" fill="var(--pigeon-neck, #55887f)" />
+            <path d="M37 29q7 6 13 0l1 5q-6 5-14-1Z" fill="var(--pigeon-iridescence, #887398)" />
           </g>
+          <path class="pigeon-pied" d="M40 26q10 0 12 10c3 9-5 15-13 16l-2-7 7-6Z" fill="#f6f3eb" />
           <path d="M47 36q6 11-7 14" fill="none" stroke="var(--pigeon-highlight, #b9c1c9)" stroke-width="3" stroke-linecap="round" />
           <g class="pigeon-wing">
-            <path d="M17 34c7-7 19-5 23 3-3 7-12 11-24 10-2-4-3-9 1-13Z" fill="var(--pigeon-wing, #bdc5ce)" />
-            <path d="m27 32-6 11m13-9-6 11" fill="none" stroke="var(--pigeon-bars, #535e70)" stroke-width="3.5" stroke-linecap="round" />
-            <path d="m18 46 13-2" fill="none" stroke="var(--pigeon-feather, #929dab)" stroke-width="1.5" stroke-linecap="round" />
+            <path d="M15 37C22 30 33 30 39 36 35 43 23 48 9 48L15 37Z" fill="var(--pigeon-wing, #bdc5ce)" />
+            <path class="pigeon-bars" d="m23 35-5 10m12-11-5 10" fill="none" stroke="var(--pigeon-bars, #535e70)" stroke-width="3.5" stroke-linecap="round" />
+            <g class="pigeon-checks" fill="var(--pigeon-bars, #535e70)">
+              {[ [19,37], [25,35], [31,35], [22,40], [28,39], [34,38], [17,42], [25,43] ].map(([x,y]) => <path d={`M${x} ${y}l3-1 1 3-3 1Z`} />)}
+            </g>
+            <g class="pigeon-grizzle" fill="#f6f3eb">
+              {[ [18,37], [24,35], [30,34], [21,40], [28,39], [34,37], [17,44], [25,43], [31,41] ].map(([x,y]) => <path d={`M${x} ${y}l2-1 1 2-2 2Z`} />)}
+            </g>
+            <path class="pigeon-pied" d="M15 37q5-5 10-4l-4 8 6 3-12 3-6 1Z" fill="#f6f3eb" />
+            <path d="m12 47 18-5m-14 3 15-5" fill="none" stroke="var(--pigeon-feather, #929dab)" stroke-width="1.5" stroke-linecap="round" />
           </g>
           <!-- Hieronymus (2016), https://doi.org/10.1111/joa.12511:
                secondaries form the inner wing, primaries the outer fan, with
@@ -31,7 +47,12 @@ import { pigeon as definition, entranceDelays } from "../pigeon/definition";
           <g class="pigeon-flight-wing">
             <!-- Broad inner wing: shoulder at (31,34), wrist near (20,19). -->
             <path d="M34 36C26 36 17 31 13 25q-2-6 3-11 4-3 9 3l6 10 7 5Z" fill="var(--pigeon-flight, #b8c3cf)" />
-            <path d="m18 22 9 8m-5-12 10 8" fill="none" stroke="var(--pigeon-flight-bars, #59677b)" stroke-width="2.5" stroke-linecap="round" />
+            <path class="pigeon-bars" d="m18 22 9 8m-5-12 10 8" fill="none" stroke="var(--pigeon-flight-bars, #59677b)" stroke-width="2.5" stroke-linecap="round" />
+            <g class="pigeon-checks" fill="var(--pigeon-bars, #535e70)">
+              {[ [16,20], [20,18], [20,25], [24,23], [25,29] ].map(([x,y]) => <path d={`M${x} ${y}l2-1 2 3-2 1Z`} />)}
+            </g>
+            <path class="pigeon-pied" d="M16 14q4-3 8 2l-3 7-5 3q-6-7 0-12Z" fill="#f6f3eb" />
+            <path class="pigeon-grizzle" d="m16 17 3-2 1 4-3 2Zm5 6 3-2 2 3-3 2Zm5 6 2-1 2 3-3 1Z" fill="#f6f3eb" />
             <!-- The outer wing moves about the wrist instead of stretching
                  the whole silhouette. Its base overlaps the inner wing. -->
             <g class="pigeon-hand-wing">
@@ -40,14 +61,22 @@ import { pigeon as definition, entranceDelays } from "../pigeon/definition";
               <path d="m7 16 10 11" fill="none" stroke="var(--pigeon-flight-bars, #59677b)" stroke-width="1.25" stroke-linecap="round" opacity=".5" />
             </g>
           </g>
+          <path class="pigeon-hood" d="M39 33C25 28 26 11 34 6q6-4 10 1l-5 9 2 10 7 7q-4 4-9 0Z" fill="var(--pigeon-neck, #55887f)" stroke="var(--pigeon-highlight, #b9c1c9)" stroke-width="1" />
+          <g class="pigeon-frill" fill="var(--pigeon-highlight, #b9c1c9)">
+            <path d="m47 31-7 3 6 2-7 3 8 2-5 4 8-1q4-7-3-13Z" />
+          </g>
           <g class="pigeon-head">
-            <path d="M36 17c-1-6 3-10 9-10 7 0 11 4 10 10-1 6-5 10-11 9-5-1-8-4-8-9Z" fill="var(--pigeon-head, #7c899a)" />
-            <path d="m54 17 7 3-8 2" fill="#404956" />
-            <path d="M53 16q4 0 4 3l-4 1" fill="#eee8df" />
+            <path class="pigeon-crest" d="M38 16q-5-1-4-6l4 1-1-5q7 1 7 5Z" fill="var(--pigeon-head, #7c899a)" />
+            <path d="M37 17C36 11 40 8 45 8q10 0 10 9c0 5-5 9-10 8-5-1-8-3-8-8Z" fill="var(--pigeon-head, #7c899a)" />
+            <path class="pigeon-pied" d="M37 17C36 11 40 8 45 8l-2 6 2 6-2 5q-6-1-6-8Z" fill="#f6f3eb" />
+            <path class="pigeon-grizzle" d="m40 12 2-1 1 3-2 1Zm3 7 2-1 1 3-2 1Zm-4-3 2 1-1 3-2-1Z" fill="#f6f3eb" />
+            <path d="M53 17 62 20 54 21Z" fill="#404956" />
+            <path d="M53 16q4-1 5 3l-5 1" fill="#eee8df" />
             <g class="pigeon-eye">
-              <circle cx="49" cy="15" r="3" fill="#e3b887" />
-              <circle cx="49.5" cy="15" r="2" fill="#222d38" />
-              <circle cx="50" cy="14.3" r="0.65" fill="#fff" />
+              <circle cx="48.5" cy="15.5" r="4.3" fill="#d7d3cc" />
+              <circle cx="48.5" cy="15.5" r="3.6" fill="var(--pigeon-iris, #e7a452)" />
+              <circle cx="49" cy="15.5" r="2.65" fill="#222d38" />
+              <circle cx="49.8" cy="14.3" r="1" fill="#fff" />
             </g>
           </g>
         </g>
@@ -68,15 +97,22 @@ import { pigeon as definition, entranceDelays } from "../pigeon/definition";
   .pigeon-head { transform-origin: 42px 25px; }
   .pigeon-neck { transform-origin: 38px 32px; }
   .pigeon-body, .pigeon-breath { transform-origin: 34px 51px; }
-  .pigeon-eye { transform-origin: 49px 15px; }
+  .pigeon-eye { transform-origin: 48.5px 15.5px; }
   .pigeon-feet { transform-origin: 33px 49px; }
   .pigeon-tail { transform-origin: 24px 43px; }
   .pigeon-visitor:not([data-state="suspended"]) .pigeon-breath { animation: pigeon-breathe 4s ease-in-out infinite; }
   .pigeon-visitor:not([data-state="perched"]) .pigeon-breath, .pigeon-visitor[data-idle="peck"] .pigeon-breath { animation-play-state: paused; }
   .pigeon-visitor:not([data-state="suspended"]) .pigeon-eye { animation: pigeon-blink 7s linear infinite; }
-  .pigeon-visitor[data-appearance="red"] { --pigeon-tail: #745247; --pigeon-breast: #c4aaa0; --pigeon-neck: #9c705f; --pigeon-iridescence: #986d87; --pigeon-wing: #d6c5b6; --pigeon-bars: #8d5545; --pigeon-feather: #ad8b77; --pigeon-flight: #d2bdb0; --pigeon-flight-bars: #8d5545; --pigeon-head: #ac8a7a; }
-  .pigeon-visitor[data-appearance="white"] { --pigeon-tail: #b9b8b2; --pigeon-breast: #f0ede5; --pigeon-neck: #d6ddd2; --pigeon-iridescence: #ddd3dd; --pigeon-wing: #f5f2e9; --pigeon-bars: #c6c5bd; --pigeon-feather: #d8d6cd; --pigeon-flight: #eeece3; --pigeon-flight-bars: #b9bab4; --pigeon-head: #e3e3db; }
-  .pigeon-visitor[data-appearance="dark"] { --pigeon-tail: #30313b; --pigeon-breast: #535361; --pigeon-neck: #41665e; --pigeon-iridescence: #6c547b; --pigeon-wing: #6b6a78; --pigeon-bars: #30313b; --pigeon-feather: #858491; --pigeon-flight: #777784; --pigeon-flight-bars: #383844; --pigeon-head: #555564; }
+  .pigeon-checks, .pigeon-grizzle, .pigeon-pied, .pigeon-fan, .pigeon-hood, .pigeon-frill, .pigeon-crest { display: none; }
+  .pigeon-visitor[data-pattern="plain"] .pigeon-bars,
+  .pigeon-visitor[data-pattern="checker"] .pigeon-bars { display: none; }
+  .pigeon-visitor[data-pattern="checker"] .pigeon-checks,
+  .pigeon-visitor[data-pattern="grizzle"] .pigeon-grizzle,
+  .pigeon-visitor[data-pattern="pied"] .pigeon-pied,
+  .pigeon-visitor[data-breed="fantail"] .pigeon-fan,
+  .pigeon-visitor[data-breed="jacobin"] .pigeon-hood,
+  .pigeon-visitor[data-breed="owl"] :is(.pigeon-frill, .pigeon-crest) { display: block; }
+  .pigeon-visitor[data-breed="fantail"] .pigeon-tail-normal { display: none; }
   .pigeon-visitor[data-state="flying"] .pigeon-wing { display: none; }
   .pigeon-visitor[data-state="flying"] .pigeon-flight-wing { display: block; }
   @keyframes pigeon-breathe { 50% { transform: scaleY(1.025); } }
