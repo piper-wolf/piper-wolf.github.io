@@ -10,8 +10,9 @@ that the scene is absent from preload links.
   maximum waits (sampled from zero) and escape radii. Birds render at 28px on narrow
   screens and 40px on desktop; geometry scales the foot anchor to the rendered
   size. Borderless photo tops remain valid perches. Four birds use the same
-  behavior; the first is a blue bar rock pigeon and companions choose from the
-  catalog in `appearances.ts`.
+  behavior; the first is a blue bar rock pigeon. Each companion independently
+  chooses from the full catalog in `appearances.ts` with equal probability,
+  including blue bar; duplicates are allowed.
 - `scene.ts` owns page lifecycle and cached geometry. It observes sizes, DOM/style
   edits, image completion, and fonts. Invalidation debounces reconciliation
   without canceling actions or resetting deadlines. Count and colors survive

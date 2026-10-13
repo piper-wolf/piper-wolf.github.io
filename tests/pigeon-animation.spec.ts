@@ -798,7 +798,8 @@ test.describe('independent birds and layout', () => {
   });
   test('four pigeons enter at 100ms, 10s, 40s and 3 minutes with independent flights', async ({ page }) => {
     const count = 4;
-    await start(page, { count, colors: [2.5 / companionAppearances.length, 1.5 / companionAppearances.length, 0], facings: [0, .999, 0, .999] });
+    const selections = (['dark', 'white', 'red'] as const).map(name => (companionAppearances.indexOf(name) + .5) / companionAppearances.length);
+    await start(page, { count, colors: selections, facings: [0, .999, 0, .999] });
     expect(await page.locator('.pigeon-visitor svg').evaluateAll(birds => birds.map(bird => (bird as SVGElement).style.transform))).toEqual(['', 'scaleX(-1)', '', 'scaleX(-1)']);
     await land(page);
     await expect(page.locator('.pigeon-visitor')).toHaveCount(count);
@@ -852,6 +853,8 @@ test.describe('independent birds and layout', () => {
       await page.goto('/pigeons/');
       await page.evaluate(value => { Math.random = () => value; }, (index + .5) / companionAppearances.length);
       await enter(page);
+      await expect(page.locator('.pigeon-visitor').first()).toHaveAttribute('data-appearance', 'city');
+      expect(await page.locator('.pigeon-visitor').evaluateAll(birds => birds.slice(1).map(bird => (bird as HTMLElement).dataset.appearance))).toEqual([name, name, name]);
       const variant = page.locator('.pigeon-visitor').nth(1);
       const appearance = appearances[name];
       await expect(variant).toHaveAttribute('data-appearance', name);

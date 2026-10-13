@@ -56,7 +56,7 @@ export const appearances = {
   owl: morph('Blue shield Old German Owl', { ...white, wing: blue.wing, bars: blue.bars, flight: blue.flight, 'flight-bars': blue['flight-bars'] }, 'bar', 'owl'),
 } satisfies Record<string, Appearance>;
 export type AppearanceName = keyof typeof appearances;
-export const companionAppearances = Object.keys(appearances).filter((name): name is Exclude<AppearanceName, 'city'> => name !== 'city');
+export const companionAppearances = Object.keys(appearances) as AppearanceName[];
 
 export function applyAppearance(element: HTMLElement, name: AppearanceName) {
   const { palette, pattern, breed } = appearances[name];
