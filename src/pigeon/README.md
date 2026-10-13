@@ -27,7 +27,10 @@ that the scene is absent from preload links.
   240px triggers walking away, within 140px triggers running, and within 28px
   triggers flight. Closer approaches interrupt ground movement from its visible
   position; touch pointers are ignored. Escape paths lead away from the pointer
-  along a safe corridor; blocked ground escapes wait instead of triggering flight. One timer wakes the next idle, walk, or flight deadline.
+  along a safe corridor; blocked ground escapes wait instead of triggering flight.
+  Pointer-triggered flights prefer safe destinations in the direction away from
+  the cursor, falling back to other safe destinations when that direction is unavailable.
+  One timer wakes the next idle, walk, or flight deadline.
   Gestures finish before timed movement; flight takes priority when overdue.
   Hover can interrupt a gesture, preserving its opening pose in the flight.
   Walks and runs preserve the flight deadline. Landings commit their held endpoint before

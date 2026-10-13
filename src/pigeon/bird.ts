@@ -21,7 +21,9 @@ export class Bird {
   constructor(readonly element: HTMLElement, private baseDefinition: BirdDefinition, private scene: BirdScene, private entranceDelay = 0) {
     this.entranceAt = performance.now() + entranceDelay;
     this.render('suspended');
-    element.addEventListener('mouseenter', () => { if (this.state === 'perched') this.flight(); });
+    element.addEventListener('mouseenter', event => {
+      if (this.state === 'perched') this.flight({ x: event.clientX + scrollX, y: event.clientY + scrollY });
+    });
     document.addEventListener('pointermove', event => {
       if (this.state === 'suspended' || this.state === 'flying' || event.pointerType === 'touch') return;
       const rect = element.getBoundingClientRect();
@@ -33,7 +35,7 @@ export class Bird {
       if (!reaction || (this.state === 'running' && reaction !== 'flying') || (this.state === 'walking' && reaction === 'walking')) return;
       // Escalation starts from the visible position, even midway through a step.
       if (this.state !== 'perched') this.position = { ...this.position!, x: rect.left + scrollX, y: rect.top + scrollY };
-      if (reaction === 'flying') this.flight();
+      if (reaction === 'flying') this.flight({ x: event.clientX + scrollX, y: event.clientY + scrollY });
       else this.walk(reaction, event.clientX + scrollX);
     });
   }
@@ -128,10 +130,16 @@ export class Bird {
     }
     else { this.deadlines.walk = this.after(this.definition.walkDelay); this.wake(); }
   }
-  private flight() {
+  private flight(awayFrom?: { x: number; y: number }) {
     const targets = this.scene.places(this).filter(p => Math.hypot(p.x - this.position!.x, p.y - this.position!.y) > 60);
-    const other = targets.filter(p => p.element !== this.position!.element);
-    if (targets.length) this.move(choose(other.length ? other : targets), 'flying');
+    const from = this.position!;
+    const dx = awayFrom ? from.x + this.definition.size / 2 - awayFrom.x : 0;
+    const dy = awayFrom ? from.y + this.definition.size / 2 - awayFrom.y : 0;
+    const away = targets.filter(p => (p.x - from.x) * dx + (p.y - from.y) * dy >
+      .1 * Math.hypot(p.x - from.x, p.y - from.y) * Math.hypot(dx, dy));
+    const preferred = away.length ? away : targets;
+    const other = preferred.filter(p => p.element !== from.element);
+    if (preferred.length) this.move(choose(other.length ? other : preferred), 'flying');
     else { this.deadlines.flight = this.after(this.definition.flightDelay); this.wake(); }
   }
   private async run(action: Action, opening?: Map<string, string>) {

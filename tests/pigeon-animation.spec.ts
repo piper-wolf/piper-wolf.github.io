@@ -490,6 +490,41 @@ test.describe('actions and transitions', () => {
       return flying;
     })).toBe(true);
     await expectSafePerch(page);
+    for (const { dx, dy, hover, fallback } of [
+      { dx: -40, dy: 0 }, { dx: 40, dy: 0 },
+      { dx: 0, dy: -40 }, { dx: 0, dy: 40 },
+      { dx: -19, dy: 0, hover: true },
+      { dx: 40, dy: 0, fallback: true },
+    ]) {
+      await page.goto('/pigeons/');
+      await page.evaluate(fallback => {
+        let choices = 0;
+        Math.random = () => choices++ < 2 ? 0 : .25;
+        document.querySelectorAll('[data-pigeon-landing]').forEach(el => el.removeAttribute('data-pigeon-landing'));
+        const main = document.querySelector<HTMLElement>('main')!;
+        main.style.height = '1200px';
+        const edges = fallback ? [[650, 450], [950, 450]] :
+          [[650, 450], [350, 450], [950, 450], [650, 250], [650, 650]];
+        main.innerHTML = edges.map(([x, y]) => `<div data-pigeon-landing style="position:absolute;left:${x}px;top:${y}px;width:92px;height:1px"></div>`).join('');
+      }, !!fallback);
+      await enter(page);
+      await land(page);
+      await page.evaluate(() => { Math.random = () => .25; });
+      const from = (await bird.boundingBox())!;
+      await bird.dispatchEvent(hover ? 'mouseenter' : 'pointermove', {
+        pointerType: 'mouse', clientX: from.x + from.width / 2 + dx, clientY: from.y + from.height / 2 + dy,
+      });
+      await expect(bird).toHaveAttribute('data-state', 'flying');
+      const to = await bird.evaluate(el => {
+        const frames = (el.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
+        const end = new DOMMatrix(frames.at(-1)!.transform as string);
+        return { x: end.m41, y: end.m42 };
+      });
+      if (fallback) expect(to.x).toBeGreaterThan(from.x);
+      else expect((to.x - from.x) * -dx + (to.y - from.y) * -dy, JSON.stringify({ dx, dy, from, to })).toBeGreaterThan(0);
+      await land(page);
+      await expectSafePerch(page);
+    }
   });
 
   test('idle gestures vary between looking, pecking and a half-wing stretch', async ({ page }) => {
