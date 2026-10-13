@@ -5,7 +5,7 @@ import { prepare, enter, start, land, finishGesture, dueMovement, expectSafePerc
 
 test.describe('loading and motion preferences', () => {
   test('initial reduced motion can enable the deferred scene exactly once', async ({ page }) => {
-    await prepare(page);
+    await prepare(page, { count: 2 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const requests: string[] = [];
     page.on('request', r => { if (runtime.test(r.url())) requests.push(r.url()); });
@@ -20,11 +20,15 @@ test.describe('loading and motion preferences', () => {
     }).not.toBe('suspended');
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(0);
+    // The companion becomes due while motion is disabled; it must stay hidden.
+    await page.clock.runFor(10000);
+    await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(0);
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await expect.poll(async () => {
       await page.clock.runFor(100);
       return page.locator('.pigeon-visitor').first().getAttribute('data-state');
     }).not.toBe('suspended');
+    await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(2);
     expect(requests).toHaveLength(1);
   });
   test('animation request is after page load, without preload', async ({ page }) => {
@@ -413,7 +417,6 @@ test.describe('actions and transitions', () => {
       }, index);
       if (index) {
         await page.emulateMedia({ reducedMotion: 'no-preference' });
-        await page.clock.runFor(100);
         await expect(bird).toHaveAttribute('data-state', 'perched');
       }
       await land(page);
@@ -862,20 +865,37 @@ test.describe('independent birds and layout', () => {
     await expect(page.locator('.pigeon-visitor[data-state="flying"]')).toHaveCount(2);
     await land(page);
     await expectSafePerch(page);
-    await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
-    await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(0);
-    expect(await page.locator('.pigeon-visitor').evaluateAll(birds => birds.flatMap(b => b.getAnimations({ subtree: true })).length)).toBe(0);
-    await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
-    await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(0);
-    await page.clock.runFor(99);
-    await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(0);
-    await page.clock.runFor(1);
-    await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(1);
-    for (let index = 1; index < count; index++) {
-      await page.clock.runFor([9900, 30000, 50000, 90000][index - 1] - 1);
-      await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(index);
-      await page.clock.runFor(1);
-      await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(index + 1);
+    for (const lifecycle of ['visibility', 'page', 'motion']) {
+      // Hide during a flight, then restore without an unrelated event.
+      await page.locator('.pigeon-visitor').last().dispatchEvent('mouseenter');
+      await expect(page.locator('.pigeon-visitor[data-state="flying"]')).toHaveCount(1);
+      if (lifecycle === 'visibility') {
+        await page.evaluate(() => {
+          Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+          document.dispatchEvent(new Event('visibilitychange'));
+        });
+      } else if (lifecycle === 'page') {
+        await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
+      } else {
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+      }
+      await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(0);
+      expect(await page.locator('.pigeon-visitor').evaluateAll(birds => birds.flatMap(b => b.getAnimations({ subtree: true })).length)).toBe(0);
+      await page.clock.runFor(2000);
+      await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(0);
+      if (lifecycle === 'visibility') {
+        await page.evaluate(() => {
+          delete (document as unknown as { hidden?: boolean }).hidden;
+          document.dispatchEvent(new Event('visibilitychange'));
+        });
+      } else if (lifecycle === 'page') {
+        await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
+      } else {
+        await page.emulateMedia({ reducedMotion: 'no-preference' });
+      }
+      await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(count);
+      await land(page);
+      await expectSafePerch(page);
     }
     await land(page);
     await expect(page.locator('.pigeon-visitor[data-state="perched"]')).toHaveCount(count);

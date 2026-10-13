@@ -13,18 +13,22 @@ that the scene is absent from preload links.
   behavior; the first is a blue bar rock pigeon. Each companion independently
   chooses from the full catalog in `appearances.ts` with equal probability,
   including blue bar; duplicates are allowed.
-- `scene.ts` owns page lifecycle and cached geometry. It observes sizes, DOM/style
-  edits, image completion, and fonts. Invalidation debounces reconciliation
+- `scene.ts` owns page lifecycle, one-time staggered entrances, and cached
+  geometry. It observes sizes, DOM/style edits, image completion, and fonts.
+  Invalidation debounces reconciliation
   without canceling actions or resetting deadlines. Count and colors survive
-  suspension; birds act independently.
+  suspension; birds act independently. Each entrance timer adds its bird once,
+  even if the scene is hidden; reconciliation controls whether it can appear.
 - `geometry.ts` subtracts content and bird reservations into safe intervals.
   Walks and runs reserve their full corridor; flights reserve their destination. Existing
   positions are validated directly, keeping safe birds in place.
 - `bird.ts` manages one bird's state, facing, position, reservations, deadlines,
   and animations. Entrances randomly face left or right and start beyond the
-  opposite viewport edge, facing inward. Five entrances are scheduled at 100ms,
-  10s, 40s, 90s, and 3 minutes after scene initialization or resumption. A cursor within
-  240px triggers walking away, within 140px triggers running, and within 28px
+  opposite viewport edge, facing inward. The scene adds five birds at 100ms,
+  10s, 40s, 90s, and 3 minutes after initialization. Birds have no entrance timers
+  or delays: suspension cancels actions and resumption reconciles immediately.
+  A cursor within 240px triggers walking away, within 140px triggers running,
+  and within 28px
   triggers flight. Closer approaches interrupt ground movement from its visible
   position; touch pointers are ignored. Escape paths lead away from the pointer
   along a safe corridor; blocked ground escapes wait instead of triggering flight.
@@ -34,7 +38,7 @@ that the scene is absent from preload links.
   Gestures finish before timed movement; flight takes priority when overdue.
   Hover can interrupt a gesture, preserving its opening pose in the flight.
   Walks and runs preserve the flight deadline. Landings commit their held endpoint before
-  cancellation, then reconcile fresh geometry. Suspension cancels all work;
+  cancellation, then reconcile fresh geometry. Suspension cancels all actions;
   stale completions cannot restart it.
 - `actions.ts` returns finite keyframes and timing only. Walks cover a few
   steps at 3.6–4.8 steps/s, with alternating planted feet and lifted recovery.

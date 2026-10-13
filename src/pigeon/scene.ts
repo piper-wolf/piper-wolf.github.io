@@ -5,17 +5,20 @@ import { Geometry, type Point } from './geometry';
 const scenes = new WeakMap<HTMLElement, Scene>();
 class Scene {
   private geometry = new Geometry();
-  private birds: Bird[];
+  private birds: Bird[] = [];
   private motion = matchMedia('(prefers-reduced-motion: reduce)');
   private debounce?: number;
   private active = true;
   private geometryDirty = true;
   constructor(overlay: HTMLElement) {
     const slots = [...overlay.querySelectorAll<HTMLElement>('.pigeon-visitor')];
-    this.birds = slots.slice(0, entranceDelays.length).map((element, index) => {
+    slots.slice(0, entranceDelays.length).forEach((element, index) => {
       const appearance = index === 0 ? 'city' : companionAppearances[Math.floor(Math.random() * companionAppearances.length)];
       applyAppearance(element, appearance);
-      return new Bird(element, pigeon, this, entranceDelays[index]);
+      window.setTimeout(() => {
+        this.birds.push(new Bird(element, pigeon, this));
+        this.settle();
+      }, entranceDelays[index]);
     });
     overlay.style.visibility = 'visible';
     const invalidate = () => this.invalidate();
@@ -64,7 +67,6 @@ class Scene {
   }
   settle() {
     if (!this.active || document.hidden || this.motion.matches) { this.suspend(); return; }
-    if (this.debounce !== undefined) return;
     this.measure();
     this.birds.forEach(bird => bird.reconcile());
   }

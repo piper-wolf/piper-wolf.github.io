@@ -17,9 +17,7 @@ export class Bird {
   private lastIdle = -1;
   private facing: 'left' | 'right' = 'right';
   private deadlines = { idle: Infinity, walk: Infinity, flight: Infinity };
-  private entranceAt: number;
-  constructor(readonly element: HTMLElement, private baseDefinition: BirdDefinition, private scene: BirdScene, private entranceDelay = 0) {
-    this.entranceAt = performance.now() + entranceDelay;
+  constructor(readonly element: HTMLElement, private baseDefinition: BirdDefinition, private scene: BirdScene) {
     this.render('suspended');
     element.addEventListener('mouseenter', event => {
       if (this.state === 'perched') this.flight({ x: event.clientX + scrollX, y: event.clientY + scrollY });
@@ -60,17 +58,11 @@ export class Bird {
   }
   suspend() {
     this.cancelAction();
-    this.entranceAt = performance.now() + this.entranceDelay;
     this.deadlines = { idle: Infinity, walk: Infinity, flight: Infinity };
     this.reservation = undefined;
     this.render('suspended');
   }
   reconcile() {
-    if (this.state === 'suspended' && performance.now() < this.entranceAt) {
-      clearTimeout(this.timer);
-      this.timer = window.setTimeout(() => this.reconcile(), this.entranceAt - performance.now());
-      return;
-    }
     if (this.state === 'suspended' || this.state === 'perched') this.settle();
   }
   private settle(arrived = false) {
