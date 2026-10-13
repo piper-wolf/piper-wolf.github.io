@@ -430,14 +430,16 @@ test.describe('actions and transitions', () => {
       await prepare(page, { width, height: 844 });
       await page.goto('/');
       await page.clock.runFor(2000);
+      // Count one proves initialization finished even when no bird can appear.
+      await expect(page.locator('.pigeon-visitor')).toHaveCount(1);
       await land(page);
-      if (width === 390) {
-        // No room above the photo or between header links: hide, never add space.
-        await expect(page.locator('.pigeon-visitor:first-child')).toHaveCSS('visibility', 'hidden');
-      } else {
-        await expect(page.locator('.pigeon-visitor:first-child')).not.toHaveAttribute('data-state', 'suspended');
-        await expectSafePerch(page);
-      }
+      const bird = page.locator('.pigeon-visitor');
+      if (width !== 390) await expect(bird).toHaveAttribute('data-state', 'perched');
+      // Platform fonts can bring a safe footer perch into the mobile viewport.
+      if (await bird.getAttribute('data-state') === 'suspended') {
+        await expect(bird).toHaveCSS('visibility', 'hidden');
+        expect(await bird.evaluate(el => el.getAnimations({ subtree: true }).length)).toBe(0);
+      } else await expectSafePerch(page);
       const unchanged = await page.evaluate(() => {
         const measure = () => ({
           height: document.documentElement.scrollHeight,
@@ -452,9 +454,14 @@ test.describe('actions and transitions', () => {
       expect(unchanged).toBe(true);
       if (width === 390) {
         await page.goto('/pigeons/');
+        // Force no eligible perches instead of relying on font-dependent layout.
+        await page.locator('[data-pigeon-landing]').evaluateAll(edges => edges.forEach(edge => edge.removeAttribute('data-pigeon-landing')));
         await page.clock.runFor(2000);
+        await expect(page.locator('.pigeon-visitor')).toHaveCount(1);
         await land(page);
-        await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(0);
+        await expect(bird).toHaveAttribute('data-state', 'suspended');
+        await expect(bird).toHaveCSS('visibility', 'hidden');
+        expect(await bird.evaluate(el => el.getAnimations({ subtree: true }).length)).toBe(0);
       }
     });
   }
