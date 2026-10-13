@@ -10,8 +10,9 @@ that the scene is absent from preload links.
   maximum waits (sampled from zero) and escape radii. Birds render at 28px on narrow
   screens and 40px on desktop; geometry scales the foot anchor to the rendered
   size. Borderless photo tops remain valid perches. Five birds use the same
-  behavior; the first is a blue bar rock pigeon. Each companion independently
-  chooses from the full catalog in `appearances.ts` with equal probability,
+  behavior; the first randomly chooses among the ordinary rock-pigeon coats
+  in `appearances.ts` with equal probability, excluding fancy breeds. Each companion
+  independently chooses from the full catalog in `appearances.ts` with equal probability,
   including blue bar; duplicates are allowed.
 - `scene.ts` owns page lifecycle, one-time staggered entrances, and cached
   geometry. It observes sizes, DOM/style edits, image completion, and fonts.
@@ -19,6 +20,9 @@ that the scene is absent from preload links.
   without canceling actions or resetting deadlines. Count and colors survive
   suspension; birds act independently. Each entrance timer adds its bird once,
   even if the scene is hidden; reconciliation controls whether it can appear.
+  Perched birds scrolled outside the viewport's safe perch area wait an independent
+  random 0–2 seconds before relocating. Further scroll events do not restart that wait; returning
+  to a valid visible perch or suspending the scene cancels it.
 - `geometry.ts` subtracts content and bird reservations into safe intervals.
   The whole header divider is considered, not just the logo–navigation gap;
   mobile header padding and detail-photo spacing leave clearance above perches.

@@ -15,11 +15,11 @@ export async function prepare(page: Page, { width = 1440, height = 900, count = 
     let choices = 0;
     Math.random = () => {
       const index = choices++;
-      if (index < count - 1) return colors[index] ?? 0;
+      if (index < count) return colors[index] ?? 0;
       // Each initial destination is followed by its bird's facing choice.
-      if (index >= count - 1 && index < count * 3 - 1) {
-        if ((index - count + 1) % 2 === 1) return facings[(index - count) / 2] ?? 0;
-        return separateEdges && index === count + 1 ? .999 : 0;
+      if (index >= count && index < count * 3) {
+        if ((index - count) % 2 === 1) return facings[(index - count - 1) / 2] ?? 0;
+        return separateEdges && index === count + 2 ? .999 : 0;
       }
       return random;
     };

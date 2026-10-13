@@ -13,6 +13,7 @@ export class Bird {
   reservation?: Reservation;
   private animations: Animation[] = [];
   private timer?: number;
+  private offscreenTimer?: number;
   private pointer?: { x: number; y: number };
   private pointerFrame?: number;
   private generation = 0;
@@ -91,6 +92,8 @@ export class Bird {
   private cancelAction() {
     this.generation++;
     clearTimeout(this.timer);
+    clearTimeout(this.offscreenTimer);
+    this.offscreenTimer = undefined;
     cancelAnimationFrame(this.pointerFrame!);
     this.pointerFrame = undefined;
     this.animations.forEach(a => a.cancel());
@@ -106,9 +109,11 @@ export class Bird {
   reconcile() {
     if (this.state === 'suspended' || this.state === 'perched') this.settle();
   }
-  private settle(arrived = false) {
+  private settle(arrived = false, offscreenDelayElapsed = false) {
     const current = this.scene.current(this);
     if (current && (!arrived || Math.hypot(current.x - this.position!.x, current.y - this.position!.y) <= .5)) {
+      clearTimeout(this.offscreenTimer);
+      this.offscreenTimer = undefined;
       const wasPerched = this.state === 'perched';
       this.position = current;
       this.reservation = { from: current, to: current, definition: this.definition };
@@ -121,6 +126,18 @@ export class Bird {
       }
       this.wake();
     } else {
+      const rect = this.element.getBoundingClientRect();
+      const outsideViewport = rect.top < 8 || rect.top + this.definition.feet + 8 > innerHeight;
+      if (this.state === 'perched' && outsideViewport && !offscreenDelayElapsed) {
+        if (this.offscreenTimer === undefined) {
+          this.cancelAction();
+          this.offscreenTimer = window.setTimeout(() => {
+            this.offscreenTimer = undefined;
+            this.settle(false, true);
+          }, Math.random() * 2000);
+        }
+        return;
+      }
       const targets = current ? [current] : this.scene.places(this);
       if (targets.length) this.move(choose(targets), 'flying');
       else this.suspend();

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { appearances, companionAppearances } from '../src/pigeon/appearances';
+import { appearances, commonAppearances, companionAppearances } from '../src/pigeon/appearances';
 import { movement } from '../src/pigeon/actions';
 import { prepare, enter, start, land, finishGesture, dueMovement, expectSafePerch, scrollTo, runtime } from './helpers/pigeons';
 
@@ -90,7 +90,7 @@ test.describe('actions and transitions', () => {
           let choices = 0;
           Math.random = () => {
             const choice = choices++;
-            return choice === 1 ? .999 : choice > 1 ? .25 : 0;
+            return choice === 2 ? .999 : choice > 2 ? .25 : 0;
           };
         });
         await enter(page);
@@ -440,6 +440,7 @@ test.describe('actions and transitions', () => {
     await expectSafePerch(page);
     await approach(130);
     await expect(bird).toHaveAttribute('data-state', 'walking');
+    await page.dispatchEvent('html', 'pointerleave');
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect(bird).toHaveAttribute('data-state', 'suspended');
     expect(await bird.evaluate(el => el.getAnimations({ subtree: true }).length)).toBe(0);
@@ -711,7 +712,7 @@ test.describe('actions and transitions', () => {
         await page.clock.runFor(16);
         return page.locator('html').getAttribute('data-pigeon-test-scrolled');
       }).toBe('true');
-      await page.clock.runFor(200);
+      await page.clock.runFor(2200);
       await expect(page.locator('.pigeon-visitor:first-child')).toHaveAttribute('data-state', 'flying');
       await land(page);
       returns.push((await page.locator('.pigeon-visitor:first-child').boundingBox())!.x);
@@ -791,6 +792,15 @@ test.describe('actions and transitions', () => {
     await expect(bird).toHaveCSS('visibility', 'visible');
     expect(await bird.evaluate((el) => (el as HTMLElement).style.transform)).toBe(afterWalk);
     await page.clock.runFor(200);
+    await expect(bird).toHaveAttribute('data-state', 'perched');
+    // Returning before departure cancels the pending off-screen flight.
+    await scrollTo(page, 0);
+    await page.clock.runFor(800);
+    await expect(bird).toHaveAttribute('data-state', 'perched');
+    await scrollTo(page, 600);
+    await page.clock.runFor(200);
+    await expect(bird).toHaveAttribute('data-state', 'perched');
+    await page.clock.runFor(500);
     await expect(bird).toHaveAttribute('data-state', 'flying');
     await land(page);
     await expectSafePerch(page);
@@ -830,11 +840,11 @@ test.describe('actions and transitions', () => {
         expect([photoTop, headerLine].some(line => Math.abs(feet - line) < .5)).toBe(true);
         const bottom = await page.evaluate(() => document.documentElement.scrollHeight);
         await scrollTo(page, bottom);
-        await page.clock.runFor(200);
+        await page.clock.runFor(2200);
         await land(page);
         await expectSafePerch(page);
         await scrollTo(page, 0);
-        await page.clock.runFor(200);
+        await page.clock.runFor(2200);
         await land(page);
         await expectSafePerch(page);
         const returnedFeet = await bird.evaluate(el => { const r = el.getBoundingClientRect(); return r.top + 58 * r.height / 64; });
@@ -879,6 +889,31 @@ test.describe('actions and transitions', () => {
 });
 
 test.describe('independent birds and layout', () => {
+  test('birds sharing an off-screen ledge depart independently without restarting their waits', async ({ page }) => {
+    await start(page, { count: 2 });
+    await land(page);
+    const birds = page.locator('.pigeon-visitor');
+    const feet = await birds.evaluateAll(elements => elements.map(el => {
+      const rect = el.getBoundingClientRect();
+      return rect.top + rect.height * 58 / 64;
+    }));
+    expect(feet[0]).toBeCloseTo(feet[1]);
+    await page.evaluate(() => {
+      let draws = 0;
+      Math.random = () => draws++ === 0 ? .1 : .9;
+    });
+    await scrollTo(page, 600);
+    await page.clock.runFor(151);
+    await expect(page.locator('.pigeon-visitor[data-state="perched"]')).toHaveCount(2);
+    await page.clock.runFor(200);
+    await expect(birds.nth(0)).toHaveAttribute('data-state', 'flying');
+    await expect(birds.nth(1)).toHaveAttribute('data-state', 'perched');
+    await scrollTo(page, 620);
+    await page.clock.runFor(1600);
+    await expect(birds.nth(1)).toHaveAttribute('data-state', 'flying');
+    await land(page);
+    await expectSafePerch(page);
+  });
   test('position-only layout shifts reattach both birds without a resize or scroll', async ({ page }) => {
     await start(page, { count: 2 });
     await page.locator('[data-pigeon-landing="header"]').evaluate(header => { (header as HTMLElement).style.transform = 'translateY(80px)'; });
@@ -917,9 +952,10 @@ test.describe('independent birds and layout', () => {
     await expectSafePerch(page);
   });
   test('five pigeons enter at 100ms, 10s, 40s, 90s and 3 minutes with independent flights', async ({ page }) => {
+    test.setTimeout(180000);
     const count = 5;
     const selections = (['dark', 'white', 'red', 'checker'] as const).map(name => (companionAppearances.indexOf(name) + .5) / companionAppearances.length);
-    await start(page, { count, colors: selections, facings: [0, .999, 0, .999, 0] });
+    await start(page, { count, colors: [(commonAppearances.indexOf('pied') + .5) / commonAppearances.length, ...selections], facings: [0, .999, 0, .999, 0] });
     expect(await page.locator('.pigeon-visitor svg').evaluateAll(birds => birds.map(bird => (bird as SVGElement).style.transform))).toEqual(['', 'scaleX(-1)', '', 'scaleX(-1)', '']);
     await land(page);
     await expect(page.locator('.pigeon-visitor')).toHaveCount(count);
@@ -929,7 +965,7 @@ test.describe('independent birds and layout', () => {
       wing: getComputedStyle(b.querySelector('.pigeon-wing path')!).fill,
     })));
     expect(colors).toEqual([
-      { appearance: 'city', wing: 'rgb(184, 196, 208)' },
+      { appearance: 'pied', wing: 'rgb(184, 196, 208)' },
       { appearance: 'dark', wing: 'rgb(89, 99, 115)' },
       { appearance: 'white', wing: 'rgb(243, 242, 235)' },
       { appearance: 'red', wing: 'rgb(203, 183, 171)' },
@@ -991,19 +1027,23 @@ test.describe('independent birds and layout', () => {
       await page.goto('/pigeons/');
       await page.evaluate(value => { Math.random = () => value; }, (index + .5) / companionAppearances.length);
       await enter(page);
-      await expect(page.locator('.pigeon-visitor').first()).toHaveAttribute('data-appearance', 'city');
-      expect(await page.locator('.pigeon-visitor').evaluateAll(birds => birds.slice(1).map(bird => (bird as HTMLElement).dataset.appearance))).toEqual(Array(count - 1).fill(name));
+      const firstAppearance = commonAppearances[Math.floor((index + .5) / companionAppearances.length * commonAppearances.length)];
+      expect(await page.locator('.pigeon-visitor').evaluateAll(birds => birds.map(bird => ({
+        appearance: (bird as HTMLElement).dataset.appearance,
+        breed: (bird as HTMLElement).dataset.breed,
+      })))).toEqual([
+        { appearance: firstAppearance, breed: 'rock' },
+        ...Array(count - 1).fill({ appearance: name, breed: appearances[name].breed }),
+      ]);
       const variant = page.locator('.pigeon-visitor').nth(1);
       const appearance = appearances[name];
-      await expect(variant).toHaveAttribute('data-appearance', name);
-      await expect(variant).toHaveAttribute('data-pattern', appearance.pattern);
-      await expect(variant).toHaveAttribute('data-breed', appearance.breed);
-      await expect(variant.locator('.pigeon-wing > path').first()).toHaveCSS('fill', `rgb(${appearance.palette.wing.slice(1).match(/../g)!.map(n => parseInt(n, 16)).join(', ')})`);
       const visible = await variant.evaluate(el => {
         const shown = (selector: string) => getComputedStyle(el.querySelector(selector)!).display !== 'none';
-        return { checks: shown('.pigeon-checks'), grizzle: shown('.pigeon-grizzle'), pied: shown('.pigeon-pied'), fan: shown('.pigeon-fan'), hood: shown('.pigeon-hood'), frill: shown('.pigeon-frill'), bars: shown('.pigeon-bars') };
+        return { pattern: (el as HTMLElement).dataset.pattern, wing: getComputedStyle(el.querySelector('.pigeon-wing > path')!).fill,
+          checks: shown('.pigeon-checks'), grizzle: shown('.pigeon-grizzle'), pied: shown('.pigeon-pied'), fan: shown('.pigeon-fan'), hood: shown('.pigeon-hood'), frill: shown('.pigeon-frill'), bars: shown('.pigeon-bars') };
       });
-      expect(visible).toEqual({ checks: appearance.pattern === 'checker', grizzle: appearance.pattern === 'grizzle', pied: appearance.pattern === 'pied', fan: appearance.breed === 'fantail', hood: appearance.breed === 'jacobin', frill: appearance.breed === 'owl', bars: !['plain', 'checker'].includes(appearance.pattern) });
+      expect(visible).toEqual({ pattern: appearance.pattern, wing: `rgb(${appearance.palette.wing.slice(1).match(/../g)!.map(n => parseInt(n, 16)).join(', ')})`,
+        checks: appearance.pattern === 'checker', grizzle: appearance.pattern === 'grizzle', pied: appearance.pattern === 'pied', fan: appearance.breed === 'fantail', hood: appearance.breed === 'jacobin', frill: appearance.breed === 'owl', bars: !['plain', 'checker'].includes(appearance.pattern) });
       await page.clock.runFor(180000);
       await expect(variant).toHaveAttribute('data-state', 'flying');
       await expect(variant.locator('.pigeon-flight-wing')).toHaveCSS('display', 'block');

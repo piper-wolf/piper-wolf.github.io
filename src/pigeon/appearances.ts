@@ -57,6 +57,7 @@ export const appearances = {
 } satisfies Record<string, Appearance>;
 export type AppearanceName = keyof typeof appearances;
 export const companionAppearances = Object.keys(appearances) as AppearanceName[];
+export const commonAppearances = companionAppearances.filter(name => appearances[name].breed === 'rock');
 
 export function applyAppearance(element: HTMLElement, name: AppearanceName) {
   const { palette, pattern, breed } = appearances[name];
