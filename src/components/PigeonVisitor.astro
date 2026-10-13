@@ -82,7 +82,7 @@ import { pigeon as definition, maxBirds } from "../pigeon/definition";
       loaded = true;
       try { await import('../pigeon/scene'); }
       catch { loaded = false; }
-    }, 1200);
+    }, 300);
     if ('requestIdleCallback' in window) window.requestIdleCallback(later);
     else later();
   };

@@ -30,6 +30,12 @@ export async function start(page: Page, options: Parameters<typeof prepare>[1] =
   await page.goto('/pigeons/');
   await page.clock.runFor(2000);
   await expect(page.locator('.pigeon-visitor').first()).toHaveAttribute('data-state', 'flying');
+  for (let index = 1; index < (options.count ?? 1); index++) {
+    await page.clock.runFor(319);
+    await expect(page.locator('.pigeon-visitor[data-state="flying"]')).toHaveCount(index);
+    await page.clock.runFor(1);
+    await expect(page.locator('.pigeon-visitor[data-state="flying"]')).toHaveCount(index + 1);
+  }
 }
 
 export async function land(page: Page) {

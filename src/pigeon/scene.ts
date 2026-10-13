@@ -16,7 +16,7 @@ class Scene {
     this.birds = slots.slice(0, count).map((element, index) => {
       const appearance = index === 0 ? 'city' : companionAppearances[Math.floor(Math.random() * companionAppearances.length)];
       element.dataset.appearance = appearance;
-      return new Bird(element, pigeon, this);
+      return new Bird(element, pigeon, this, index * 320);
     });
     overlay.style.visibility = 'visible';
     const invalidate = () => this.invalidate();

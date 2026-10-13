@@ -28,7 +28,7 @@ test.describe('loading and motion preferences', () => {
       module: performance.getEntriesByType('resource').find(entry => /\/scene\.[^/]+\.js$/.test(entry.name))?.startTime,
       preloads: [...document.querySelectorAll('link[rel="preload"],link[rel="modulepreload"]')].some((link) => (link as HTMLLinkElement).href.match(/\/scene\.[^/]+\.js$/)),
     }));
-    expect(timings.module).toBeGreaterThanOrEqual(timings.load + 1100);
+    expect(timings.module).toBeGreaterThanOrEqual(timings.load + 250);
     expect(timings.preloads).toBe(false);
   });
 });
@@ -37,7 +37,7 @@ test.describe('actions and transitions', () => {
   test('enters from either side with a vertical-to-horizontal swoop, then flies to a photo edge', async ({ page }) => {
     await start(page);
     const bird = page.locator('.pigeon-visitor');
-    const entrances: { travel: number; duration: number; easing: string | undefined }[] = [];
+    const entrances: { travel: number; duration: number; acceleration: number }[] = [];
     for (const facing of ['right', 'left']) {
       if (facing === 'left') {
         await page.goto('/pigeons/');
@@ -54,12 +54,26 @@ test.describe('actions and transitions', () => {
         const frames = effect.getKeyframes();
         const points = frames.map(frame => new DOMMatrix(frame.transform as string));
         const first = points[0], last = points.at(-1)!;
+        const duration = Number(effect.getTiming().duration);
+        // Several samples avoid magnifying browser transform rounding at subpixel distances.
+        const initialTime = Number(frames[5].offset) * duration / 1000;
+        const initialDistance = points.slice(1, 6).reduce((sum, point, i) => sum + Math.hypot(point.m41 - points[i].m41, point.m42 - points[i].m42), 0);
+        const wing = (el.querySelector('.pigeon-flight-wing')!.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
+        const wingTime = (index: number) => Number(wing[index].offset) * duration;
+        const strokes = wing.filter((_, index) => index > 0 && index < wing.length - 1 && index % 2 === 0);
+        const cruiseStroke = strokes.find(frame => Number(frame.offset) * duration > 600 && Number(frame.offset) < .65);
+        const body = (el.querySelector('.pigeon-body')!.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
         const slope = (a: DOMMatrix, b: DOMMatrix) => Math.abs((b.m42 - a.m42) / (b.m41 - a.m41));
         return {
           facing: (el.querySelector('svg') as SVGElement).style.transform,
           x: first.m41, y: first.m42, endX: last.m41,
           width: el.getBoundingClientRect().width, viewport: document.documentElement.clientWidth,
-          duration: Number(effect.getTiming().duration), easing: effect.getTiming().easing,
+          duration, easing: effect.getTiming().easing,
+          acceleration: 2 * initialDistance / initialTime ** 2,
+          firstBeat: wingTime(2), nextBeat: wingTime(4) - wingTime(2),
+          launchStroke: new DOMMatrix(strokes[0].transform as string).m12,
+          cruiseStroke: cruiseStroke ? new DOMMatrix(cruiseStroke.transform as string).m12 : undefined,
+          brakingPose: body.at(-2)!.transform,
           scrollWidth: document.documentElement.scrollWidth,
           height: innerHeight, startSlope: slope(first, points[1]), endSlope: slope(points.at(-2)!, last),
           monotonicX: points.every((point, i) => !i || (last.m41 > first.m41 ? point.m41 >= points[i - 1].m41 : point.m41 <= points[i - 1].m41)),
@@ -74,14 +88,20 @@ test.describe('actions and transitions', () => {
       expect(entrance.endSlope).toBeLessThan(.1);
       expect(entrance.monotonicX).toBe(true);
       expect(entrance.scrollWidth).toBe(entrance.viewport);
-      entrances.push({ travel: Math.abs(entrance.endX - entrance.x), duration: entrance.duration, easing: entrance.easing });
+      expect(entrance.easing).toBe('linear');
+      expect(Math.abs(entrance.acceleration / 1800 - 1)).toBeLessThan(.02);
+      expect(entrance.firstBeat).toBeCloseTo(1000 / 8.9, 1);
+      expect(entrance.nextBeat).toBeGreaterThan(entrance.firstBeat);
+      if (entrance.cruiseStroke !== undefined) expect(entrance.launchStroke).toBeGreaterThan(entrance.cruiseStroke);
+      expect(entrance.brakingPose).toBe('rotate(-20deg)');
+      entrances.push({ travel: Math.abs(entrance.endX - entrance.x), duration: entrance.duration, acceleration: entrance.acceleration });
       await land(page);
       expect(await bird.locator('svg').evaluate(el => el.style.transform)).toBe(entrance.facing);
       await expectSafePerch(page);
     }
     entrances.sort((a, b) => a.travel - b.travel);
     expect(entrances[1].duration).toBeGreaterThan(entrances[0].duration);
-    expect(entrances[1].easing).not.toBe(entrances[0].easing);
+    expect(Math.abs(entrances[1].acceleration / entrances[0].acceleration - 1)).toBeLessThan(.02);
     const before = await page.locator('.pigeon-visitor:first-child').evaluate((bird) => (bird as HTMLElement).style.transform);
     await dueMovement(page, 10001);
     await land(page);
@@ -523,7 +543,10 @@ test.describe('independent birds and layout', () => {
         { appearance: 'white', wing: 'rgb(245, 242, 233)' },
       ].slice(0, count));
       await expectSafePerch(page);
-      await page.locator('.pigeon-visitor').last().dispatchEvent('mouseenter');
+      const nearby = await page.locator('.pigeon-visitor').last().boundingBox();
+      await page.mouse.move(nearby!.x + nearby!.width / 2, nearby!.y - 60);
+      await expect(page.locator('.pigeon-visitor[data-state="perched"]')).toHaveCount(count);
+      await page.mouse.move(nearby!.x + nearby!.width / 2, nearby!.y - 20);
       await expect(page.locator('.pigeon-visitor[data-state="flying"]')).toHaveCount(1);
       await expect(page.locator('.pigeon-visitor[data-state="perched"]')).toHaveCount(count - 1);
       if (count > 1) {
@@ -536,6 +559,13 @@ test.describe('independent birds and layout', () => {
       await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(0);
       expect(await page.locator('.pigeon-visitor').evaluateAll(birds => birds.flatMap(b => b.getAnimations({ subtree: true })).length)).toBe(0);
       await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
+      await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(1);
+      for (let index = 1; index < count; index++) {
+        await page.clock.runFor(319);
+        await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(index);
+        await page.clock.runFor(1);
+        await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(index + 1);
+      }
       await land(page);
       await expect(page.locator('.pigeon-visitor[data-state="perched"]')).toHaveCount(count);
       expect(await page.locator('.pigeon-visitor').evaluateAll(birds => birds.map(b => ({

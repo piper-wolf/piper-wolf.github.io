@@ -1,7 +1,7 @@
 # Pigeon visitors
 
 `PigeonVisitor.astro` renders hidden, decorative SVGs and a small loader. The
-loader waits for page load, idle time, and 1200ms before dynamically importing
+loader waits for page load, idle time, and 300ms before dynamically importing
 `scene.ts`. It watches visibility and motion preferences even before loading.
 Keep this dynamic import: browser tests verify production request timing and
 that the scene is absent from preload links.
@@ -18,7 +18,8 @@ that the scene is absent from preload links.
   positions are validated directly, keeping safe birds in place.
 - `bird.ts` manages one bird's state, facing, position, reservations, deadlines,
   and animations. Entrances randomly face left or right and start beyond the
-  opposite viewport edge, facing inward. One timer wakes the next idle, walk, or flight deadline.
+  opposite viewport edge, facing inward, staggered by 320ms. A cursor within
+  28px of a perched bird triggers flight without blocking nearby links. One timer wakes the next idle, walk, or flight deadline.
   Gestures finish before timed movement; flight takes priority when overdue.
   Hover can interrupt a gesture, preserving its opening pose in the flight.
   Walks preserve the flight deadline. Landings commit their held endpoint before
@@ -29,9 +30,14 @@ that the scene is absent from preload links.
   starts each action on one native timeline origin. No animation library or
   frame loop is required. Flights follow a logarithmic vertical progression
   that flattens into a horizontal approach; level flights retain a lift arc.
-  Duration accounts for horizontal cruise and vertical effort, with slower
-  climbing than descending. Vertical-heavy flights accelerate more gradually,
-  and all flight parts share the movement easing and duration.
+  Arc-length timing uses fixed acceleration (1800px/s²) and braking (1500px/s²),
+  with a capped cruise speed and slower climbing than descending. Short flights
+  reach a lower peak speed; long flights add cruise time, not slower acceleration.
+  Wingbeats run on elapsed time: broad ~8.9Hz takeoff strokes taper to ~6.6Hz
+  cruise, then strengthen toward ~7.8Hz during braking. The body pitches upright,
+  tail spreads, and feet extend for landing. These are screen-scale adaptations
+  of [Berg & Biewener (2010)](https://doi.org/10.1242/jeb.038109), rather than a
+  physical simulation; all parts still finish neutral at the movement endpoint.
 
 `data-state` (`suspended`, `perched`, `walking`, `flying`) and `data-idle` are the
 rendering contract. Translation belongs to the outer element, facing to the SVG,
