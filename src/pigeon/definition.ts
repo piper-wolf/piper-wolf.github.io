@@ -8,7 +8,7 @@ export interface BirdDefinition {
   idleDelay: number;
   walkDelay: number;
   flightDelay: number;
-  escapeRadius: { flight: number; run: number; walk: number };
+  escapeRadius: { flight: number; walk: number };
   actions: readonly Gesture[];
 }
 export const pigeon = {
@@ -19,8 +19,7 @@ export const pigeon = {
   walkDelay: 20000,
   flightDelay: 60000,
   // Screen-space interaction choices, not measured pigeon escape distances.
-  // Walking and running react at twice their original radii; flight stays at 28px.
-  escapeRadius: { flight: 28, run: 140, walk: 240 },
+  escapeRadius: { flight: 14, walk: 320 },
   actions: ['look', 'peck', 'stretch'],
 } as const;
 

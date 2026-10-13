@@ -20,18 +20,19 @@ that the scene is absent from preload links.
   suspension; birds act independently. Each entrance timer adds its bird once,
   even if the scene is hidden; reconciliation controls whether it can appear.
 - `geometry.ts` subtracts content and bird reservations into safe intervals.
-  Walks and runs reserve their full corridor; flights reserve their destination. Existing
+  Walks reserve their full corridor; flights reserve their destination. Existing
   positions are validated directly, keeping safe birds in place.
 - `bird.ts` manages one bird's state, facing, position, reservations, deadlines,
   and animations. Entrances randomly face left or right and start beyond the
   opposite viewport edge, facing inward. The scene adds five birds at 100ms,
   10s, 40s, 90s, and 3 minutes after initialization. Birds have no entrance timers
   or delays: suspension cancels actions and resumption reconciles immediately.
-  A cursor within 240px triggers walking away, within 140px triggers running,
-  and within 28px
-  triggers flight. Closer approaches interrupt ground movement from its visible
-  position. Ground movement checks the last cursor position each animation frame,
-  so walking or running into a stationary cursor also triggers escalation.
+  A cursor within 320px triggers walking away, with one gait scaled continuously
+  from 0.5× at the outer edge to 2× near the 14px flight margin. Animation and
+  travel share the same playback rate, preserving planted feet and head holds.
+  Flight interrupts ground movement from its visible position. Ground movement
+  checks the last cursor position each animation frame,
+  so a stationary cursor also changes walking speed or triggers flight.
   Monitoring stops when ground movement ends; leaving the page or blurring the
   window clears the cursor. Touch pointers are ignored. Escape paths lead away from the pointer
   along a safe corridor; blocked ground escapes wait instead of triggering flight.
@@ -40,13 +41,13 @@ that the scene is absent from preload links.
   One timer wakes the next idle, walk, or flight deadline.
   Gestures finish before timed movement; flight takes priority when overdue.
   Hover can interrupt a gesture, preserving its opening pose in the flight.
-  Walks and runs preserve the flight deadline. Landings commit their held endpoint before
+  Walks preserve the flight deadline. Landings commit their held endpoint before
   cancellation, then reconcile fresh geometry. Suspension cancels all actions;
   stale completions cannot restart it.
 - `actions.ts` returns finite keyframes and timing only. Walks cover a few
   steps at 3.6–4.8 steps/s, with alternating planted feet and lifted recovery.
-  Escape runs use 7–8.2 steps/s, higher foot lifts, a shorter head hold, and
-  a forward lean. These running parameters are decorative choices.
+  Cursor proximity changes playback speed without changing the gait or restarting
+  the step. The speed gradient and interaction radii are decorative choices.
   Travel duration follows stride length and cadence, scaled to the rendered
   bird size. Head motion cancels forward travel and body bob during each hold,
   then thrusts forward; see [Troje & Frost (2000)](https://doi.org/10.1242/jeb.203.5.935).
@@ -77,7 +78,7 @@ that the scene is absent from preload links.
   [Stowers et al. (2017)](https://doi.org/10.1098/rsif.2017.0224), and
   [Crandell & Tobalske (2011)](https://doi.org/10.1242/jeb.051342).
 
-`data-state` (`suspended`, `perched`, `walking`, `running`, `flying`) and `data-idle` are the
+`data-state` (`suspended`, `perched`, `walking`, `flying`) and `data-idle` are the
 rendering contract. Translation belongs to the outer element, facing to the SVG,
 body poses to `.pigeon-body`, and CSS breathing to its separate `.pigeon-breath`
 wrapper. Breathing pauses during movement and pecking; blinking continues while

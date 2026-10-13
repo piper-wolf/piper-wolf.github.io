@@ -55,7 +55,7 @@ export async function start(page: Page, options: Parameters<typeof prepare>[1] =
 export async function land(page: Page) {
   await expect.poll(async () => {
     await page.locator('.pigeon-visitor').evaluateAll(birds => birds.forEach(bird => bird.getAnimations().forEach(a => a.finish())));
-    return page.locator('.pigeon-visitor:is([data-state="flying"], [data-state="walking"], [data-state="running"])').count();
+    return page.locator('.pigeon-visitor:is([data-state="flying"], [data-state="walking"])').count();
   }).toBe(0);
 }
 

@@ -312,7 +312,7 @@ test.describe('actions and transitions', () => {
     await expectSafePerch(page);
   });
 
-  test('walks, runs and flies away as a pointer approaches, escalating from the visible position', async ({ page }) => {
+  test('scales one walk gait with cursor proximity and flies from the visible position', async ({ page }) => {
     await prepare(page);
     const reset = async () => {
       await page.goto('/pigeons/');
@@ -333,39 +333,50 @@ test.describe('actions and transitions', () => {
       await page.mouse.move(rect.x + rect.width + distance, rect.y + rect.height / 2);
       return rect;
     };
-    // Move the native animations into a stationary cursor's radius without
-    // another pointer event. Both escalations must use the visible position.
+    // A stationary cursor must change playback without replacing the gait.
     await dueMovement(page, 5001);
     await expect(bird).toHaveAttribute('data-state', 'walking');
-    for (const { distance, state } of [{ distance: 145, state: 'running' }, { distance: 35, state: 'flying' }]) {
-      const before = (await bird.boundingBox())!;
-      const direction = await bird.evaluate(el => {
-        const frames = (el.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
-        return Math.sign(new DOMMatrix(frames.at(-1)!.transform as string).m41 - new DOMMatrix(frames[0].transform as string).m41);
-      });
-      await page.mouse.move(direction > 0 ? before.x + before.width + distance : before.x - distance, before.y + before.height / 2);
-      await expect(bird).toHaveAttribute('data-state', state === 'running' ? 'walking' : 'running');
-      const visible = await bird.evaluate(el => {
-        const animation = el.getAnimations()[0];
-        animation.currentTime = Number(animation.effect!.getTiming().duration) / 2;
-        return el.getBoundingClientRect().x;
-      });
-      await page.clock.runFor(32);
-      await expect(bird).toHaveAttribute('data-state', state);
-      expect(await bird.evaluate(el => {
-        const frames = (el.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
-        return new DOMMatrix(frames[0].transform as string).m41;
-      })).toBeCloseTo(visible, 2);
-    }
+    const before = (await bird.boundingBox())!;
+    const direction = await bird.evaluate(el => {
+      const frames = (el.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
+      return Math.sign(new DOMMatrix(frames.at(-1)!.transform as string).m41 - new DOMMatrix(frames[0].transform as string).m41);
+    });
+    await page.mouse.move(direction > 0 ? before.x + before.width + 25 : before.x - 25, before.y + before.height / 2);
+    await expect(bird).toHaveAttribute('data-state', 'walking');
+    const animation = await bird.evaluateHandle(el => el.getAnimations()[0]);
+    const rate = await animation.evaluate(a => a.playbackRate);
+    await bird.evaluate(el => {
+      const animation = el.getAnimations()[0];
+      animation.currentTime = Number(animation.effect!.getTiming().duration) / 8;
+    });
+    await page.clock.runFor(16);
+    expect(await bird.evaluate((el, a) => el.getAnimations()[0] === a, animation)).toBe(true);
+    expect(await animation.evaluate(a => a.playbackRate)).toBeGreaterThan(rate);
+    const visible = await bird.evaluate(el => {
+      const animation = el.getAnimations()[0];
+      animation.currentTime = Number(animation.effect!.getTiming().duration) / 2;
+      return el.getBoundingClientRect().x;
+    });
+    await page.clock.runFor(16);
+    await expect(bird).toHaveAttribute('data-state', 'flying');
+    expect(await bird.evaluate(el => {
+      const frames = (el.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
+      return new DOMMatrix(frames[0].transform as string).m41;
+    })).toBeCloseTo(visible, 2);
     await page.mouse.move(0, 0);
     await reset();
-    await approach(250);
+    await approach(330);
     await expect(bird).toHaveAttribute('data-state', 'perched');
     const rect = (await bird.boundingBox())!;
     await page.dispatchEvent('html', 'pointermove', { pointerType: 'touch', clientX: rect.x + rect.width + 10, clientY: rect.y + rect.height / 2 });
     await expect(bird).toHaveAttribute('data-state', 'perched');
-    await approach(230);
+    await approach(310);
     await expect(bird).toHaveAttribute('data-state', 'walking');
+    // Hold elapsed time fixed while checking the exact proximity gradient.
+    await bird.evaluate(el => el.getAnimations({ subtree: true })
+      .filter(a => Number.isFinite(a.effect!.getTiming().iterations)).forEach(a => a.pause()));
+    await approach(310);
+    const animationHandle = await bird.evaluateHandle(el => el.getAnimations()[0]);
     const inspect = () => bird.evaluate(el => {
       const animation = el.getAnimations()[0];
       const effect = animation.effect as KeyframeEffect;
@@ -373,27 +384,34 @@ test.describe('actions and transitions', () => {
       const from = new DOMMatrix(frames[0].transform as string).m41;
       const to = new DOMMatrix(frames.at(-1)!.transform as string).m41;
       const duration = Number(effect.getTiming().duration);
-      el.getAnimations({ subtree: true }).filter(a => Number.isFinite(a.effect!.getTiming().iterations)).forEach(a => { a.currentTime = duration / 2; });
-      return { from, to, speed: Math.abs(to - from) / (duration / 1000),
-        lean: new DOMMatrix(getComputedStyle(el.querySelector('.pigeon-body')!).transform).b };
+      const rates = el.getAnimations({ subtree: true }).filter(a => Number.isFinite(a.effect!.getTiming().iterations)).map(a => a.playbackRate);
+      return { from, to, speed: Math.abs(to - from) / (duration / 1000) * animation.playbackRate, rates };
     });
     const walk = await inspect();
     expect(walk.to).toBeLessThan(walk.from);
-    const beforeRun = await approach(130);
-    await expect(bird).toHaveAttribute('data-state', 'running');
-    const run = await inspect();
-    expect(run.from).toBeCloseTo(beforeRun.x, 2);
-    expect(run.to).toBeLessThan(run.from);
-    expect(run.speed).toBeGreaterThan(walk.speed * 1.5);
-    expect(run.lean).toBeGreaterThan(.1);
+    expect(walk.rates.every(rate => Math.abs(rate - (.5 + 1.5 * 10 / 306)) < .001)).toBe(true);
+    let lastSpeed = walk.speed;
+    for (const distance of [260, 200, 130, 20]) {
+      await approach(distance);
+      await expect(bird).toHaveAttribute('data-state', 'walking');
+      const faster = await inspect();
+      expect(faster.speed).toBeGreaterThan(lastSpeed);
+      expect(faster.rates.every(rate => Math.abs(rate - (.5 + 1.5 * (320 - distance) / 306)) < .001)).toBe(true);
+      expect(faster.from).toBe(walk.from);
+      expect(faster.to).toBe(walk.to);
+      expect(await bird.evaluate((el, a) => el.getAnimations()[0] === a, animationHandle)).toBe(true);
+      lastSpeed = faster.speed;
+    }
     await expectSafePerch(page);
-    await approach(230);
-    await expect(bird).toHaveAttribute('data-state', 'running');
-    // Geometry reconciliation must preserve a run and its reserved corridor.
+    await approach(310);
+    expect((await inspect()).speed).toBeCloseTo(walk.speed, 2);
+    // Geometry reconciliation preserves the gait and its reserved corridor.
     await page.locator('main').evaluate(el => { el.style.backgroundColor = 'transparent'; });
     await page.clock.runFor(200);
-    await expect(bird).toHaveAttribute('data-state', 'running');
-    const beforeFlight = await approach(20);
+    await expect(bird).toHaveAttribute('data-state', 'walking');
+    await page.dispatchEvent('html', 'pointerleave');
+    expect((await inspect()).rates.every(rate => rate === 1)).toBe(true);
+    const beforeFlight = await approach(10);
     await expect(bird).toHaveAttribute('data-state', 'flying');
     expect(await bird.evaluate(el => {
       const frames = (el.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
@@ -403,12 +421,12 @@ test.describe('actions and transitions', () => {
     await expectSafePerch(page);
     // This landing is at the leftmost preferred sample. Retreating further
     // left must use the remaining local space, rather than fall back to flight.
-    await approach(230);
+    await approach(310);
     await expect(bird).toHaveAttribute('data-state', 'walking');
     await land(page);
     await expectSafePerch(page);
     await approach(130);
-    await expect(bird).toHaveAttribute('data-state', 'running');
+    await expect(bird).toHaveAttribute('data-state', 'walking');
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect(bird).toHaveAttribute('data-state', 'suspended');
     expect(await bird.evaluate(el => el.getAnimations({ subtree: true }).length)).toBe(0);
@@ -425,11 +443,11 @@ test.describe('actions and transitions', () => {
     });
     await page.clock.runFor(200);
     await expectSafePerch(page);
-    for (const distance of [230, 130]) {
+    for (const distance of [310, 130]) {
       await approach(distance);
       await expect(bird).toHaveAttribute('data-state', 'perched');
     }
-    await approach(20);
+    await approach(10);
     await expect(bird).toHaveAttribute('data-state', 'flying');
     await land(page);
     await expectSafePerch(page);
@@ -523,10 +541,10 @@ test.describe('actions and transitions', () => {
     })).toBe(true);
     await expectSafePerch(page);
     for (const { dx, dy, hover, fallback } of [
-      { dx: -40, dy: 0 }, { dx: 40, dy: 0 },
-      { dx: 0, dy: -40 }, { dx: 0, dy: 40 },
+      { dx: -30, dy: 0 }, { dx: 30, dy: 0 },
+      { dx: 0, dy: -30 }, { dx: 0, dy: 30 },
       { dx: -19, dy: 0, hover: true },
-      { dx: 40, dy: 0, fallback: true },
+      { dx: 30, dy: 0, fallback: true },
     ]) {
       await page.goto('/pigeons/');
       await page.evaluate(fallback => {
@@ -884,7 +902,7 @@ test.describe('independent birds and layout', () => {
     ]);
     await expectSafePerch(page);
     const nearby = await page.locator('.pigeon-visitor').last().boundingBox();
-    await page.mouse.move(nearby!.x + nearby!.width / 2, nearby!.y - 260);
+    await page.mouse.move(nearby!.x + nearby!.width / 2, nearby!.y - 340);
     await expect(page.locator('.pigeon-visitor[data-state="perched"]')).toHaveCount(count);
     // Trigger just this bird: a real nearby pointer can also scare companions.
     await page.locator('.pigeon-visitor').last().dispatchEvent('mouseenter');
