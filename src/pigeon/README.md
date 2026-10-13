@@ -7,7 +7,9 @@ Keep this dynamic import: browser tests verify production request timing and
 that the scene is absent from preload links.
 
 - `definition.ts` describes dimensions, foot anchors, clearance, gestures, and
-  delay ranges (minimum plus random spread). One to three birds use the same
+  delay ranges (minimum plus random spread). Birds render at 28px on narrow
+  screens and 40px on desktop; geometry scales the foot anchor to the rendered
+  size. Borderless photo tops remain valid perches. One to three birds use the same
   behavior; the first has the city palette and others choose red, white, or dark.
 - `scene.ts` owns page lifecycle and cached geometry. It observes sizes, DOM/style
   edits, image completion, and fonts. Invalidation debounces reconciliation

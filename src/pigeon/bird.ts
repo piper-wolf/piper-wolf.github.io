@@ -18,9 +18,8 @@ export class Bird {
   private facing: 'left' | 'right' = 'right';
   private deadlines = { idle: Infinity, walk: Infinity, flight: Infinity };
   private entranceAt: number;
-  constructor(readonly element: HTMLElement, readonly definition: BirdDefinition, private scene: BirdScene, private entranceDelay = 0) {
+  constructor(readonly element: HTMLElement, private baseDefinition: BirdDefinition, private scene: BirdScene, private entranceDelay = 0) {
     this.entranceAt = performance.now() + entranceDelay;
-    element.style.width = element.style.height = `${definition.size}px`;
     this.render('suspended');
     element.addEventListener('mouseenter', () => { if (this.state === 'perched') this.flight(); });
     document.addEventListener('pointermove', event => {
@@ -30,6 +29,10 @@ export class Bird {
       const dy = Math.max(rect.top - event.clientY, 0, event.clientY - rect.bottom);
       if (Math.hypot(dx, dy) <= 28) this.flight();
     });
+  }
+  get definition(): BirdDefinition {
+    const size = this.element.offsetWidth;
+    return { ...this.baseDefinition, size, feet: this.baseDefinition.feet * size / this.baseDefinition.size };
   }
   private render(state: MovementState) {
     this.state = state;

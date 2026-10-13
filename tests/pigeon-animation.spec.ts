@@ -454,12 +454,35 @@ test.describe('actions and transitions', () => {
       await expect(page.locator('.pigeon-visitor')).toHaveCount(1);
       await land(page);
       const bird = page.locator('.pigeon-visitor');
-      if (width !== 390) await expect(bird).toHaveAttribute('data-state', 'perched');
-      // Platform fonts can bring a safe footer perch into the mobile viewport.
-      if (await bird.getAttribute('data-state') === 'suspended') {
-        await expect(bird).toHaveCSS('visibility', 'hidden');
-        expect(await bird.evaluate(el => el.getAnimations({ subtree: true }).length)).toBe(0);
-      } else await expectSafePerch(page);
+      await expect(bird).toHaveAttribute('data-state', 'perched');
+      await expectSafePerch(page);
+      if (width === 390) {
+        await expect(bird).toHaveCSS('width', '28px');
+        await expect(bird.locator('svg')).toHaveCSS('width', '28px');
+        const photoTop = await page.locator('[data-pigeon-landing="photo"]').evaluate(el => el.getBoundingClientRect().top);
+        const feet = await bird.evaluate(el => { const r = el.getBoundingClientRect(); return r.top + 58 * r.height / 64; });
+        expect(feet).toBeCloseTo(photoTop);
+        const bottom = await page.evaluate(() => document.documentElement.scrollHeight);
+        await scrollTo(page, bottom);
+        await page.clock.runFor(200);
+        await land(page);
+        await expectSafePerch(page);
+        await scrollTo(page, 0);
+        await page.clock.runFor(200);
+        await land(page);
+        await expectSafePerch(page);
+        expect(await bird.evaluate(el => { const r = el.getBoundingClientRect(); return r.top + 58 * r.height / 64; })).toBeCloseTo(photoTop);
+        await page.goto('/pigeons/');
+        await page.clock.runFor(2000);
+        await land(page);
+        await expectSafePerch(page);
+        for (let step = 0; step < 3; step++) {
+          await dueMovement(page);
+          await expect(bird).toHaveAttribute('data-state', step === 2 ? 'flying' : 'walking');
+          await land(page);
+          await expectSafePerch(page);
+        }
+      }
       const unchanged = await page.evaluate(() => {
         const measure = () => ({
           height: document.documentElement.scrollHeight,

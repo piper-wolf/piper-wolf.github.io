@@ -46,7 +46,8 @@ import { pigeon as definition, maxBirds } from "../pigeon/definition";
   .pigeon-perch { position: absolute; inset: 0; pointer-events: none; visibility: hidden; overflow-x: clip; }
   .pigeon-visitor { position: absolute; left: 0; top: 0; width: var(--pigeon-size); height: var(--pigeon-size); visibility: hidden; pointer-events: none; }
   .pigeon-visitor[data-state="perched"] { pointer-events: auto; }
-  .pigeon-visitor svg { display: block; overflow: visible; transform-box: view-box; transform-origin: 50% 50%; }
+  @media (max-width: 40rem) { .pigeon-visitor { width: 28px; height: 28px; } }
+  .pigeon-visitor svg { width: 100%; height: 100%; display: block; overflow: visible; transform-box: view-box; transform-origin: 50% 50%; }
   .pigeon-wing, .pigeon-flight-wing { transform-origin: 31px 34px; }
   .pigeon-flight-wing { display: none; }
   .pigeon-head { transform-origin: 42px 25px; }

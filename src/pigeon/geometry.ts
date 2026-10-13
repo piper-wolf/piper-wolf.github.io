@@ -26,8 +26,10 @@ export class Geometry {
   }
   private bounds(from: Point, to: Point, definition: BirdDefinition): Rect {
     const c = definition.clearance;
+    // Photo tops are valid perches even when mobile removes the frame border.
+    const below = to.element.dataset.pigeonLanding === 'photo' ? 0 : c.below;
     return { left: Math.min(from.x, to.x) - c.left, right: Math.max(from.x, to.x) + definition.size + c.right,
-      top: Math.min(from.y, to.y) - c.above, bottom: Math.max(from.y, to.y) + definition.feet + c.below };
+      top: Math.min(from.y, to.y) - c.above, bottom: Math.max(from.y, to.y) + definition.feet + below };
   }
   current(point: Point, definition: BirdDefinition, reservations: Reservation[]): Point | undefined {
     const edge = this.edges.find(edge => edge.element === point.element);
@@ -44,10 +46,11 @@ export class Geometry {
     for (const edge of this.edges) {
       const y = edge.line - definition.feet;
       if (edge.right - edge.left < definition.size + 2 * perchMargin || y - scrollY < 8 || edge.line - scrollY + 8 > innerHeight) continue;
+      const below = edge.element.dataset.pigeonLanding === 'photo' ? 0 : definition.clearance.below;
       // Subtract obstacles into safe horizontal intervals for the bird's origin.
       let intervals = [[edge.left + perchMargin, edge.right - definition.size - perchMargin]];
       for (const b of blockers) {
-        if (b.bottom <= y - definition.clearance.above || b.top >= edge.line + definition.clearance.below) continue;
+        if (b.bottom <= y - definition.clearance.above || b.top >= edge.line + below) continue;
         const low = b.left - definition.size - definition.clearance.right;
         const high = b.right + definition.clearance.left;
         intervals = intervals.flatMap(([l, r]) => high <= l || low >= r ? [[l, r]] : [[l, Math.min(r, low)], [Math.max(l, high), r]].filter(([a, z]) => z > a));
