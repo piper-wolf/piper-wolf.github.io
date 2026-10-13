@@ -1,4 +1,4 @@
-import { definitions } from './definition';
+import { definitions, companionAppearances, maxBirds } from './definition';
 import { Bird } from './bird';
 import { Geometry, type Point } from './geometry';
 const scenes = new WeakMap<HTMLElement, Scene>();
@@ -11,7 +11,14 @@ class Scene {
   private geometryDirty = true;
   private scatterPending = false;
   constructor(overlay: HTMLElement) {
-    this.birds = [...overlay.querySelectorAll<HTMLElement>('.pigeon-visitor')].map(element => new Bird(element, definitions[element.dataset.appearance ?? 'city'] ?? definitions.city, this));
+    const slots = [...overlay.querySelectorAll<HTMLElement>('.pigeon-visitor')];
+    const count = 1 + Math.floor(Math.random() * maxBirds);
+    slots.slice(count).forEach(element => element.remove());
+    this.birds = slots.slice(0, count).map((element, index) => {
+      const appearance = index === 0 ? 'city' : companionAppearances[Math.floor(Math.random() * companionAppearances.length)];
+      element.dataset.appearance = appearance;
+      return new Bird(element, definitions[appearance], this);
+    });
     overlay.style.visibility = 'visible';
     const invalidate = () => this.invalidate();
     window.addEventListener('resize', invalidate, { passive: true });
@@ -62,12 +69,13 @@ class Scene {
     // Reallocate stationary birds together so stale reservations cannot pin a
     // companion above an edge after layout changes. Keep in-flight reservations.
     this.birds.filter(b => b.state === 'perched' || b.state === 'suspended').forEach(b => { b.reservation = undefined; });
-    for (const bird of this.birds) {
+    const start = this.birds.length > 1 ? document.timeline.currentTime : null;
+    for (const [index, bird] of this.birds.entries()) {
       if (bird.state === 'walking' || bird.state === 'flying') continue;
       const targets = this.geometry.places(bird.definition, this.birds.filter(b => b !== bird && b.reservation).map(b => b.reservation!));
       const current = targets.find(p => p.element === bird.position?.element && p.fraction === bird.position.fraction);
       if (current) bird.perch(current);
-      else if (targets.length) bird.fly(targets[Math.floor(Math.random() * targets.length)]);
+      else if (targets.length) bird.fly(targets[Math.floor(Math.random() * targets.length)], typeof start === 'number' ? start + index * 120 : undefined);
       else bird.suspend();
     }
     if (this.scatterPending && this.birds.every(b => b.state !== 'walking' && b.state !== 'flying')) {

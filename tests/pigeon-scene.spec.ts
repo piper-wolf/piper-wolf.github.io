@@ -1,22 +1,24 @@
 import { test, expect, type Page } from '@playwright/test';
 const runtime = /\/scene\.[^/]+\.js$/;
-async function start(page: Page, separateEdges = false) {
+async function start(page: Page, separateEdges = false, count = 2, colors = [0, 0]) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.clock.install();
   await page.clock.pauseAt(new Date(Date.now() + 1000));
-  await page.addInitScript(() => {
-    Math.random = () => 0;
+  await page.addInitScript(({ count, colors, separateEdges }) => {
+    let choices = 0;
+    Math.random = () => {
+      const index = choices++;
+      if (index === 0) return (count - .5) / 3;
+      if (index < count) return colors[index - 1];
+      return separateEdges && index === count + 1 ? .999 : 0;
+    };
     const animate = Element.prototype.animate;
     Element.prototype.animate = function (...args) {
       const animation = animate.apply(this, args);
       if (this.matches('.pigeon-visitor')) animation.pause();
       return animation;
     };
-  });
-  if (separateEdges) await page.addInitScript(() => {
-    let choices = 0;
-    Math.random = () => choices++ === 1 ? .999 : 0;
-  });
+  }, { count, colors, separateEdges });
   await page.goto('/pigeons/');
   await page.clock.runFor(2000);
   await expect(page.locator('.pigeon-visitor').first()).toHaveAttribute('data-enhanced', '');
@@ -109,13 +111,40 @@ test('a walking corridor remains clear of the companion bird', async ({ page }) 
   await page.locator('.pigeon-visitor[data-walking]').evaluate(bird => bird.getAnimations().forEach(a => a.finish()));
   await safeGroup(page);
 });
-test('page suspension cancels every action and resumes the same scene', async ({ page }) => {
-  await start(page);
+test('page suspension preserves the three birds and their random colors', async ({ page }) => {
+  await start(page, false, 3, [.999, .5]);
+  const appearances = await page.locator('.pigeon-visitor').evaluateAll(birds => birds.map(b => (b as HTMLElement).dataset.appearance));
   await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
   await expect(page.locator('.pigeon-visitor[data-enhanced]')).toHaveCount(0);
   expect(await page.locator('.pigeon-visitor').evaluateAll(birds => birds.flatMap(b => b.getAnimations({ subtree: true })).length)).toBe(0);
   await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
   await landAll(page);
-  await expect(page.locator('.pigeon-visitor[data-enhanced]')).toHaveCount(2);
+  await expect(page.locator('.pigeon-visitor[data-enhanced]')).toHaveCount(3);
+  expect(await page.locator('.pigeon-visitor').evaluateAll(birds => birds.map(b => (b as HTMLElement).dataset.appearance))).toEqual(appearances);
   await safeGroup(page);
 });
+
+for (const count of [1, 3]) {
+  test(`spawns ${count} pigeons with a default leader and coordinated flights`, async ({ page }) => {
+    await start(page, false, count, [.999, .5]);
+    await landAll(page);
+    await expect(page.locator('.pigeon-visitor')).toHaveCount(count);
+    await expect(page.locator('.pigeon-visitor[data-enhanced]')).toHaveCount(count);
+    const colors = await page.locator('.pigeon-visitor').evaluateAll(birds => birds.map(b => ({
+      appearance: (b as HTMLElement).dataset.appearance,
+      wing: getComputedStyle(b.querySelector('.pigeon-wing path')!).fill,
+    })));
+    expect(colors).toEqual([
+      { appearance: 'city', wing: 'rgb(189, 197, 206)' },
+      { appearance: 'dark', wing: 'rgb(107, 106, 120)' },
+      { appearance: 'white', wing: 'rgb(245, 242, 233)' },
+    ].slice(0, count));
+    await safeGroup(page);
+    await page.locator('.pigeon-visitor').last().dispatchEvent('mouseenter');
+    await expect(page.locator('.pigeon-visitor[data-flying]')).toHaveCount(count);
+    const starts = await page.locator('.pigeon-flight-wing').evaluateAll(wings => wings.map(wing => Number(wing.getAnimations()[0].startTime)));
+    for (let i = 1; i < starts.length; i++) expect(starts[i] - starts[i - 1]).toBeCloseTo(120);
+    await landAll(page);
+    await safeGroup(page);
+  });
+}

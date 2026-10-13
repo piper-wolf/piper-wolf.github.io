@@ -1,9 +1,9 @@
 ---
-import { definitions } from "../pigeon/definition";
+import { pigeon as definition, maxBirds } from "../pigeon/definition";
 ---
 <!-- Optional decoration; safe horizontal perches are measured after load + idle. -->
 <div class="pigeon-perch" aria-hidden="true">
-  {Object.entries(definitions).map(([appearance, definition]) => <span class="pigeon-visitor" data-appearance={appearance} style={`--pigeon-size: ${definition.size}px`}>
+  {Array.from({ length: maxBirds }, () => <span class="pigeon-visitor" data-appearance="city" style={`--pigeon-size: ${definition.size}px`}>
     <svg viewBox="0 0 64 64" width={definition.size} height={definition.size} focusable="false">
       <!-- Tapered tail, plump breast, small head, short beak and pink toes. -->
       <path class="pigeon-tail" d="M24 39 5 47q-2 2 1 3l22-3" fill="var(--pigeon-tail, #525b6a)" />
@@ -55,6 +55,8 @@ import { definitions } from "../pigeon/definition";
   .pigeon-visitor[data-state="perched"]:not([data-idle="peck"]) .pigeon-body { animation: pigeon-breathe 4s ease-in-out infinite; }
   .pigeon-visitor[data-enhanced]:not([data-flying]) .pigeon-eye { animation: pigeon-blink 7s linear infinite; }
   .pigeon-visitor[data-appearance="red"] { --pigeon-tail: #745247; --pigeon-breast: #c4aaa0; --pigeon-neck: #9c705f; --pigeon-iridescence: #986d87; --pigeon-wing: #d6c5b6; --pigeon-bars: #8d5545; --pigeon-feather: #ad8b77; --pigeon-flight: #d2bdb0; --pigeon-flight-bars: #8d5545; --pigeon-head: #ac8a7a; }
+  .pigeon-visitor[data-appearance="white"] { --pigeon-tail: #b9b8b2; --pigeon-breast: #f0ede5; --pigeon-neck: #d6ddd2; --pigeon-iridescence: #ddd3dd; --pigeon-wing: #f5f2e9; --pigeon-bars: #c6c5bd; --pigeon-feather: #d8d6cd; --pigeon-flight: #eeece3; --pigeon-flight-bars: #b9bab4; --pigeon-head: #e3e3db; }
+  .pigeon-visitor[data-appearance="dark"] { --pigeon-tail: #30313b; --pigeon-breast: #535361; --pigeon-neck: #41665e; --pigeon-iridescence: #6c547b; --pigeon-wing: #6b6a78; --pigeon-bars: #30313b; --pigeon-feather: #858491; --pigeon-flight: #777784; --pigeon-flight-bars: #383844; --pigeon-head: #555564; }
   .pigeon-visitor[data-flying] .pigeon-wing { display: none; }
   .pigeon-visitor[data-flying] .pigeon-flight-wing { display: block; }
   @keyframes pigeon-breathe { 50% { transform: scaleY(1.025); } }
