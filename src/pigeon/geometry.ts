@@ -65,6 +65,17 @@ export class Geometry {
         const from = walkFrom?.element === edge.element ? walkFrom : point;
         if (!blockers.some(b => overlaps(this.bounds(from, point, definition), b))) result.push(point);
       }
+      if (walkFrom?.element === edge.element) {
+        // A bird can be outside the three preferred samples and still have
+        // room to retreat. Include the ends of its current safe interval.
+        const interval = intervals.find(([left, right]) => walkFrom.x >= left && walkFrom.x <= right);
+        for (const x of interval ?? []) {
+          if (result.some(p => p.element === edge.element && Math.abs(p.x - walkFrom.x) > definition.size * .3 &&
+            (p.x - walkFrom.x) * (x - walkFrom.x) > 0)) continue;
+          const point = { x, y, element: edge.element };
+          if (!blockers.some(b => overlaps(this.bounds(walkFrom, point, definition), b))) result.push(point);
+        }
+      }
     }
     return result;
   }

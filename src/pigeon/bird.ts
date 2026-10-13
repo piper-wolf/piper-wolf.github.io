@@ -126,7 +126,6 @@ export class Bird {
       const distance = Math.min(Math.abs(dx), this.definition.size * (kind === 'running' ? 2 + Math.random() : .6 + Math.random() * .6));
       this.move({ ...target, x: this.position!.x + Math.sign(dx) * distance }, kind);
     }
-    else if (awayFrom !== undefined) this.flight();
     else { this.deadlines.walk = this.after(this.definition.walkDelay); this.wake(); }
   }
   private flight() {

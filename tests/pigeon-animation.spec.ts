@@ -367,12 +367,38 @@ test.describe('actions and transitions', () => {
     })).toBeCloseTo(beforeFlight.x, 2);
     await land(page);
     await expectSafePerch(page);
-    const landed = (await bird.boundingBox())!;
-    await page.mouse.move(landed.x - 60, landed.y + landed.height / 2);
+    // This landing is at the leftmost preferred sample. Retreating further
+    // left must use the remaining local space, rather than fall back to flight.
+    await approach(110);
+    await expect(bird).toHaveAttribute('data-state', 'walking');
+    await land(page);
+    await expectSafePerch(page);
+    await approach(60);
     await expect(bird).toHaveAttribute('data-state', 'running');
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect(bird).toHaveAttribute('data-state', 'suspended');
     expect(await bird.evaluate(el => el.getAnimations({ subtree: true }).length)).toBe(0);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.clock.runFor(100);
+    await expect(bird).toHaveAttribute('data-state', 'perched');
+    // Make this perch too narrow for a step, with another edge for flight.
+    await bird.evaluate(el => {
+      const rect = el.getBoundingClientRect();
+      const feet = rect.top + 58 * rect.height / 64;
+      const edge = [...document.querySelectorAll<HTMLElement>('[data-pigeon-landing]')]
+        .find(edge => Math.abs(edge.getBoundingClientRect().top - feet) < .5)!;
+      edge.style.cssText = `position:fixed;left:${rect.left - 26}px;top:${feet}px;width:${rect.width + 52}px;height:1px`;
+    });
+    await page.clock.runFor(200);
+    await expectSafePerch(page);
+    for (const distance of [110, 60]) {
+      await approach(distance);
+      await expect(bird).toHaveAttribute('data-state', 'perched');
+    }
+    await approach(20);
+    await expect(bird).toHaveAttribute('data-state', 'flying');
+    await land(page);
+    await expectSafePerch(page);
   });
 
   test('every action can start without a minimum wait and reduced motion cancels it', async ({ page }) => {
@@ -410,12 +436,15 @@ test.describe('actions and transitions', () => {
       const blocker = document.createElement('p');
       blocker.id = 'walking-obstacle';
       blocker.style.cssText = `position: absolute; margin: 0; left: ${rect.right + 15}px; top: ${rect.top}px; width: 1px; height: 30px;`;
-      document.querySelector('main')!.append(blocker);
+      const leftBlocker = blocker.cloneNode() as HTMLElement;
+      leftBlocker.id = 'walking-obstacle-left';
+      leftBlocker.style.left = `${rect.left - 12}px`;
+      document.querySelector('main')!.append(blocker, leftBlocker);
     });
     await dueMovement(page, 5001);
     await expect(bird).not.toHaveAttribute('data-state', 'walking');
     expect(await bird.evaluate((el) => (el as HTMLElement).style.transform)).toBe(before);
-    await page.locator('#walking-obstacle').evaluate((el) => el.remove());
+    await page.locator('[id^="walking-obstacle"]').evaluateAll(elements => elements.forEach(el => el.remove()));
     await dueMovement(page, 5200);
     await expect(bird).toHaveAttribute('data-state', 'walking');
     await land(page);
