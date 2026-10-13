@@ -77,19 +77,36 @@ export function movement(from: { x: number; y: number }, to: { x: number; y: num
   // trends; the .45s taper, SVG angles, and stroke split are visual choices.
   // Keep wingbeats on elapsed time so longer journeys add strokes.
   const wing: Keyframe[] = [{ offset: 0, transform: 'none' }];
+  // Stowers, Matloff & Lentink (2017), https://doi.org/10.1098/rsif.2017.0224:
+  // elbow/wrist coupling changes span, sweep, and wing area. Articulate the
+  // outer feather fan at the wrist rather than flattening the entire wing.
+  // Crandell & Tobalske (2011), https://doi.org/10.1242/jeb.051342:
+  // pigeons use a twisted, tip-reversal upstroke in slow flight. Preserve more
+  // span during takeoff/landing; suggest a narrower recovery stroke in cruise.
+  // Rotation and foreshortening below are 2D visual cues, not measured joints.
+  const hand: Keyframe[] = [{ offset: 0, transform: 'none' }];
   let time = 0;
   while (time < seconds) {
     const takeoff = Math.max(0, 1 - time / .45);
     const approach = Math.max(0, Math.min(1, (time - seconds + landing) / (landing || 1)));
     const effort = Math.max(takeoff, approach * .8);
     const period = 1 / (6.6 + 2.3 * effort);
-    for (const [phase, angle, scale] of [[.45, -75 - 35 * effort, .8 - .15 * effort], [1, 5 + 15 * effort, 1]]) {
+    for (const [phase, angle] of [[.45, -75 - 35 * effort], [1, 5 + 15 * effort]]) {
       const at = time + phase * period;
-      if (at < seconds) wing.push({ offset: at / seconds, transform: `rotate(${angle}deg) scaleY(${scale})` });
+      if (at < seconds) wing.push({ offset: at / seconds, transform: `rotate(${angle}deg)` });
+    }
+    for (const [phase, pose] of [
+      [.45, 'none'], // Spread primaries on the power stroke.
+      [.72, `rotate(${45 - 20 * effort}deg) scale(${.7 + .25 * effort}, ${.8 - .35 * effort})`],
+      [1, 'none'], // Reopen before the next downstroke.
+    ] as const) {
+      const at = time + phase * period;
+      if (at < seconds) hand.push({ offset: at / seconds, transform: pose });
     }
     time += period;
   }
   wing.push({ offset: 1, transform: 'none' });
+  hand.push({ offset: 1, transform: 'none' });
   const launchOffset = seconds ? launch / seconds : 0;
   const brakeOffset = seconds ? (launch + coast) / seconds : 1;
   const parts: Part[] = kind === 'walking' ? [
@@ -99,6 +116,7 @@ export function movement(from: { x: number; y: number }, to: { x: number; y: num
     ['head', frames(['none', 'translateX(-1px)', 'translateX(2px)', 'none'])],
   ] : [
     ['flight-wing', wing],
+    ['hand-wing', hand],
     // Figs. 3/5: body, tail, and wing planes become more upright on
     // approach, increasing drag and redirecting force for braking.
     // These modest SVG rotations suggest that change, not the measured angles.

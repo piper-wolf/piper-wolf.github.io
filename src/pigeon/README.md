@@ -40,6 +40,13 @@ that the scene is absent from preload links.
   tail spreads, and feet extend for landing. These are screen-scale adaptations
   of [Berg & Biewener (2010)](https://doi.org/10.1242/jeb.038109), rather than a
   physical simulation; all parts still finish neutral at the movement endpoint.
+  The flight SVG separates a broad inner wing from a tapered primary feather
+  fan, with overlapping coverts and simplified feather tips. The outer wing
+  twists at the wrist during recovery, retaining more span in slow flight.
+  Geometry and wrist animation comments cite
+  [Hieronymus (2016)](https://doi.org/10.1111/joa.12511),
+  [Stowers et al. (2017)](https://doi.org/10.1098/rsif.2017.0224), and
+  [Crandell & Tobalske (2011)](https://doi.org/10.1242/jeb.051342).
 
 `data-state` (`suspended`, `perched`, `walking`, `flying`) and `data-idle` are the
 rendering contract. Translation belongs to the outer element, facing to the SVG,

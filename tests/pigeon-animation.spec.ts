@@ -59,6 +59,14 @@ test.describe('actions and transitions', () => {
         const initialTime = Number(frames[5].offset) * duration / 1000;
         const initialDistance = points.slice(1, 6).reduce((sum, point, i) => sum + Math.hypot(point.m41 - points[i].m41, point.m42 - points[i].m42), 0);
         const wing = (el.querySelector('.pigeon-flight-wing')!.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
+        const handElement = el.querySelector('.pigeon-hand-wing')!;
+        const handEffect = handElement.getAnimations()[0].effect as KeyframeEffect;
+        const handFrames = handEffect.getKeyframes();
+        handElement.getAnimations()[0].currentTime = Number(handFrames[1].offset) * duration;
+        const extended = new DOMMatrix(getComputedStyle(handElement).transform);
+        handElement.getAnimations()[0].currentTime = Number(handFrames[2].offset) * duration;
+        const recovered = new DOMMatrix(getComputedStyle(handElement).transform);
+        const area = (matrix: DOMMatrix) => Math.abs(matrix.a * matrix.d - matrix.b * matrix.c);
         const wingTime = (index: number) => Number(wing[index].offset) * duration;
         const strokes = wing.filter((_, index) => index > 0 && index < wing.length - 1 && index % 2 === 0);
         const cruiseStroke = strokes.find(frame => Number(frame.offset) * duration > 600 && Number(frame.offset) < .65);
@@ -74,6 +82,11 @@ test.describe('actions and transitions', () => {
           launchStroke: new DOMMatrix(strokes[0].transform as string).m12,
           cruiseStroke: cruiseStroke ? new DOMMatrix(cruiseStroke.transform as string).m12 : undefined,
           brakingPose: body.at(-2)!.transform,
+          wrist: getComputedStyle(handElement).transformOrigin,
+          powerArea: area(extended), recoveryArea: area(recovered),
+          recoveryRotation: recovered.b,
+          synchronizedWrist: handFrames[1].offset === wing[1].offset && Number(handEffect.getTiming().duration) === duration,
+          neutralWrist: handFrames.at(-1)!.transform === 'none',
           scrollWidth: document.documentElement.scrollWidth,
           height: innerHeight, startSlope: slope(first, points[1]), endSlope: slope(points.at(-2)!, last),
           monotonicX: points.every((point, i) => !i || (last.m41 > first.m41 ? point.m41 >= points[i - 1].m41 : point.m41 <= points[i - 1].m41)),
@@ -94,10 +107,17 @@ test.describe('actions and transitions', () => {
       expect(entrance.nextBeat).toBeGreaterThan(entrance.firstBeat);
       if (entrance.cruiseStroke !== undefined) expect(entrance.launchStroke).toBeGreaterThan(entrance.cruiseStroke);
       expect(entrance.brakingPose).toBe('rotate(-20deg)');
+      expect(entrance.wrist).toBe('20px 19px');
+      expect(entrance.powerArea).toBeCloseTo(1, 5);
+      expect(entrance.recoveryArea).toBeLessThan(entrance.powerArea * .6);
+      expect(entrance.recoveryRotation).toBeGreaterThan(0);
+      expect(entrance.synchronizedWrist).toBe(true);
+      expect(entrance.neutralWrist).toBe(true);
       entrances.push({ travel: Math.abs(entrance.endX - entrance.x), duration: entrance.duration, acceleration: entrance.acceleration });
       await land(page);
       expect(await bird.locator('svg').evaluate(el => el.style.transform)).toBe(entrance.facing);
       await expectSafePerch(page);
+      expect(await bird.locator('.pigeon-hand-wing').evaluate(el => ({ animations: el.getAnimations().length, transform: getComputedStyle(el).transform }))).toEqual({ animations: 0, transform: 'none' });
     }
     entrances.sort((a, b) => a.travel - b.travel);
     expect(entrances[1].duration).toBeGreaterThan(entrances[0].duration);
