@@ -19,10 +19,6 @@ export const pigeon = {
   actions: ['look', 'peck', 'stretch'],
 } as const;
 
-const companion: BirdDefinition = { ...pigeon, actions: ['stretch', 'look', 'peck'], idleDelay: [8000, 8000], walkDelay: [12000, 8000] };
-export const definitions: Record<string, BirdDefinition> = {
-  city: pigeon, red: companion, white: companion, dark: companion,
-};
 export const companionAppearances = ['red', 'white', 'dark'] as const;
 export const maxBirds = 3;
 

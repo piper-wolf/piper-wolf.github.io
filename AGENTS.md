@@ -1,6 +1,8 @@
 # Repository workflow
 
 - Always commit and push repository changes unless the user says otherwise.
+- Prefer extending existing test scenarios over adding a new test for each change.
+  Consolidate duplicate coverage and share setup so the suite stays organized and fast.
 - When adding a page, include it in `src/pages/sitemap.xml.ts`, provide structured
   data through `BaseLayout`, and run `tests/integrity.spec.ts`; the integrity check
   requires internal link destinations to be in the sitemap with page metadata.

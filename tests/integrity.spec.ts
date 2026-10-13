@@ -117,12 +117,28 @@ test("pigeon RSS includes every post with photos and can be discovered", async (
   }
 });
 
+test("photos without EXIF retain their post date and omit photography details", async ({ page }) => {
+  await page.goto("/pigeons/015/");
+  const details = page.getByRole("region", { name: "Behind the photograph" });
+  await expect(details).toHaveCount(0);
+  await expect(page.locator('time[datetime="2026-09-06"]')).toHaveText("September 6, 2026");
+  const data = await page.locator('script[type="application/ld+json"]').allTextContents();
+  expect(data.some(value => {
+    const parsed = JSON.parse(value);
+    return parsed.datePublished === "2026-09-06" && parsed.dateCreated === undefined;
+  })).toBeTruthy();
+  await page.setViewportSize({ width: 320, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+});
+
 test.describe("without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
 
   test("photos and navigation work through the full browsing flow", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
+    await expect(page.locator('.pigeon-perch')).toHaveAttribute('aria-hidden', 'true');
+    await expect(page.locator('.pigeon-visitor').first()).toHaveCSS('visibility', 'hidden');
     const latest = page.getByRole("link", { name: /^View pigeon no\./ });
     const detailPath = await latest.getAttribute("href");
     await latest.click();

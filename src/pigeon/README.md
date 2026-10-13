@@ -2,34 +2,45 @@
 
 `PigeonVisitor.astro` renders hidden, decorative SVGs and a small loader. The
 loader waits for page load, idle time, and 1200ms before dynamically importing
-`scene.ts`. It watches visibility and motion preferences even before the scene
-loads. Keep this dynamic import: a static runtime import would fetch the scene
-up front. Browser tests inspect production asset requests and preload links.
+`scene.ts`. It watches visibility and motion preferences even before loading.
+Keep this dynamic import: browser tests verify production request timing and
+that the scene is absent from preload links.
 
-- `definition.ts` describes dimensions, foot anchors, clearance, action choices,
-  and delay ranges (minimum plus random spread). The first pigeon uses the city palette;
-  companions independently choose red, white, or dark palettes and share a
-  companion behavior definition. All share the SVG anatomy.
-- `scene.ts` owns lifecycle, invalidation, cached page geometry, and scatter
-  commands. Each page visit chooses one to three birds once; the count and colors
-  survive suspension. Entrances and scatter flights share staggered timing. It observes container sizes, DOM/style edits, image completion, and
-  fonts. It debounces layout and scroll changes without canceling movement.
-- `geometry.ts` subtracts content and bird reservations into safe horizontal
-  intervals. Walks reserve their entire corridor; flights reserve a destination.
-  Reservations are allocated sequentially, including during resettling.
-- `bird.ts` owns one bird's explicit movement state and active animations/timers.
-  Data attributes render that state. Suspension cancels all actions; completion
-  revalidates the landing. Walks preserve the next flight deadline.
-- `actions.ts` owns finite gestures, movement timing, and part keyframes. Animation
-  promises share a completion/cancellation contract. Scatter uses a shared native
-  timeline start with a 120ms stagger. Only breathing and blinking use CSS loops.
+- `definition.ts` describes dimensions, foot anchors, clearance, gestures, and
+  delay ranges (minimum plus random spread). One to three birds use the same
+  behavior; the first has the city palette and others choose red, white, or dark.
+- `scene.ts` owns page lifecycle and cached geometry. It observes sizes, DOM/style
+  edits, image completion, and fonts. Invalidation debounces reconciliation
+  without canceling actions or resetting deadlines. Count and colors survive
+  suspension; birds act independently.
+- `geometry.ts` subtracts content and bird reservations into safe intervals.
+  Walks reserve their full corridor; flights reserve their destination. Existing
+  positions are validated directly, keeping safe birds in place.
+- `bird.ts` manages one bird's state, facing, position, reservations, deadlines,
+  and animations. One timer wakes the next idle, walk, or flight deadline.
+  Gestures finish before timed movement; flight takes priority when overdue.
+  Hover can interrupt a gesture, preserving its opening pose in the flight.
+  Walks preserve the flight deadline. Landings commit their held endpoint before
+  cancellation, then reconcile fresh geometry. Suspension cancels all work;
+  stale completions cannot restart it.
+- `actions.ts` returns finite keyframes and timing only. Walking parts complete
+  whole cycles at the movement endpoint; all poses end neutral. The manager
+  starts each action on one native timeline origin. No animation library or
+  frame loop is required.
 
-To add an appearance, add a definition and palette in the component. An SVG with
-another shape must implement the same named `.pigeon-*` parts used by the action
-catalog and provide its own size/foot anchor/clearance. To add a gesture, extend
-the catalog and definition's action choices. No animation library or frame loop
-is required. Birds stay hidden when no safe space exists.
+`data-state` (`suspended`, `perched`, `walking`, `flying`) and `data-idle` are the
+rendering contract. Translation belongs to the outer element, facing to the SVG,
+body poses to `.pigeon-body`, and CSS breathing to its separate `.pigeon-breath`
+wrapper. Breathing pauses during movement and pecking; blinking continues while
+visible. Ambient loops retain their phase across active states and stop when
+suspended. Birds stay hidden when no safe space exists.
 
-`pigeon-visitor.spec.ts` preserves the original one-bird behavior tests by
-removing companion slots before initialization. `pigeon-scene.spec.ts` covers the
-real one-, two-, and three-bird scenes, reservations, shared timing, and lifecycle regressions.
+To add a gesture, extend the action catalog and definition's choices. Another
+SVG anatomy must provide the named parts plus its own size, foot anchor, and
+clearance. Palettes share anatomy and behavior.
+
+Browser coverage lives in `tests/pigeon-animation.spec.ts`, grouped by loading,
+actions/transitions, and independent birds/layout. Shared helpers control JS
+deadlines and explicitly finish native animations; one real-time loading check
+verifies the deferred production request. Extend existing scenarios for related
+regressions instead of duplicating setup and coverage.

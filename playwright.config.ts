@@ -11,8 +11,9 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "webkit", use: { ...devices["Desktop Safari"] } },
+    { name: "contracts", testMatch: "publication.spec.ts" },
+    { name: "chromium", testIgnore: "publication.spec.ts", use: { ...devices["Desktop Chrome"] } },
+    { name: "webkit", testIgnore: "publication.spec.ts", use: { ...devices["Desktop Safari"] } },
   ],
   webServer: {
     command: "node tests/serve.mjs",

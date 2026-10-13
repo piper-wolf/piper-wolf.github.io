@@ -1,5 +1,5 @@
 import { perchMargin, type BirdDefinition } from './definition';
-export interface Point { x: number; y: number; element: HTMLElement; fraction: number }
+export interface Point { x: number; y: number; element: HTMLElement }
 interface Rect { left: number; right: number; top: number; bottom: number }
 interface Edge { element: HTMLElement; left: number; right: number; line: number }
 export interface Reservation { from: Point; to: Point; definition: BirdDefinition }
@@ -29,6 +29,15 @@ export class Geometry {
     return { left: Math.min(from.x, to.x) - c.left, right: Math.max(from.x, to.x) + definition.size + c.right,
       top: Math.min(from.y, to.y) - c.above, bottom: Math.max(from.y, to.y) + definition.feet + c.below };
   }
+  current(point: Point, definition: BirdDefinition, reservations: Reservation[]): Point | undefined {
+    const edge = this.edges.find(edge => edge.element === point.element);
+    if (!edge) return;
+    const current = { ...point, y: edge.line - definition.feet };
+    if (current.y - scrollY < 8 || edge.line - scrollY + 8 > innerHeight ||
+        point.x < edge.left + perchMargin || point.x + definition.size > edge.right - perchMargin) return;
+    const blockers = [...this.blockers, ...reservations.map(r => this.bounds(r.from, r.to, r.definition))];
+    if (!blockers.some(b => overlaps(this.bounds(current, current, definition), b))) return current;
+  }
   places(definition: BirdDefinition, reservations: Reservation[], walkFrom?: Point): Point[] {
     const blockers = [...this.blockers, ...reservations.map(r => this.bounds(r.from, r.to, r.definition))];
     const result: Point[] = [];
@@ -49,7 +58,7 @@ export class Geometry {
         const interval = intervals.find(([l, r]) => preferred >= l && preferred <= r) ?? intervals[Math.floor(fraction * intervals.length)];
         if (!interval) continue;
         const x = Math.max(interval[0], Math.min(interval[1], preferred));
-        const point = { x, y, element: edge.element, fraction };
+        const point = { x, y, element: edge.element };
         const from = walkFrom?.element === edge.element ? walkFrom : point;
         if (!blockers.some(b => overlaps(this.bounds(from, point, definition), b))) result.push(point);
       }

@@ -1,124 +1,140 @@
 import type { BirdDefinition } from './definition';
-import { completed, gesture, locomotion, transform, walkDuration, flightDuration } from './actions';
+import { gesture, movement, transform, type Action } from './actions';
 import type { Point, Reservation } from './geometry';
 export type MovementState = 'suspended' | 'perched' | 'walking' | 'flying';
 export interface BirdScene {
   places(bird: Bird, walkFrom?: Point): Point[];
-  settle(): void;
-  scatter(): void;
+  current(bird: Bird): Point | undefined;
 }
-const choose = <T>(items: T[]) => items[Math.floor(Math.random() * items.length)];
+const choose = <T>(items: readonly T[]) => items[Math.floor(Math.random() * items.length)];
 export class Bird {
   state: MovementState = 'suspended';
   position?: Point;
   reservation?: Reservation;
   private animations: Animation[] = [];
-  private timers: number[] = [];
+  private timer?: number;
   private generation = 0;
   private lastIdle = -1;
-  private scheduled = false;
-  private nextFlight?: number;
+  private facing: 'left' | 'right' = 'right';
+  private deadlines = { idle: Infinity, walk: Infinity, flight: Infinity };
   constructor(readonly element: HTMLElement, readonly definition: BirdDefinition, private scene: BirdScene) {
-    element.style.width = element.style.height = `${this.definition.size}px`;
-    element.addEventListener('mouseenter', () => { if (this.state === 'perched') scene.scatter(); });
+    element.style.width = element.style.height = `${definition.size}px`;
+    this.render('suspended');
+    element.addEventListener('mouseenter', () => { if (this.state === 'perched') this.flight(); });
   }
   private render(state: MovementState) {
     this.state = state;
-    const data = this.element.dataset;
-    delete data.flying;
-    delete data.walking;
-    delete data.enhanced;
-    data.state = state;
-    if (state !== 'suspended') data.enhanced = '';
-    if (state === 'walking') data.walking = '';
-    if (state === 'flying') data.flying = '';
+    this.element.dataset.state = state;
     this.element.style.visibility = state === 'suspended' ? 'hidden' : 'visible';
   }
-  quiet() {
-    this.scheduled = false;
-    this.timers.forEach(clearTimeout);
-    this.timers = [];
-    if (this.state === 'perched') this.cancelAction();
+  private after(delay: readonly [number, number]) {
+    return performance.now() + delay[0] + Math.random() * delay[1];
   }
   private cancelAction() {
     this.generation++;
+    clearTimeout(this.timer);
     this.animations.forEach(a => a.cancel());
     this.animations = [];
     delete this.element.dataset.idle;
   }
   suspend() {
-    this.nextFlight = undefined;
-    this.quiet();
     this.cancelAction();
+    this.deadlines = { idle: Infinity, walk: Infinity, flight: Infinity };
     this.reservation = undefined;
     this.render('suspended');
   }
-  perch(point: Point) {
-    this.reservation = { from: point, to: point, definition: this.definition };
-    if (this.state === 'perched' && this.scheduled && this.position?.x === point.x && this.position.y === point.y) return;
-    this.quiet();
-    this.position = point;
-    this.element.style.transform = transform(point);
-    this.render('perched');
-    this.schedule();
+  reconcile() {
+    if (this.state !== 'walking' && this.state !== 'flying') this.settle();
   }
-  private later(callback: () => void, delay: readonly [number, number]) {
-    this.timers.push(window.setTimeout(callback, delay[0] + Math.random() * delay[1]));
+  private settle(arrived = false) {
+    const current = this.scene.current(this);
+    if (current && (!arrived || Math.hypot(current.x - this.position!.x, current.y - this.position!.y) <= .5)) {
+      const wasPerched = this.state === 'perched';
+      this.position = current;
+      this.reservation = { from: current, to: current, definition: this.definition };
+      this.element.style.transform = transform(current);
+      this.render('perched');
+      if (!wasPerched) {
+        this.deadlines.idle = this.after(this.definition.idleDelay);
+        this.deadlines.walk = this.after(this.definition.walkDelay);
+        if (!Number.isFinite(this.deadlines.flight)) this.deadlines.flight = this.after(this.definition.flightDelay);
+      }
+      this.wake();
+    } else {
+      const targets = current ? [current] : this.scene.places(this);
+      if (targets.length) this.move(choose(targets), 'flying');
+      else this.suspend();
+    }
   }
-  private schedule() {
-    this.scheduled = true;
-    this.later(() => this.idle(), this.definition.idleDelay);
-    this.later(() => this.walk(), this.definition.walkDelay);
-    this.nextFlight ??= Date.now() + this.definition.flightDelay[0] + Math.random() * this.definition.flightDelay[1];
-    this.timers.push(window.setTimeout(() => this.scene.scatter(), Math.max(0, this.nextFlight - Date.now())));
+  private wake() {
+    clearTimeout(this.timer);
+    if (this.state !== 'perched' || this.animations.length) return;
+    this.timer = window.setTimeout(() => this.tick(), Math.max(0, Math.min(...Object.values(this.deadlines)) - performance.now()));
+  }
+  private tick() {
+    if (this.state !== 'perched' || this.animations.length) return;
+    const now = performance.now();
+    if (this.deadlines.flight <= now) this.flight();
+    else if (this.deadlines.walk <= now) this.walk();
+    else if (this.deadlines.idle <= now) this.idle();
+    else this.wake();
   }
   private async idle() {
-    if (this.state !== 'perched') return;
     this.lastIdle = (this.lastIdle + 1 + Math.floor(Math.random() * 2)) % this.definition.actions.length;
     const name = this.definition.actions[this.lastIdle];
     this.element.dataset.idle = name;
-    this.animations = gesture(this.element, name);
-    const generation = this.generation;
-    if (await completed(this.animations) && generation === this.generation) {
+    if (await this.run(gesture(name))) {
       this.cancelAction();
-      this.later(() => this.idle(), this.definition.idleDelay);
+      this.deadlines.idle = this.after(this.definition.idleDelay);
+      this.wake();
     }
   }
   private walk() {
-    if (this.state !== 'perched' || !this.position) return;
-    if (this.nextFlight !== undefined && this.nextFlight <= Date.now()) { this.scene.scatter(); return; }
     const targets = this.scene.places(this, this.position).filter(p => p.element === this.position!.element && Math.abs(p.x - this.position!.x) > 20);
-    if (!targets.length) { this.later(() => this.walk(), this.definition.walkDelay); return; }
-    this.move(choose(targets), 'walking');
+    if (targets.length) this.move(choose(targets), 'walking');
+    else { this.deadlines.walk = this.after(this.definition.walkDelay); this.wake(); }
   }
-  retryFlight() {
-    this.nextFlight = undefined;
-    this.quiet();
-    if (this.position) this.perch(this.position);
+  private flight() {
+    const targets = this.scene.places(this).filter(p => Math.hypot(p.x - this.position!.x, p.y - this.position!.y) > 60);
+    const other = targets.filter(p => p.element !== this.position!.element);
+    if (targets.length) this.move(choose(other.length ? other : targets), 'flying');
+    else { this.deadlines.flight = this.after(this.definition.flightDelay); this.wake(); }
   }
-  fly(point: Point, startTime?: number) { this.move(point, 'flying', startTime); }
-  private async move(destination: Point, kind: 'walking' | 'flying', startTime?: number) {
-    this.quiet();
-    this.cancelAction();
-    if (kind === 'flying') this.nextFlight = undefined;
+  private async run(action: Action, opening?: Map<string, string>) {
+    const start = document.timeline.currentTime;
+    this.animations = action.map(({ part, keyframes, timing }) => {
+      const target = part ? this.element.querySelector<SVGElement>(`.pigeon-${part}`)! : this.element;
+      const initial = opening?.get(part);
+      const animation = target.animate(initial ? [{ ...keyframes[0], transform: initial }, ...keyframes.slice(1)] : keyframes, { ...timing, fill: 'forwards' });
+      if (typeof start === 'number' && animation.playState !== 'paused') animation.startTime = start;
+      return animation;
+    });
+    const generation = this.generation;
+    try {
+      // Movement's root animation controls completion; part cycles have the same total duration.
+      await (action[0].part === '' ? this.animations[0].finished : Promise.all(this.animations.map(a => a.finished)));
+      return generation === this.generation;
+    } catch { return false; }
+  }
+  private async move(destination: Point, kind: 'walking' | 'flying') {
     const from = this.position ?? { ...destination, y: scrollY - this.definition.size - 110 };
-    const distance = Math.hypot(destination.x - from.x, destination.y - from.y);
-    const duration = kind === 'walking' ? walkDuration(distance) : flightDuration(distance);
-    const rise = Math.min(110, 40 + distance * .12);
+    const action = movement(from, destination, kind);
+    const opening = kind === 'flying' && this.animations.length ?
+      new Map(action.filter(a => a.part).map(a => [a.part, getComputedStyle(this.element.querySelector(`.pigeon-${a.part}`)!).transform])) : undefined;
+    this.cancelAction();
+    if (kind === 'flying') this.deadlines.flight = Infinity;
+    const dx = destination.x - from.x;
+    if (Math.abs(dx) > .5) this.facing = dx > 0 ? 'right' : 'left';
+    this.element.querySelector<SVGElement>('svg')!.style.transform = this.facing === 'left' ? 'scaleX(-1)' : '';
     this.reservation = { from: kind === 'walking' ? from : destination, to: destination, definition: this.definition };
     this.element.style.transform = transform(from);
-    this.element.querySelector<SVGElement>('svg')!.style.transform = destination.x >= from.x ? '' : 'scaleX(-1)';
     this.render(kind);
-    const keyframes = kind === 'walking' ? [{ transform: transform(from) }, { transform: transform(destination) }] :
-      [0, .1, .25, .4, .55, .7, .85, .95, 1].map(t => ({ offset: t, transform: transform({ x: from.x + (destination.x - from.x) * t, y: from.y + (destination.y - from.y) * t - Math.sin(Math.PI * t) * rise }) }));
-    const movement = this.element.animate(keyframes, { duration, easing: kind === 'walking' ? 'linear' : 'ease-in-out' });
-    this.animations = [movement, ...locomotion(this.element, kind, duration)];
-    if (startTime !== undefined) this.animations.forEach(a => { if (a.playState !== 'paused') a.startTime = startTime; });
-    const generation = this.generation;
-    if (await completed([movement]) && generation === this.generation) {
+    if (await this.run(action, opening)) {
+      // Commit the held endpoint before removing its animation, then validate the landing.
+      this.position = destination;
+      this.element.style.transform = transform(destination);
       this.cancelAction();
-      this.perch(destination);
-      this.scene.settle();
+      this.settle(true);
     }
   }
 }

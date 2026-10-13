@@ -1,4 +1,5 @@
 export type Gesture = 'look' | 'peck' | 'stretch';
+export type Action = { part: string; keyframes: Keyframe[]; timing: KeyframeAnimationOptions }[];
 type Part = [string, Keyframe[]];
 const frames = (transforms: string[]): Keyframe[] => transforms.map(transform => ({ transform }));
 const catalog: Record<Gesture, { duration: number; parts: Part[] }> = {
@@ -10,29 +11,30 @@ const catalog: Record<Gesture, { duration: number; parts: Part[] }> = {
   stretch: { duration: 1800, parts: [['wing', frames(['none', 'rotate(-38deg) scaleY(.8)', 'rotate(-20deg) scaleY(.9)', 'rotate(-38deg) scaleY(.8)', 'none'])]] },
 };
 export const transform = (p: { x: number; y: number }) => `translate(${p.x}px, ${p.y}px)`;
-export const walkDuration = (distance: number) => Math.max(1800, Math.min(5000, distance * 28));
-export const flightDuration = (distance: number) => Math.min(2600, 1600 + distance * 1.2);
-export function gesture(bird: HTMLElement, name: Gesture) {
+export function gesture(name: Gesture): Action {
   const action = catalog[name];
-  return action.parts.map(([part, keyframes]) => bird.querySelector(`.pigeon-${part}`)!.animate(keyframes, { duration: action.duration, easing: 'ease-in-out' }));
+  return action.parts.map(([part, keyframes]) => ({ part, keyframes, timing: { duration: action.duration, easing: 'ease-in-out' } }));
 }
-export function locomotion(bird: HTMLElement, kind: 'walking' | 'flying', duration: number) {
+export function movement(from: { x: number; y: number }, to: { x: number; y: number }, kind: 'walking' | 'flying'): Action {
+  const distance = Math.hypot(to.x - from.x, to.y - from.y);
+  const duration = kind === 'walking' ? Math.max(1800, Math.min(5000, distance * 28)) : Math.min(2600, 1600 + distance * 1.2);
+  const rise = Math.min(110, 40 + distance * .12);
+  const keyframes = kind === 'walking' ? frames([transform(from), transform(to)]) :
+    [0, .1, .25, .4, .55, .7, .85, .95, 1].map(t => ({ offset: t, transform: transform({ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t - Math.sin(Math.PI * t) * rise }) }));
   const parts: Part[] = kind === 'walking' ? [
-    ['foot-back', frames(['translateX(2px)', 'translate(-2px,-2px)', 'translateX(2px)'])],
-    ['foot-front', frames(['translate(-2px,-2px)', 'translateX(2px)', 'translate(-2px,-2px)'])],
+    ['foot-back', frames(['none', 'translateX(2px)', 'translate(-2px,-2px)', 'none'])],
+    ['foot-front', frames(['none', 'translate(-2px,-2px)', 'translateX(2px)', 'none'])],
     ['body', frames(['none', 'translateY(-1px)', 'none'])],
-    ['head', frames(['translateX(-1px)', 'translateX(2px)', 'translateX(-1px)'])],
+    ['head', frames(['none', 'translateX(-1px)', 'translateX(2px)', 'none'])],
   ] : [
-    ['flight-wing', [0, .06, .12, .18, .24, .30, .36, .44, .62, .70, .76, .83, .90, .96, 1].map((offset, i) => ({ offset, transform: i === 7 || i === 8 ? 'rotate(-25deg) scaleY(.9)' : i % 2 ? 'rotate(-105deg) scaleY(.7)' : 'rotate(10deg)' }))],
+    ['flight-wing', [0, .06, .12, .18, .24, .30, .36, .44, .62, .70, .76, .83, .90, .96, 1].map((offset, i) => ({ offset, transform: i === 0 || i === 14 ? 'none' : i === 7 || i === 8 ? 'rotate(-25deg) scaleY(.9)' : i % 2 ? 'rotate(-105deg) scaleY(.7)' : 'rotate(10deg)' }))],
     ['body', frames(['none', 'rotate(-8deg)', 'rotate(-8deg)', 'rotate(5deg)', 'none'])],
+    ['head', [0, .1, 1].map(offset => ({ offset, transform: 'none' }))],
     ['feet', frames(['none', 'translateY(-3px) scaleY(.55)', 'translateY(-3px) scaleY(.55)', 'none'])],
-    ['tail', frames(['rotate(8deg)', 'rotate(8deg)'])],
+    ['tail', frames(['none', 'rotate(8deg)', 'rotate(8deg)', 'none'])],
   ];
-  return parts.map(([part, keyframes]) => bird.querySelector(`.pigeon-${part}`)!.animate(keyframes,
-    kind === 'walking' ? { duration: part === 'body' ? 180 : 360, iterations: Infinity } : { duration, easing: 'ease-in-out' }));
-}
-// Every finite action shares this cancellation-safe completion contract.
-export async function completed(animations: Animation[]) {
-  try { await Promise.all(animations.map(animation => animation.finished)); return true; }
-  catch { return false; }
+  return [{ part: '', keyframes, timing: { duration, easing: kind === 'walking' ? 'linear' : 'ease-in-out' } }, ...parts.map(([part, keyframes]) => {
+    const iterations = kind === 'walking' ? Math.max(1, Math.round(duration / 360)) * (part === 'body' ? 2 : 1) : 1;
+    return { part, keyframes, timing: { duration: duration / iterations, iterations, easing: kind === 'walking' ? 'linear' : 'ease-in-out' } };
+  })];
 }

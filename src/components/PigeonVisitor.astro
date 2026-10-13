@@ -3,7 +3,7 @@ import { pigeon as definition, maxBirds } from "../pigeon/definition";
 ---
 <!-- Optional decoration; safe horizontal perches are measured after load + idle. -->
 <div class="pigeon-perch" aria-hidden="true">
-  {Array.from({ length: maxBirds }, () => <span class="pigeon-visitor" data-appearance="city" style={`--pigeon-size: ${definition.size}px`}>
+  {Array.from({ length: maxBirds }, () => <span class="pigeon-visitor" data-state="suspended" data-appearance="city" style={`--pigeon-size: ${definition.size}px`}>
     <svg viewBox="0 0 64 64" width={definition.size} height={definition.size} focusable="false">
       <!-- Tapered tail, plump breast, small head, short beak and pink toes. -->
       <path class="pigeon-tail" d="M24 39 5 47q-2 2 1 3l22-3" fill="var(--pigeon-tail, #525b6a)" />
@@ -11,28 +11,30 @@ import { pigeon as definition, maxBirds } from "../pigeon/definition";
         <path class="pigeon-foot-back" d="m27 49-1 8m0-1-5 2m5-2 5 2" />
         <path class="pigeon-foot-front" d="m40 49-1 8m0-1-5 2m5-2 5 2" />
       </g>
-      <g class="pigeon-body">
-        <path d="M16 35c3-7 12-9 18-10l5-10 13 5-2 12c5 9 0 20-13 21-14 1-25-6-21-18Z" fill="var(--pigeon-breast, #99a3af)" />
-        <path d="M37 24q0-7 5-10l10 6-2 12q-5 5-14 0Z" fill="var(--pigeon-neck, #55887f)" />
-        <path d="M37 28q7 6 13 1l-1 6q-7 3-13-2Z" fill="var(--pigeon-iridescence, #887398)" />
-        <path d="M47 36q6 11-7 14" fill="none" stroke="var(--pigeon-highlight, #b9c1c9)" stroke-width="3" stroke-linecap="round" />
-        <g class="pigeon-wing">
-          <path d="M17 34c7-7 19-5 23 3-3 7-12 11-24 10-2-4-3-9 1-13Z" fill="var(--pigeon-wing, #bdc5ce)" />
-          <path d="m27 32-6 11m13-9-6 11" fill="none" stroke="var(--pigeon-bars, #535e70)" stroke-width="3.5" stroke-linecap="round" />
-          <path d="m18 46 13-2" fill="none" stroke="var(--pigeon-feather, #929dab)" stroke-width="1.5" stroke-linecap="round" />
-        </g>
-        <g class="pigeon-flight-wing">
-          <path d="M34 35C23 32 11 22 3 9q-1-3 2-2l8 4-1-5q2-2 5 2l4 6 1-5q3-1 5 5l2 6 3-3q5 5 6 12Z" fill="var(--pigeon-flight, #b8c3cf)" />
-          <path d="m14 19 13 11m-7-15 12 13" fill="none" stroke="var(--pigeon-flight-bars, #59677b)" stroke-width="3" stroke-linecap="round" />
-        </g>
-        <g class="pigeon-head">
-          <path d="M36 17c-1-6 3-10 9-10 7 0 11 4 10 10-1 6-5 10-11 9-5-1-8-4-8-9Z" fill="var(--pigeon-head, #7c899a)" />
-          <path d="m54 17 7 3-8 2" fill="#404956" />
-          <path d="M53 16q4 0 4 3l-4 1" fill="#eee8df" />
-          <g class="pigeon-eye">
-            <circle cx="49" cy="15" r="3" fill="#e3b887" />
-            <circle cx="49.5" cy="15" r="2" fill="#222d38" />
-            <circle cx="50" cy="14.3" r="0.65" fill="#fff" />
+      <g class="pigeon-breath">
+        <g class="pigeon-body">
+          <path d="M16 35c3-7 12-9 18-10l5-10 13 5-2 12c5 9 0 20-13 21-14 1-25-6-21-18Z" fill="var(--pigeon-breast, #99a3af)" />
+          <path d="M37 24q0-7 5-10l10 6-2 12q-5 5-14 0Z" fill="var(--pigeon-neck, #55887f)" />
+          <path d="M37 28q7 6 13 1l-1 6q-7 3-13-2Z" fill="var(--pigeon-iridescence, #887398)" />
+          <path d="M47 36q6 11-7 14" fill="none" stroke="var(--pigeon-highlight, #b9c1c9)" stroke-width="3" stroke-linecap="round" />
+          <g class="pigeon-wing">
+            <path d="M17 34c7-7 19-5 23 3-3 7-12 11-24 10-2-4-3-9 1-13Z" fill="var(--pigeon-wing, #bdc5ce)" />
+            <path d="m27 32-6 11m13-9-6 11" fill="none" stroke="var(--pigeon-bars, #535e70)" stroke-width="3.5" stroke-linecap="round" />
+            <path d="m18 46 13-2" fill="none" stroke="var(--pigeon-feather, #929dab)" stroke-width="1.5" stroke-linecap="round" />
+          </g>
+          <g class="pigeon-flight-wing">
+            <path d="M34 35C23 32 11 22 3 9q-1-3 2-2l8 4-1-5q2-2 5 2l4 6 1-5q3-1 5 5l2 6 3-3q5 5 6 12Z" fill="var(--pigeon-flight, #b8c3cf)" />
+            <path d="m14 19 13 11m-7-15 12 13" fill="none" stroke="var(--pigeon-flight-bars, #59677b)" stroke-width="3" stroke-linecap="round" />
+          </g>
+          <g class="pigeon-head">
+            <path d="M36 17c-1-6 3-10 9-10 7 0 11 4 10 10-1 6-5 10-11 9-5-1-8-4-8-9Z" fill="var(--pigeon-head, #7c899a)" />
+            <path d="m54 17 7 3-8 2" fill="#404956" />
+            <path d="M53 16q4 0 4 3l-4 1" fill="#eee8df" />
+            <g class="pigeon-eye">
+              <circle cx="49" cy="15" r="3" fill="#e3b887" />
+              <circle cx="49.5" cy="15" r="2" fill="#222d38" />
+              <circle cx="50" cy="14.3" r="0.65" fill="#fff" />
+            </g>
           </g>
         </g>
       </g>
@@ -43,22 +45,23 @@ import { pigeon as definition, maxBirds } from "../pigeon/definition";
 <style>
   .pigeon-perch { position: absolute; inset: 0; pointer-events: none; visibility: hidden; }
   .pigeon-visitor { position: absolute; left: 0; top: 0; width: var(--pigeon-size); height: var(--pigeon-size); visibility: hidden; pointer-events: none; }
-  .pigeon-visitor[data-enhanced]:not([data-flying]):not([data-walking]) { pointer-events: auto; }
-  .pigeon-visitor svg { display: block; overflow: visible; }
+  .pigeon-visitor[data-state="perched"] { pointer-events: auto; }
+  .pigeon-visitor svg { display: block; overflow: visible; transform-box: view-box; transform-origin: 50% 50%; }
   .pigeon-wing, .pigeon-flight-wing { transform-origin: 31px 34px; }
   .pigeon-flight-wing { display: none; }
   .pigeon-head { transform-origin: 42px 25px; }
-  .pigeon-body { transform-origin: 34px 51px; }
+  .pigeon-body, .pigeon-breath { transform-origin: 34px 51px; }
   .pigeon-eye { transform-origin: 49px 15px; }
   .pigeon-feet { transform-origin: 33px 49px; }
   .pigeon-tail { transform-origin: 24px 43px; }
-  .pigeon-visitor[data-state="perched"]:not([data-idle="peck"]) .pigeon-body { animation: pigeon-breathe 4s ease-in-out infinite; }
-  .pigeon-visitor[data-enhanced]:not([data-flying]) .pigeon-eye { animation: pigeon-blink 7s linear infinite; }
+  .pigeon-visitor:not([data-state="suspended"]) .pigeon-breath { animation: pigeon-breathe 4s ease-in-out infinite; }
+  .pigeon-visitor:not([data-state="perched"]) .pigeon-breath, .pigeon-visitor[data-idle="peck"] .pigeon-breath { animation-play-state: paused; }
+  .pigeon-visitor:not([data-state="suspended"]) .pigeon-eye { animation: pigeon-blink 7s linear infinite; }
   .pigeon-visitor[data-appearance="red"] { --pigeon-tail: #745247; --pigeon-breast: #c4aaa0; --pigeon-neck: #9c705f; --pigeon-iridescence: #986d87; --pigeon-wing: #d6c5b6; --pigeon-bars: #8d5545; --pigeon-feather: #ad8b77; --pigeon-flight: #d2bdb0; --pigeon-flight-bars: #8d5545; --pigeon-head: #ac8a7a; }
   .pigeon-visitor[data-appearance="white"] { --pigeon-tail: #b9b8b2; --pigeon-breast: #f0ede5; --pigeon-neck: #d6ddd2; --pigeon-iridescence: #ddd3dd; --pigeon-wing: #f5f2e9; --pigeon-bars: #c6c5bd; --pigeon-feather: #d8d6cd; --pigeon-flight: #eeece3; --pigeon-flight-bars: #b9bab4; --pigeon-head: #e3e3db; }
   .pigeon-visitor[data-appearance="dark"] { --pigeon-tail: #30313b; --pigeon-breast: #535361; --pigeon-neck: #41665e; --pigeon-iridescence: #6c547b; --pigeon-wing: #6b6a78; --pigeon-bars: #30313b; --pigeon-feather: #858491; --pigeon-flight: #777784; --pigeon-flight-bars: #383844; --pigeon-head: #555564; }
-  .pigeon-visitor[data-flying] .pigeon-wing { display: none; }
-  .pigeon-visitor[data-flying] .pigeon-flight-wing { display: block; }
+  .pigeon-visitor[data-state="flying"] .pigeon-wing { display: none; }
+  .pigeon-visitor[data-state="flying"] .pigeon-flight-wing { display: block; }
   @keyframes pigeon-breathe { 50% { transform: scaleY(1.025); } }
   @keyframes pigeon-blink { 0%, 94%, 98%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
   @media (prefers-reduced-motion: reduce) { .pigeon-visitor svg * { animation: none !important; } }
