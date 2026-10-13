@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { movement } from '../src/pigeon/actions';
 import { prepare, start, land, finishGesture, dueMovement, expectSafePerch, scrollTo, runtime } from './helpers/pigeons';
 
 test.describe('loading and motion preferences', () => {
@@ -34,7 +35,39 @@ test.describe('loading and motion preferences', () => {
 });
 
 test.describe('actions and transitions', () => {
-  test('enters from either side with a vertical-to-horizontal swoop, then flies to a photo edge', async ({ page }) => {
+  test('enters from either side with a swoop, keeps short level flights smooth, then flies to a photo edge', async ({ page }) => {
+    // Check the full acceleration vector: arc-length timing alone cannot catch
+    // a sharp turn at peak speed on an oversized, nearly vertical lift arc.
+    for (const direction of [-1, 1]) {
+      let previousDuration = 0;
+      for (const distance of [0, .1, 1, 5, 10, 40, 200]) {
+        const from = { x: 190, y: 230 }, to = { x: from.x + direction * distance, y: from.y };
+        const action = movement(from, to, 'flying')[0];
+        const points = action.keyframes.map(frame => {
+          const coordinates = String(frame.transform).match(/translate\((.*?)px, (.*?)px\)/)!;
+          return { x: Number(coordinates[1]), y: Number(coordinates[2]) };
+        });
+        const duration = Number(action.timing.duration);
+        const dt = duration / 1000 / (points.length - 1);
+        const velocities = points.slice(1).map((point, i) => ({ x: (point.x - points[i].x) / dt, y: (point.y - points[i].y) / dt }));
+        const accelerations = velocities.slice(1).map((velocity, i) => Math.hypot(velocity.x - velocities[i].x, velocity.y - velocities[i].y) / dt);
+        const pathLength = points.slice(1).reduce((sum, point, i) => sum + Math.hypot(point.x - points[i].x, point.y - points[i].y), 0);
+        expect(points[0]).toEqual(from);
+        expect(points.at(-1)!.x).toBeCloseTo(to.x, 8);
+        expect(points.at(-1)!.y).toBeCloseTo(to.y, 8);
+        expect(points.every(point => Number.isFinite(point.x) && Number.isFinite(point.y))).toBe(true);
+        expect(pathLength).toBeLessThanOrEqual(distance * 1.2);
+        expect(Math.max(...accelerations)).toBeLessThan(5400);
+        expect(duration).toBeGreaterThan(previousDuration);
+        if (distance <= 1) expect(duration).toBeLessThan(60);
+        if (distance) {
+          const initialTime = dt * 5;
+          const initialDistance = points.slice(1, 6).reduce((sum, point, i) => sum + Math.hypot(point.x - points[i].x, point.y - points[i].y), 0);
+          expect(2 * initialDistance / initialTime ** 2).toBeCloseTo(1800, -1);
+        }
+        previousDuration = duration;
+      }
+    }
     await start(page);
     const bird = page.locator('.pigeon-visitor');
     const entrances: { travel: number; duration: number; acceleration: number }[] = [];

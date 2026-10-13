@@ -40,7 +40,9 @@ that the scene is absent from preload links.
   are decorative choices, not measurements. All poses end neutral. The manager
   starts each action on one native timeline origin. No animation library or
   frame loop is required. Flights follow a logarithmic vertical progression
-  that flattens into a horizontal approach; level flights retain a lift arc.
+  that flattens into a horizontal approach; level flights use a symmetric lift
+  arc capped at a quarter of the travel distance, so tiny hops stay shallow
+  instead of reversing vertically at peak speed.
   Arc-length timing uses fixed acceleration (1800px/s²) and braking (1500px/s²),
   with a capped cruise speed and slower climbing than descending. Short flights
   reach a lower peak speed; long flights add cruise time, not slower acceleration.

@@ -107,15 +107,18 @@ export function movement(from: { x: number; y: number }, to: { x: number; y: num
   if (kind === 'walking') return walking(from, to, size);
   const distance = Math.hypot(to.x - from.x, to.y - from.y);
   const dy = to.y - from.y;
-  const rise = Math.min(110, 40 + distance * .12);
+  const level = Math.abs(dy) < 1;
+  // A fixed minimum lift makes tiny trips nearly vertical round trips, with
+  // a sharp reversal at peak speed. Scale lift down with the travel distance.
+  const rise = Math.min(110, 40 + distance * .12, distance * .25);
   // Measure the swoop in pixels, then time it by distance travelled rather
   // than applying a trip-wide easing curve (which dilutes long-trip acceleration).
   const path = Array.from({ length: 97 }, (_, index) => {
-    const t = (index / 96) ** 2;
-    const vertical = (Math.log1p(63 * t) - t * 63 / 64) / (Math.log(64) - 63 / 64);
+    const t = level ? index / 96 : (index / 96) ** 2;
+    const vertical = level ? t : (Math.log1p(63 * t) - t * 63 / 64) / (Math.log(64) - 63 / 64);
     return {
       x: from.x + (to.x - from.x) * t,
-      y: from.y + dy * vertical - (Math.abs(dy) < 1 ? Math.sin(Math.PI * vertical) * rise : 0),
+      y: from.y + dy * vertical - (level ? Math.sin(Math.PI * t) * rise : 0),
     };
   });
   const lengths = [0];
