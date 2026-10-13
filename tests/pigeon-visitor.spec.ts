@@ -23,7 +23,7 @@ async function expectSafePerch(page: Page) {
         const r = el.getBoundingClientRect();
         return !(visiblePixels.left < r.right && visiblePixels.right > r.left && visiblePixels.top < r.bottom && visiblePixels.bottom > r.top);
       });
-    return onEdge && clear && getComputedStyle(bird).pointerEvents === 'none' && b.left >= 0 && b.right <= innerWidth && b.top >= 0 && feet < innerHeight;
+    return onEdge && clear && b.left >= 0 && b.right <= innerWidth && b.top >= 0 && feet < innerHeight;
   });
   expect(safe).toBe(true);
 }
@@ -54,7 +54,17 @@ test('flies in from off screen to the header then flies to a photo edge', async 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.clock.install();
   await page.clock.pauseAt(new Date(Date.now() + 1000));
-  await page.addInitScript(() => { Math.random = () => 0; });
+  await page.addInitScript(() => {
+    Math.random = () => 0;
+    // Native animations use real time even with the JS clock paused. Hold each
+    // flight for inspection on slow browsers; land() explicitly finishes it.
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args) {
+      const animation = animate.apply(this, args);
+      if (this.matches('.pigeon-visitor')) animation.pause();
+      return animation;
+    };
+  });
   await page.goto('/pigeons/');
   await page.clock.runFor(2000);
   await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-enhanced', '');
@@ -71,16 +81,17 @@ test('flies in from off screen to the header then flies to a photo edge', async 
   await expectSafePerch(page);
   const before = await page.locator('.pigeon-visitor').evaluate((bird) => (bird as HTMLElement).style.transform);
   await page.clock.runFor(30001);
-  await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-flying', '');
   // Inspect and finish in one browser call: slow cross-process assertions must
   // not let WebKit finish the short native animation before we inspect it.
   const flying = await page.locator('.pigeon-visitor').evaluate((bird) => {
     const animations = bird.getAnimations();
+    const active = bird.hasAttribute('data-flying');
     const wing = getComputedStyle(bird.querySelector('.pigeon-flight-wing')!).display;
     const frames = (animations[0]?.effect as KeyframeEffect)?.getKeyframes().length;
     animations.forEach((a) => a.finish());
-    return { wing, frames };
+    return { active, wing, frames };
   });
+  expect(flying.active).toBe(true);
   expect(flying.wing).toBe('block');
   expect(flying.frames).toBe(9);
   await expect(page.locator('.pigeon-visitor')).not.toHaveAttribute('data-flying');
@@ -91,6 +102,40 @@ test('flies in from off screen to the header then flies to a photo edge', async 
     return [...document.querySelectorAll('[data-pigeon-landing="photo"]')].some((frame) => Math.abs(feet - frame.getBoundingClientRect().top) < 0.5);
   });
   expect(photoLanding).toBe(true);
+});
+
+test('hovering over a perched pigeon flies it to a different safe perch', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.clock.install();
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  await page.addInitScript(() => { Math.random = () => 0; });
+  await page.goto('/pigeons/');
+  await page.clock.runFor(2000);
+  const bird = page.locator('.pigeon-visitor');
+  await expect(bird).toHaveAttribute('data-enhanced', '');
+  await land(page);
+  const before = await bird.boundingBox();
+  await expect(bird).toHaveCSS('pointer-events', 'auto');
+  await page.mouse.move(before!.x + 20, before!.y + 20);
+  // Pause before cross-process assertions so native flight cannot finish early.
+  const flight = await bird.evaluate((element) => {
+    const animation = element.getAnimations()[0];
+    animation?.pause();
+    return { flying: element.hasAttribute('data-flying'), pointerEvents: getComputedStyle(element).pointerEvents };
+  });
+  expect(flight).toEqual({ flying: true, pointerEvents: 'none' });
+  await land(page);
+  const after = await bird.boundingBox();
+  expect(Math.hypot(after!.x - before!.x, after!.y - before!.y)).toBeGreaterThan(60);
+  await expectSafePerch(page);
+  // It can be hovered again after landing; entering does not interrupt flight.
+  await page.mouse.move(after!.x + 20, after!.y + 20);
+  expect(await bird.evaluate((element) => {
+    const flying = element.hasAttribute('data-flying');
+    element.getAnimations().forEach((animation) => animation.finish());
+    return flying;
+  })).toBe(true);
+  await expectSafePerch(page);
 });
 
 test('idle gestures vary between looking, pecking and a half-wing stretch', async ({ page }) => {

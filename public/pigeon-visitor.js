@@ -133,6 +133,7 @@ if (bird && perch) {
     scheduleIdle();
     scheduleFlight();
   };
+  bird.addEventListener('mouseenter', flutter);
   window.addEventListener('resize', settle, { passive: true });
   window.addEventListener('scroll', () => {
     clearTimeout(flightTimer);
