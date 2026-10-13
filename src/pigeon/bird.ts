@@ -13,6 +13,8 @@ export class Bird {
   reservation?: Reservation;
   private animations: Animation[] = [];
   private timer?: number;
+  private pointer?: { x: number; y: number };
+  private pointerFrame?: number;
   private generation = 0;
   private lastIdle = -1;
   private facing: 'left' | 'right' = 'right';
@@ -23,20 +25,43 @@ export class Bird {
       if (this.state === 'perched') this.flight({ x: event.clientX + scrollX, y: event.clientY + scrollY });
     });
     document.addEventListener('pointermove', event => {
-      if (this.state === 'suspended' || this.state === 'flying' || event.pointerType === 'touch') return;
-      const rect = element.getBoundingClientRect();
-      const dx = Math.max(rect.left - event.clientX, 0, event.clientX - rect.right);
-      const dy = Math.max(rect.top - event.clientY, 0, event.clientY - rect.bottom);
-      const distance = Math.hypot(dx, dy);
-      const radius = this.definition.escapeRadius;
-      const reaction = distance <= radius.flight ? 'flying' : distance <= radius.run ? 'running' : distance <= radius.walk ? 'walking' : undefined;
-      if (!reaction || (this.state === 'running' && reaction !== 'flying') || (this.state === 'walking' && reaction === 'walking')) return;
-      // Escalation starts from the visible position, even midway through a step.
-      if (this.state !== 'perched') this.position = { ...this.position!, x: rect.left + scrollX, y: rect.top + scrollY };
-      if (reaction === 'flying') this.flight({ x: event.clientX + scrollX, y: event.clientY + scrollY });
-      else this.walk(reaction, event.clientX + scrollX);
+      if (event.pointerType === 'touch') return;
+      this.pointer = { x: event.clientX, y: event.clientY };
+      this.reactToPointer();
+      this.watchPointer();
+    });
+    const forgetPointer = () => {
+      this.pointer = undefined;
+      cancelAnimationFrame(this.pointerFrame!);
+      this.pointerFrame = undefined;
+    };
+    document.addEventListener('pointerleave', forgetPointer);
+    window.addEventListener('blur', forgetPointer);
+  }
+  private watchPointer() {
+    if (!this.pointer || this.pointerFrame !== undefined || (this.state !== 'walking' && this.state !== 'running')) return;
+    this.pointerFrame = requestAnimationFrame(() => {
+      this.pointerFrame = undefined;
+      this.reactToPointer();
+      this.watchPointer();
     });
   }
+  private reactToPointer() {
+    if (!this.pointer || this.state === 'suspended' || this.state === 'flying') return;
+    const { x, y } = this.pointer;
+    const rect = this.element.getBoundingClientRect();
+    const dx = Math.max(rect.left - x, 0, x - rect.right);
+    const dy = Math.max(rect.top - y, 0, y - rect.bottom);
+    const distance = Math.hypot(dx, dy);
+    const radius = this.definition.escapeRadius;
+    const reaction = distance <= radius.flight ? 'flying' : distance <= radius.run ? 'running' : distance <= radius.walk ? 'walking' : undefined;
+    if (!reaction || (this.state === 'running' && reaction !== 'flying') || (this.state === 'walking' && reaction === 'walking')) return;
+    // Escalation starts from the visible position, even midway through a step.
+    if (this.state !== 'perched') this.position = { ...this.position!, x: rect.left + scrollX, y: rect.top + scrollY };
+    if (reaction === 'flying') this.flight({ x: x + scrollX, y: y + scrollY });
+    else this.walk(reaction, x + scrollX);
+  }
+
   get definition(): BirdDefinition {
     const size = this.element.offsetWidth;
     return { ...this.baseDefinition, size, feet: this.baseDefinition.feet * size / this.baseDefinition.size };
@@ -45,6 +70,7 @@ export class Bird {
     this.state = state;
     this.element.dataset.state = state;
     this.element.style.visibility = state === 'suspended' ? 'hidden' : 'visible';
+    this.watchPointer();
   }
   private after(delay: number) {
     return performance.now() + Math.random() * delay;
@@ -52,6 +78,8 @@ export class Bird {
   private cancelAction() {
     this.generation++;
     clearTimeout(this.timer);
+    cancelAnimationFrame(this.pointerFrame!);
+    this.pointerFrame = undefined;
     this.animations.forEach(a => a.cancel());
     this.animations = [];
     delete this.element.dataset.idle;

@@ -314,22 +314,51 @@ test.describe('actions and transitions', () => {
 
   test('walks, runs and flies away as a pointer approaches, escalating from the visible position', async ({ page }) => {
     await prepare(page);
-    await page.goto('/pigeons/');
-    await page.evaluate(() => {
-      Math.random = () => .25;
-      document.querySelectorAll('[data-pigeon-landing]').forEach(el => el.removeAttribute('data-pigeon-landing'));
-      const main = document.querySelector<HTMLElement>('main')!;
-      main.style.height = '1200px';
-      main.innerHTML = '<div data-pigeon-landing style="position:absolute;left:200px;top:400px;width:1000px;height:1px"></div><div data-pigeon-landing style="position:absolute;left:200px;top:600px;width:1000px;height:1px"></div>';
-    });
-    await enter(page);
-    await land(page);
+    const reset = async () => {
+      await page.goto('/pigeons/');
+      await page.evaluate(() => {
+        Math.random = () => .25;
+        document.querySelectorAll('[data-pigeon-landing]').forEach(el => el.removeAttribute('data-pigeon-landing'));
+        const main = document.querySelector<HTMLElement>('main')!;
+        main.style.height = '1200px';
+        main.innerHTML = '<div data-pigeon-landing style="position:absolute;left:200px;top:400px;width:1000px;height:1px"></div><div data-pigeon-landing style="position:absolute;left:200px;top:600px;width:1000px;height:1px"></div>';
+      });
+      await enter(page);
+      await land(page);
+    };
+    await reset();
     const bird = page.locator('.pigeon-visitor');
     const approach = async (distance: number) => {
       const rect = (await bird.boundingBox())!;
       await page.mouse.move(rect.x + rect.width + distance, rect.y + rect.height / 2);
       return rect;
     };
+    // Move the native animations into a stationary cursor's radius without
+    // another pointer event. Both escalations must use the visible position.
+    await dueMovement(page, 5001);
+    await expect(bird).toHaveAttribute('data-state', 'walking');
+    for (const { distance, state } of [{ distance: 145, state: 'running' }, { distance: 35, state: 'flying' }]) {
+      const before = (await bird.boundingBox())!;
+      const direction = await bird.evaluate(el => {
+        const frames = (el.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
+        return Math.sign(new DOMMatrix(frames.at(-1)!.transform as string).m41 - new DOMMatrix(frames[0].transform as string).m41);
+      });
+      await page.mouse.move(direction > 0 ? before.x + before.width + distance : before.x - distance, before.y + before.height / 2);
+      await expect(bird).toHaveAttribute('data-state', state === 'running' ? 'walking' : 'running');
+      const visible = await bird.evaluate(el => {
+        const animation = el.getAnimations()[0];
+        animation.currentTime = Number(animation.effect!.getTiming().duration) / 2;
+        return el.getBoundingClientRect().x;
+      });
+      await page.clock.runFor(32);
+      await expect(bird).toHaveAttribute('data-state', state);
+      expect(await bird.evaluate(el => {
+        const frames = (el.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
+        return new DOMMatrix(frames[0].transform as string).m41;
+      })).toBeCloseTo(visible, 2);
+    }
+    await page.mouse.move(0, 0);
+    await reset();
     await approach(250);
     await expect(bird).toHaveAttribute('data-state', 'perched');
     const rect = (await bird.boundingBox())!;

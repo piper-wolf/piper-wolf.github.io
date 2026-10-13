@@ -30,7 +30,10 @@ that the scene is absent from preload links.
   A cursor within 240px triggers walking away, within 140px triggers running,
   and within 28px
   triggers flight. Closer approaches interrupt ground movement from its visible
-  position; touch pointers are ignored. Escape paths lead away from the pointer
+  position. Ground movement checks the last cursor position each animation frame,
+  so walking or running into a stationary cursor also triggers escalation.
+  Monitoring stops when ground movement ends; leaving the page or blurring the
+  window clears the cursor. Touch pointers are ignored. Escape paths lead away from the pointer
   along a safe corridor; blocked ground escapes wait instead of triggering flight.
   Pointer-triggered flights prefer safe destinations in the direction away from
   the cursor, falling back to other safe destinations when that direction is unavailable.
@@ -54,7 +57,7 @@ that the scene is absent from preload links.
   and squint. Short bout counts, pauses, stride geometry, and posture angles
   are decorative choices, not measurements. All poses end neutral. The manager
   starts each action on one native timeline origin. No animation library or
-  frame loop is required. Flights follow a logarithmic vertical progression
+  frame loop is required to animate movement. Flights follow a logarithmic vertical progression
   that flattens into a horizontal approach; level flights use a symmetric lift
   arc capped at a quarter of the travel distance, so tiny hops stay shallow
   instead of reversing vertically at peak speed.
