@@ -27,8 +27,17 @@ that the scene is absent from preload links.
   Walks preserve the flight deadline. Landings commit their held endpoint before
   cancellation, then reconcile fresh geometry. Suspension cancels all work;
   stale completions cannot restart it.
-- `actions.ts` returns finite keyframes and timing only. Walking parts complete
-  whole cycles at the movement endpoint; all poses end neutral. The manager
+- `actions.ts` returns finite keyframes and timing only. Walks cover a few
+  steps at 3.6–4.8 steps/s, with alternating planted feet and lifted recovery.
+  Travel duration follows stride length and cadence, scaled to the rendered
+  bird size. Head motion cancels forward travel and body bob during each hold,
+  then thrusts forward; see [Troje & Frost (2000)](https://doi.org/10.1242/jeb.203.5.935).
+  Peck snippets contain 2–5 pecks at 2.6–3.2Hz, two aiming stops, brief beak
+  contact at the perch, partial eye squinting, and an upright recovery pause.
+  [Theunissen et al. (2017)](https://doi.org/10.1242/jeb.147850) informs the stops;
+  [Ostheim et al. (2020)](https://doi.org/10.1242/jeb.223313) informs the rate
+  and squint. Short bout counts, pauses, stride geometry, and posture angles
+  are decorative choices, not measurements. All poses end neutral. The manager
   starts each action on one native timeline origin. No animation library or
   frame loop is required. Flights follow a logarithmic vertical progression
   that flattens into a horizontal approach; level flights retain a lift arc.

@@ -13,9 +13,11 @@ import { pigeon as definition, maxBirds } from "../pigeon/definition";
       </g>
       <g class="pigeon-breath">
         <g class="pigeon-body">
-          <path d="M16 35c3-7 12-9 18-10l5-10 13 5-2 12c5 9 0 20-13 21-14 1-25-6-21-18Z" fill="var(--pigeon-breast, #99a3af)" />
-          <path d="M37 24q0-7 5-10l10 6-2 12q-5 5-14 0Z" fill="var(--pigeon-neck, #55887f)" />
-          <path d="M37 28q7 6 13 1l-1 6q-7 3-13-2Z" fill="var(--pigeon-iridescence, #887398)" />
+          <path d="M16 35c3-7 12-9 18-10q12-2 16 7c5 9 0 20-13 21-14 1-25-6-21-18Z" fill="var(--pigeon-breast, #99a3af)" />
+          <g class="pigeon-neck">
+            <path d="M37 24q0-7 5-10l10 6-2 12q-5 5-14 0Z" fill="var(--pigeon-neck, #55887f)" />
+            <path d="M37 28q7 6 13 1l-1 6q-7 3-13-2Z" fill="var(--pigeon-iridescence, #887398)" />
+          </g>
           <path d="M47 36q6 11-7 14" fill="none" stroke="var(--pigeon-highlight, #b9c1c9)" stroke-width="3" stroke-linecap="round" />
           <g class="pigeon-wing">
             <path d="M17 34c7-7 19-5 23 3-3 7-12 11-24 10-2-4-3-9 1-13Z" fill="var(--pigeon-wing, #bdc5ce)" />
@@ -64,6 +66,7 @@ import { pigeon as definition, maxBirds } from "../pigeon/definition";
   .pigeon-flight-wing { display: none; }
   .pigeon-hand-wing { transform-origin: 20px 19px; }
   .pigeon-head { transform-origin: 42px 25px; }
+  .pigeon-neck { transform-origin: 38px 32px; }
   .pigeon-body, .pigeon-breath { transform-origin: 34px 51px; }
   .pigeon-eye { transform-origin: 49px 15px; }
   .pigeon-feet { transform-origin: 33px 49px; }

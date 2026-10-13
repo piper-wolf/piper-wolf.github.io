@@ -177,11 +177,24 @@ test.describe('actions and transitions', () => {
         const frames = (animation.effect as KeyframeEffect).getKeyframes();
         const from = new DOMMatrix(frames[0].transform as string);
         const to = new DOMMatrix(frames.at(-1)!.transform as string);
+        const duration = Number(animation.effect!.getTiming().duration);
+        const sample = (time: number) => {
+          el.getAnimations({ subtree: true }).filter(a => Number.isFinite(a.effect!.getTiming().iterations)).forEach(a => { a.currentTime = time; });
+          const point = (part: string, x: number, y: number) => new DOMPoint(x, y).matrixTransform(el.querySelector<SVGGraphicsElement>(part)!.getScreenCTM()!);
+          return { head: point('.pigeon-head', 42, 25), back: point('.pigeon-foot-back', 26, 57), front: point('.pigeon-foot-front', 39, 57) };
+        };
+        const firstStep = sample(20), hold = sample(50), thrust = sample(140);
         // Inspect the middle of the actual walking path as well as the landing.
-        animation.currentTime = Number(animation.effect!.getTiming().duration) / 2;
+        sample(duration / 2);
         return {
           walking: el.getAttribute('data-state') === 'walking', flying: el.getAttribute('data-state') === 'flying',
           dx: to.m41 - from.m41, dy: to.m42 - from.m42,
+          speed: Math.abs(to.m41 - from.m41) / (duration / 1000),
+          stableHead: Math.hypot(hold.head.x - firstStep.head.x, hold.head.y - firstStep.head.y),
+          plantedFoot: Math.hypot(hold.back.x - firstStep.back.x, hold.back.y - firstStep.back.y),
+          swingLift: firstStep.back.y - firstStep.front.y,
+          thrust: Math.abs(thrust.head.x - hold.head.x),
+          synchronizedParts: [...el.querySelectorAll('.pigeon-foot-front, .pigeon-foot-back, .pigeon-body, .pigeon-head')].every(part => Number(part.getAnimations()[0].effect!.getTiming().duration) === duration),
           facing: (el.querySelector('svg') as SVGElement).style.transform,
           feet: el.querySelector('.pigeon-foot-front')!.getAnimations().length,
           body: el.querySelector('.pigeon-body')!.getAnimations().length,
@@ -196,6 +209,14 @@ test.describe('actions and transitions', () => {
       expect(walking.walking).toBe(true);
       expect(walking.flying).toBe(false);
       expect(Math.abs(walking.dx)).toBeGreaterThan(20);
+      expect(Math.abs(walking.dx)).toBeLessThanOrEqual(48);
+      expect(walking.speed).toBeGreaterThan(16);
+      expect(walking.speed).toBeLessThan(28);
+      expect(walking.stableHead).toBeLessThan(.05);
+      expect(walking.plantedFoot).toBeLessThan(.05);
+      expect(walking.swingLift).toBeGreaterThan(.2);
+      expect(walking.thrust).toBeGreaterThan(1);
+      expect(walking.synchronizedParts).toBe(true);
       expect(walking.dy).toBe(0);
       expect(walking.facing).toBe(direction);
       expect(walking.feet).toBe(1);
@@ -332,6 +353,35 @@ test.describe('actions and transitions', () => {
       const part = action === 'stretch' ? '.pigeon-wing' : '.pigeon-head';
       expect(await page.locator(part).evaluate(el => el.getAnimations().some(a => a.effect instanceof KeyframeEffect && a.effect.getKeyframes().some(frame => frame.transform)))).toBe(true);
       await expectSafePerch(page);
+      if (action === 'peck') {
+        const peck = await bird.evaluate(el => {
+          const headEffect = el.querySelector('.pigeon-head')!.getAnimations()[0].effect as KeyframeEffect;
+          const frames = headEffect.getKeyframes();
+          const contacts = frames.filter(frame => String(frame.transform).includes('rotate(55deg)'));
+          const duration = Number(headEffect.getTiming().duration);
+          const contactTime = Number(contacts[0].offset) * duration;
+          const nextContact = Number(contacts[2].offset) * duration;
+          el.getAnimations({ subtree: true }).filter(a => Number.isFinite(a.effect!.getTiming().iterations)).forEach(a => { a.currentTime = contactTime; });
+          const tip = new DOMPoint(61, 20).matrixTransform(el.querySelector<SVGGraphicsElement>('.pigeon-head')!.getScreenCTM()!);
+          const rect = el.getBoundingClientRect();
+          return {
+            count: contacts.length / 2, rate: 1000 / (nextContact - contactTime), duration,
+            perchGap: Math.abs(tip.y - rect.top - rect.height * 58 / 64),
+            squint: new DOMMatrix(getComputedStyle(el.querySelector('.pigeon-eye')!).transform).d,
+            stops: frames.filter((frame, i) => i > 0 && frame.transform === frames[i - 1].transform && String(frame.transform).includes('rotate(35deg)')).length,
+            neutralEnds: el.getAnimations({ subtree: true }).filter(a => Number.isFinite(a.effect!.getTiming().iterations)).every(a => (a.effect as KeyframeEffect).getKeyframes().at(-1)!.transform === 'none'),
+          };
+        });
+        expect(peck.count).toBe(2);
+        expect(peck.count).toBeLessThanOrEqual(5);
+        expect(peck.rate).toBeGreaterThanOrEqual(2.6 - .001);
+        expect(peck.rate).toBeLessThanOrEqual(3.2 + .001);
+        expect(peck.perchGap).toBeLessThan(.5);
+        expect(peck.squint).toBeCloseTo(.35, 2);
+        expect(peck.stops).toBe(peck.count);
+        expect(peck.duration).toBeGreaterThan(peck.count / peck.rate * 1000 + 500);
+        expect(peck.neutralEnds).toBe(true);
+      }
       await page.clock.runFor(4000);
       await expect(bird).toHaveAttribute('data-state', 'perched');
       await expect(bird).toHaveAttribute('data-idle', action);
@@ -340,6 +390,31 @@ test.describe('actions and transitions', () => {
       await expect(bird).toHaveAttribute('data-state', action === 'stretch' ? 'flying' : 'walking');
       await land(page);
     }
+    // Revisit pecking with the high random draw: a different count and pace.
+    await page.evaluate(() => { Math.random = () => .999; });
+    await page.clock.runFor(6001);
+    await expect(bird).toHaveAttribute('data-idle', 'peck');
+    const repeat = await bird.evaluate(el => {
+      const effect = el.querySelector('.pigeon-head')!.getAnimations()[0].effect as KeyframeEffect;
+      const contacts = effect.getKeyframes().filter(frame => String(frame.transform).includes('rotate(55deg)'));
+      const duration = Number(effect.getTiming().duration);
+      const at = Number(contacts[0].offset) * duration;
+      el.getAnimations({ subtree: true }).filter(a => Number.isFinite(a.effect!.getTiming().iterations)).forEach(a => { a.currentTime = at; });
+      return { count: contacts.length / 2, rate: 1000 / ((Number(contacts[2].offset) - Number(contacts[0].offset)) * duration),
+        pose: ['head', 'neck'].map(part => getComputedStyle(el.querySelector(`.pigeon-${part}`)!).transform) };
+    });
+    expect(repeat.count).toBe(5);
+    expect(repeat.rate).toBeCloseTo(3.2, 2);
+    await bird.dispatchEvent('mouseenter');
+    await expect(bird).toHaveAttribute('data-state', 'flying');
+    const recovered = await bird.evaluate(el => ['head', 'neck'].map(part => {
+      const target = el.querySelector(`.pigeon-${part}`)!;
+      const initial = getComputedStyle(target).transform;
+      target.getAnimations()[0].currentTime = 120;
+      return { initial, upright: new DOMMatrix(getComputedStyle(target).transform).isIdentity };
+    }));
+    expect(recovered.map(part => part.initial)).toEqual(repeat.pose);
+    expect(recovered.every(part => part.upright)).toBe(true);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect(bird).toHaveAttribute('data-state', 'suspended');
     await expect(bird).not.toHaveAttribute('data-idle');

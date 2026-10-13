@@ -108,8 +108,15 @@ export class Bird {
     }
   }
   private walk() {
-    const targets = this.scene.places(this, this.position).filter(p => p.element === this.position!.element && Math.abs(p.x - this.position!.x) > 20);
-    if (targets.length) this.move(choose(targets), 'walking');
+    const targets = this.scene.places(this, this.position).filter(p => p.element === this.position!.element && Math.abs(p.x - this.position!.x) > this.definition.size * .3);
+    if (targets.length) {
+      const target = choose(targets);
+      // A few steps between inspections, rather than marching an entire edge.
+      // The full candidate corridor was checked; its shorter prefix is safe.
+      const dx = target.x - this.position!.x;
+      const distance = Math.min(Math.abs(dx), this.definition.size * (.6 + Math.random() * .6));
+      this.move({ ...target, x: this.position!.x + Math.sign(dx) * distance }, 'walking');
+    }
     else { this.deadlines.walk = this.after(this.definition.walkDelay); this.wake(); }
   }
   private flight() {
@@ -142,7 +149,7 @@ export class Bird {
       y: scrollY + Math.max(24, Math.min(innerHeight - this.definition.size - 24,
         destination.y - scrollY + (destination.y - scrollY < innerHeight / 2 ? 220 : -220))),
     };
-    const action = movement(from, destination, kind);
+    const action = movement(from, destination, kind, this.definition.size);
     const opening = kind === 'flying' && this.animations.length ?
       new Map(action.filter(a => a.part).map(a => [a.part, getComputedStyle(this.element.querySelector(`.pigeon-${a.part}`)!).transform])) : undefined;
     this.cancelAction();
