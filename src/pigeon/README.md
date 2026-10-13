@@ -9,7 +9,7 @@ that the scene is absent from preload links.
 - `definition.ts` describes dimensions, foot anchors, clearance, gestures, and
   maximum waits (sampled from zero) and escape radii. Birds render at 28px on narrow
   screens and 40px on desktop; geometry scales the foot anchor to the rendered
-  size. Borderless photo tops remain valid perches. Four birds use the same
+  size. Borderless photo tops remain valid perches. Five birds use the same
   behavior; the first is a blue bar rock pigeon. Each companion independently
   chooses from the full catalog in `appearances.ts` with equal probability,
   including blue bar; duplicates are allowed.
@@ -22,8 +22,8 @@ that the scene is absent from preload links.
   positions are validated directly, keeping safe birds in place.
 - `bird.ts` manages one bird's state, facing, position, reservations, deadlines,
   and animations. Entrances randomly face left or right and start beyond the
-  opposite viewport edge, facing inward. Four entrances are scheduled at 100ms,
-  10s, 40s, and 3 minutes after scene initialization or resumption. A cursor within
+  opposite viewport edge, facing inward. Five entrances are scheduled at 100ms,
+  10s, 40s, 90s, and 3 minutes after scene initialization or resumption. A cursor within
   240px triggers walking away, within 140px triggers running, and within 28px
   triggers flight. Closer approaches interrupt ground movement from its visible
   position; touch pointers are ignored. Escape paths lead away from the pointer

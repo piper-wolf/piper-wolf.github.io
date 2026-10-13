@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { entranceDelays } from '../../src/pigeon/definition';
 export const runtime = /\/scene\.[^/]+\.js$/;
 
 // JS deadlines use the fake clock; native animations are held and completed explicitly.
@@ -7,7 +8,7 @@ export async function prepare(page: Page, { width = 1440, height = 900, count = 
   await page.clock.install();
   await page.clock.pauseAt(new Date(Date.now() + 1000));
   await page.addInitScript(({ count, random, colors, facings, separateEdges }) => {
-    // Isolate smaller groups for action/geometry scenarios; production keeps all four.
+    // Isolate smaller groups for action/geometry scenarios; production keeps all five.
     document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.pigeon-visitor').forEach((bird, index) => { if (index >= count) bird.remove(); });
     });
@@ -44,7 +45,7 @@ export async function start(page: Page, options: Parameters<typeof prepare>[1] =
   await enter(page);
   await expect(page.locator('.pigeon-visitor').first()).toHaveAttribute('data-state', 'flying');
   for (let index = 1; index < (options.count ?? 1); index++) {
-    await page.clock.runFor([9900, 30000, 140000][index - 1] - 1);
+    await page.clock.runFor((entranceDelays[index] - entranceDelays[index - 1]) - 1);
     await expect(page.locator('.pigeon-visitor[data-state="flying"]')).toHaveCount(index);
     await page.clock.runFor(1);
     await expect(page.locator('.pigeon-visitor[data-state="flying"]')).toHaveCount(index + 1);

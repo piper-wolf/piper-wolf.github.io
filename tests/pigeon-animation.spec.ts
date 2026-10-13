@@ -796,11 +796,11 @@ test.describe('independent birds and layout', () => {
     await land(page);
     await expectSafePerch(page);
   });
-  test('four pigeons enter at 100ms, 10s, 40s and 3 minutes with independent flights', async ({ page }) => {
-    const count = 4;
-    const selections = (['dark', 'white', 'red'] as const).map(name => (companionAppearances.indexOf(name) + .5) / companionAppearances.length);
-    await start(page, { count, colors: selections, facings: [0, .999, 0, .999] });
-    expect(await page.locator('.pigeon-visitor svg').evaluateAll(birds => birds.map(bird => (bird as SVGElement).style.transform))).toEqual(['', 'scaleX(-1)', '', 'scaleX(-1)']);
+  test('five pigeons enter at 100ms, 10s, 40s, 90s and 3 minutes with independent flights', async ({ page }) => {
+    const count = 5;
+    const selections = (['dark', 'white', 'red', 'checker'] as const).map(name => (companionAppearances.indexOf(name) + .5) / companionAppearances.length);
+    await start(page, { count, colors: selections, facings: [0, .999, 0, .999, 0] });
+    expect(await page.locator('.pigeon-visitor svg').evaluateAll(birds => birds.map(bird => (bird as SVGElement).style.transform))).toEqual(['', 'scaleX(-1)', '', 'scaleX(-1)', '']);
     await land(page);
     await expect(page.locator('.pigeon-visitor')).toHaveCount(count);
     await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(count);
@@ -813,6 +813,7 @@ test.describe('independent birds and layout', () => {
       { appearance: 'dark', wing: 'rgb(89, 99, 115)' },
       { appearance: 'white', wing: 'rgb(243, 242, 235)' },
       { appearance: 'red', wing: 'rgb(203, 183, 171)' },
+      { appearance: 'checker', wing: 'rgb(184, 196, 208)' },
     ]);
     await expectSafePerch(page);
     const nearby = await page.locator('.pigeon-visitor').last().boundingBox();
@@ -836,7 +837,7 @@ test.describe('independent birds and layout', () => {
     await page.clock.runFor(1);
     await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(1);
     for (let index = 1; index < count; index++) {
-      await page.clock.runFor([9900, 30000, 140000][index - 1] - 1);
+      await page.clock.runFor([9900, 30000, 50000, 90000][index - 1] - 1);
       await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(index);
       await page.clock.runFor(1);
       await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(index + 1);
@@ -854,7 +855,7 @@ test.describe('independent birds and layout', () => {
       await page.evaluate(value => { Math.random = () => value; }, (index + .5) / companionAppearances.length);
       await enter(page);
       await expect(page.locator('.pigeon-visitor').first()).toHaveAttribute('data-appearance', 'city');
-      expect(await page.locator('.pigeon-visitor').evaluateAll(birds => birds.slice(1).map(bird => (bird as HTMLElement).dataset.appearance))).toEqual([name, name, name]);
+      expect(await page.locator('.pigeon-visitor').evaluateAll(birds => birds.slice(1).map(bird => (bird as HTMLElement).dataset.appearance))).toEqual(Array(count - 1).fill(name));
       const variant = page.locator('.pigeon-visitor').nth(1);
       const appearance = appearances[name];
       await expect(variant).toHaveAttribute('data-appearance', name);
