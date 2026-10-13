@@ -17,7 +17,8 @@ that the scene is absent from preload links.
   Walks reserve their full corridor; flights reserve their destination. Existing
   positions are validated directly, keeping safe birds in place.
 - `bird.ts` manages one bird's state, facing, position, reservations, deadlines,
-  and animations. One timer wakes the next idle, walk, or flight deadline.
+  and animations. Entrances randomly face left or right and start beyond the
+  opposite viewport edge, facing inward. One timer wakes the next idle, walk, or flight deadline.
   Gestures finish before timed movement; flight takes priority when overdue.
   Hover can interrupt a gesture, preserving its opening pose in the flight.
   Walks preserve the flight deadline. Landings commit their held endpoint before
@@ -26,7 +27,11 @@ that the scene is absent from preload links.
 - `actions.ts` returns finite keyframes and timing only. Walking parts complete
   whole cycles at the movement endpoint; all poses end neutral. The manager
   starts each action on one native timeline origin. No animation library or
-  frame loop is required.
+  frame loop is required. Flights follow a logarithmic vertical progression
+  that flattens into a horizontal approach; level flights retain a lift arc.
+  Duration accounts for horizontal cruise and vertical effort, with slower
+  climbing than descending. Vertical-heavy flights accelerate more gradually,
+  and all flight parts share the movement easing and duration.
 
 `data-state` (`suspended`, `perched`, `walking`, `flying`) and `data-idle` are the
 rendering contract. Translation belongs to the outer element, facing to the SVG,

@@ -43,7 +43,7 @@ import { pigeon as definition, maxBirds } from "../pigeon/definition";
 </div>
 
 <style>
-  .pigeon-perch { position: absolute; inset: 0; pointer-events: none; visibility: hidden; }
+  .pigeon-perch { position: absolute; inset: 0; pointer-events: none; visibility: hidden; overflow-x: clip; }
   .pigeon-visitor { position: absolute; left: 0; top: 0; width: var(--pigeon-size); height: var(--pigeon-size); visibility: hidden; pointer-events: none; }
   .pigeon-visitor[data-state="perched"] { pointer-events: auto; }
   .pigeon-visitor svg { display: block; overflow: visible; transform-box: view-box; transform-origin: 50% 50%; }

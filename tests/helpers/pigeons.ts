@@ -2,17 +2,19 @@ import { expect, type Page } from '@playwright/test';
 export const runtime = /\/scene\.[^/]+\.js$/;
 
 // JS deadlines use the fake clock; native animations are held and completed explicitly.
-export async function prepare(page: Page, { width = 1440, height = 900, count = 1, random = 0, colors = [0, 0], separateEdges = false } = {}) {
+export async function prepare(page: Page, { width = 1440, height = 900, count = 1, random = 0, colors = [0, 0], facings = [0, 0, 0], separateEdges = false } = {}) {
   await page.setViewportSize({ width, height });
   await page.clock.install();
   await page.clock.pauseAt(new Date(Date.now() + 1000));
-  await page.addInitScript(({ count, random, colors, separateEdges }) => {
+  await page.addInitScript(({ count, random, colors, facings, separateEdges }) => {
     let choices = 0;
     Math.random = () => {
       const index = choices++;
       if (index === 0) return (count - .5) / 3;
       if (index < count) return colors[index - 1];
-      return separateEdges && index === count + 1 ? .999 : random;
+      // Each initial destination is followed by its bird's facing choice.
+      if (index >= count && index < count * 3 && (index - count) % 2 === 1) return facings[(index - count - 1) / 2];
+      return separateEdges && index === count + 2 ? .999 : random;
     };
     const animate = Element.prototype.animate;
     Element.prototype.animate = function (...args) {
@@ -20,7 +22,7 @@ export async function prepare(page: Page, { width = 1440, height = 900, count = 
       if (this.closest('.pigeon-visitor')) animation.pause();
       return animation;
     };
-  }, { count, random, colors, separateEdges });
+  }, { count, random, colors, facings, separateEdges });
 }
 
 export async function start(page: Page, options: Parameters<typeof prepare>[1] = {}) {

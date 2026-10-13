@@ -117,7 +117,13 @@ export class Bird {
     } catch { return false; }
   }
   private async move(destination: Point, kind: 'walking' | 'flying') {
-    const from = this.position ?? { ...destination, y: scrollY - this.definition.size - 110 };
+    if (!this.position) this.facing = Math.random() < .5 ? 'right' : 'left';
+    const from = this.position ?? {
+      ...destination,
+      x: this.facing === 'right' ? scrollX - this.definition.size - 32 : scrollX + document.documentElement.clientWidth + 32,
+      y: scrollY + Math.max(24, Math.min(innerHeight - this.definition.size - 24,
+        destination.y - scrollY + (destination.y - scrollY < innerHeight / 2 ? 220 : -220))),
+    };
     const action = movement(from, destination, kind);
     const opening = kind === 'flying' && this.animations.length ?
       new Map(action.filter(a => a.part).map(a => [a.part, getComputedStyle(this.element.querySelector(`.pigeon-${a.part}`)!).transform])) : undefined;

@@ -34,20 +34,54 @@ test.describe('loading and motion preferences', () => {
 });
 
 test.describe('actions and transitions', () => {
-  test('flies in from off screen to the header then flies to a photo edge', async ({ page }) => {
+  test('enters from either side with a vertical-to-horizontal swoop, then flies to a photo edge', async ({ page }) => {
     await start(page);
-    await expect(page.locator('.pigeon-visitor:first-child')).not.toHaveAttribute('data-state', 'suspended');
-    await expect(page.locator('.pigeon-visitor:first-child')).toHaveAttribute('data-state', 'flying');
-    const entrance = await page.locator('.pigeon-visitor:first-child').evaluate((bird) => {
-      const frames = (bird.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
-      const first = new DOMMatrix(frames[0].transform as string);
-      const last = new DOMMatrix(frames.at(-1)!.transform as string);
-      return { fromBottom: first.m42 + 40, toTop: last.m42 };
-    });
-    expect(entrance.fromBottom).toBeLessThan(0);
-    expect(entrance.toTop).toBeGreaterThan(0);
-    await land(page);
-    await expectSafePerch(page);
+    const bird = page.locator('.pigeon-visitor');
+    const entrances: { travel: number; duration: number; easing: string | undefined }[] = [];
+    for (const facing of ['right', 'left']) {
+      if (facing === 'left') {
+        await page.goto('/pigeons/');
+        await page.evaluate(() => {
+          // Choose one bird and the first landing, then a left-facing entrance.
+          let choices = 0;
+          Math.random = () => choices++ === 2 ? .999 : 0;
+        });
+        await page.clock.runFor(2000);
+        await expect(bird).toHaveAttribute('data-state', 'flying');
+      }
+      const entrance = await bird.evaluate(el => {
+        const effect = el.getAnimations()[0].effect as KeyframeEffect;
+        const frames = effect.getKeyframes();
+        const points = frames.map(frame => new DOMMatrix(frame.transform as string));
+        const first = points[0], last = points.at(-1)!;
+        const slope = (a: DOMMatrix, b: DOMMatrix) => Math.abs((b.m42 - a.m42) / (b.m41 - a.m41));
+        return {
+          facing: (el.querySelector('svg') as SVGElement).style.transform,
+          x: first.m41, y: first.m42, endX: last.m41,
+          width: el.getBoundingClientRect().width, viewport: document.documentElement.clientWidth,
+          duration: Number(effect.getTiming().duration), easing: effect.getTiming().easing,
+          scrollWidth: document.documentElement.scrollWidth,
+          height: innerHeight, startSlope: slope(first, points[1]), endSlope: slope(points.at(-2)!, last),
+          monotonicX: points.every((point, i) => !i || (last.m41 > first.m41 ? point.m41 >= points[i - 1].m41 : point.m41 <= points[i - 1].m41)),
+        };
+      });
+      expect(entrance.facing).toBe(facing === 'right' ? '' : 'scaleX(-1)');
+      if (facing === 'right') expect(entrance.x + entrance.width).toBeLessThan(0);
+      else expect(entrance.x).toBeGreaterThan(entrance.viewport);
+      expect(entrance.y).toBeGreaterThan(0);
+      expect(entrance.y + entrance.width).toBeLessThan(entrance.height);
+      expect(entrance.startSlope).toBeGreaterThan(1);
+      expect(entrance.endSlope).toBeLessThan(.1);
+      expect(entrance.monotonicX).toBe(true);
+      expect(entrance.scrollWidth).toBe(entrance.viewport);
+      entrances.push({ travel: Math.abs(entrance.endX - entrance.x), duration: entrance.duration, easing: entrance.easing });
+      await land(page);
+      expect(await bird.locator('svg').evaluate(el => el.style.transform)).toBe(entrance.facing);
+      await expectSafePerch(page);
+    }
+    entrances.sort((a, b) => a.travel - b.travel);
+    expect(entrances[1].duration).toBeGreaterThan(entrances[0].duration);
+    expect(entrances[1].easing).not.toBe(entrances[0].easing);
     const before = await page.locator('.pigeon-visitor:first-child').evaluate((bird) => (bird as HTMLElement).style.transform);
     await dueMovement(page, 10001);
     await land(page);
@@ -66,7 +100,7 @@ test.describe('actions and transitions', () => {
     });
     expect(flying.active).toBe(true);
     expect(flying.wing).toBe('block');
-    expect(flying.frames).toBe(9);
+    expect(flying.frames).toBeGreaterThan(2);
     await expect(page.locator('.pigeon-visitor:first-child')).not.toHaveAttribute('data-state', 'flying');
     expect(await page.locator('.pigeon-visitor:first-child').evaluate((bird) => (bird as HTMLElement).style.transform)).not.toBe(before);
     await expectSafePerch(page);
@@ -153,6 +187,7 @@ test.describe('actions and transitions', () => {
       return new DOMMatrix(frames.at(-1)!.transform as string).m41 - new DOMMatrix(frames[0].transform as string).m41;
     });
     expect(dx).toBe(0);
+    const verticalDuration = await bird.evaluate(el => Number(el.getAnimations()[0].effect!.getTiming().duration));
     await land(page);
     await bird.evaluate(el => {
       const rect = el.getBoundingClientRect();
@@ -163,6 +198,7 @@ test.describe('actions and transitions', () => {
     await page.clock.runFor(200);
     await expect(bird).toHaveAttribute('data-state', 'flying');
     expect(await bird.locator('svg').evaluate(el => el.style.transform)).toBe('scaleX(-1)');
+    expect(await bird.evaluate(el => Number(el.getAnimations()[0].effect!.getTiming().duration))).toBeLessThan(verticalDuration);
     await land(page);
     expect(await bird.locator('svg').evaluate(el => el.style.transform)).toBe('scaleX(-1)');
     await expectSafePerch(page);
@@ -465,7 +501,8 @@ test.describe('independent birds and layout', () => {
   });
   for (const count of [1, 2, 3]) {
     test(`spawns ${count} pigeons with stable palettes and independent flights`, async ({ page }) => {
-      await start(page, { count, colors: [.999, .5] });
+      await start(page, { count, colors: [.999, .5], facings: [0, .999, 0] });
+      expect(await page.locator('.pigeon-visitor svg').evaluateAll(birds => birds.map(bird => (bird as SVGElement).style.transform))).toEqual(['', 'scaleX(-1)', ''].slice(0, count));
       await land(page);
       await expect(page.locator('.pigeon-visitor')).toHaveCount(count);
       await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(count);

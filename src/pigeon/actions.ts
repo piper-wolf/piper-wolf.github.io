@@ -17,10 +17,27 @@ export function gesture(name: Gesture): Action {
 }
 export function movement(from: { x: number; y: number }, to: { x: number; y: number }, kind: 'walking' | 'flying'): Action {
   const distance = Math.hypot(to.x - from.x, to.y - from.y);
-  const duration = kind === 'walking' ? Math.max(1800, Math.min(5000, distance * 28)) : Math.min(2600, 1600 + distance * 1.2);
+  const horizontalTravel = Math.abs(to.x - from.x);
+  const dy = to.y - from.y;
   const rise = Math.min(110, 40 + distance * .12);
+  const verticalTravel = Math.abs(dy) + (Math.abs(dy) < 1 ? 2 * rise : 0);
+  // Horizontal cruise and vertical effort happen together. Climbing takes
+  // longer than descending; takeoff and landing get their own time allowance.
+  const duration = kind === 'walking' ? Math.max(1800, Math.min(5000, distance * 28)) :
+    1200 + Math.max(horizontalTravel / .65, verticalTravel / (dy < -1 ? .3 : dy > 1 ? .45 : .35));
+  const verticalShare = verticalTravel / (horizontalTravel + verticalTravel || 1);
+  const easing = kind === 'walking' ? 'linear' : `cubic-bezier(${.2 + .2 * verticalShare}, 0, .65, 1)`;
   const keyframes = kind === 'walking' ? frames([transform(from), transform(to)]) :
-    [0, .1, .25, .4, .55, .7, .85, .95, 1].map(t => ({ offset: t, transform: transform({ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t - Math.sin(Math.PI * t) * rise }) }));
+    Array.from({ length: 49 }, (_, index) => {
+      // Sample more densely near the steep start. Subtract the endpoint slope
+      // from the logarithm so vertical travel settles to zero at the perch.
+      const t = (index / 48) ** 2;
+      const vertical = (Math.log1p(63 * t) - t * 63 / 64) / (Math.log(64) - 63 / 64);
+      return { offset: t, transform: transform({
+        x: from.x + (to.x - from.x) * t,
+        y: from.y + dy * vertical - (Math.abs(dy) < 1 ? Math.sin(Math.PI * vertical) * rise : 0),
+      }) };
+    });
   const parts: Part[] = kind === 'walking' ? [
     ['foot-back', frames(['none', 'translateX(2px)', 'translate(-2px,-2px)', 'none'])],
     ['foot-front', frames(['none', 'translate(-2px,-2px)', 'translateX(2px)', 'none'])],
@@ -33,8 +50,8 @@ export function movement(from: { x: number; y: number }, to: { x: number; y: num
     ['feet', frames(['none', 'translateY(-3px) scaleY(.55)', 'translateY(-3px) scaleY(.55)', 'none'])],
     ['tail', frames(['none', 'rotate(8deg)', 'rotate(8deg)', 'none'])],
   ];
-  return [{ part: '', keyframes, timing: { duration, easing: kind === 'walking' ? 'linear' : 'ease-in-out' } }, ...parts.map(([part, keyframes]) => {
+  return [{ part: '', keyframes, timing: { duration, easing } }, ...parts.map(([part, keyframes]) => {
     const iterations = kind === 'walking' ? Math.max(1, Math.round(duration / 360)) * (part === 'body' ? 2 : 1) : 1;
-    return { part, keyframes, timing: { duration: duration / iterations, iterations, easing: kind === 'walking' ? 'linear' : 'ease-in-out' } };
+    return { part, keyframes, timing: { duration: duration / iterations, iterations, easing } };
   })];
 }
