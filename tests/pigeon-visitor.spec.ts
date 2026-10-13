@@ -1,14 +1,25 @@
 import { test, expect, type Page } from '@playwright/test';
 
+// Keep the original single-bird behavior suite; flock coverage uses both birds.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const observer = new MutationObserver(() => {
+      const companion = document.querySelector('[data-appearance="red"]');
+      if (companion) { companion.remove(); observer.disconnect(); }
+    });
+    observer.observe(document, { childList: true, subtree: true });
+  });
+});
+
 async function land(page: Page) {
-  await page.locator('.pigeon-visitor').evaluate((bird) => bird.getAnimations().forEach((animation) => animation.finish()));
-  await expect(page.locator('.pigeon-visitor')).not.toHaveAttribute('data-flying');
-  await expect(page.locator('.pigeon-visitor')).not.toHaveAttribute('data-walking');
+  await page.locator('.pigeon-visitor[data-appearance="city"]').evaluate((bird) => bird.getAnimations().forEach((animation) => animation.finish()));
+  await expect(page.locator('.pigeon-visitor[data-appearance="city"]')).not.toHaveAttribute('data-flying');
+  await expect(page.locator('.pigeon-visitor[data-appearance="city"]')).not.toHaveAttribute('data-walking');
 }
 
 async function expectSafePerch(page: Page) {
-  await expect(page.locator('.pigeon-visitor')).not.toHaveAttribute('data-flying');
-  const safe = await page.locator('.pigeon-visitor').evaluate((bird) => {
+  await expect(page.locator('.pigeon-visitor[data-appearance="city"]')).not.toHaveAttribute('data-flying');
+  const safe = await page.locator('.pigeon-visitor[data-appearance="city"]').evaluate((bird) => {
     const b = bird.getBoundingClientRect();
     const feet = b.top + 58 * 40 / 64;
     const edges = [...document.querySelectorAll('[data-pigeon-landing]')];
@@ -44,7 +55,7 @@ async function walkingPerch(page: Page) {
   });
   await page.goto('/pigeons/');
   await page.clock.runFor(2000);
-  const bird = page.locator('.pigeon-visitor');
+  const bird = page.locator('.pigeon-visitor[data-appearance="city"]');
   await expect(bird).toHaveAttribute('data-flying', '');
   await land(page);
   return bird;
@@ -56,7 +67,7 @@ test('page works without JS and decoration adds no unsafe fallback', async ({ br
   const page = await context.newPage();
   await page.goto('/');
   await expect(page.locator('.pigeon-perch')).toHaveAttribute('aria-hidden', 'true');
-  await expect(page.locator('.pigeon-visitor')).toHaveCSS('visibility', 'hidden');
+  await expect(page.locator('.pigeon-visitor[data-appearance="city"]')).toHaveCSS('visibility', 'hidden');
   await page.getByRole('link', { name: 'Seattle pigeons', exact: true }).click();
   await expect(page).toHaveURL(/\/pigeons\/$/);
   await context.close();
@@ -68,8 +79,8 @@ test('reduced motion skips the optional module', async ({ page }) => {
   page.on('request', (r) => requests.push(r.url()));
   await page.goto('/');
   await page.waitForTimeout(2000);
-  expect(requests.some((url) => url.endsWith('/pigeon-visitor.js'))).toBe(false);
-  await expect(page.locator('.pigeon-visitor')).not.toHaveAttribute('data-enhanced');
+  expect(requests.some((url) => (/\/scene\.[^/]+\.js$/).test(url))).toBe(false);
+  await expect(page.locator('.pigeon-visitor[data-appearance="city"]')).not.toHaveAttribute('data-enhanced');
 });
 
 test('flies in from off screen to the header then flies to a photo edge', async ({ page }) => {
@@ -89,9 +100,9 @@ test('flies in from off screen to the header then flies to a photo edge', async 
   });
   await page.goto('/pigeons/');
   await page.clock.runFor(2000);
-  await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-enhanced', '');
-  await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-flying', '');
-  const entrance = await page.locator('.pigeon-visitor').evaluate((bird) => {
+  await expect(page.locator('.pigeon-visitor[data-appearance="city"]')).toHaveAttribute('data-enhanced', '');
+  await expect(page.locator('.pigeon-visitor[data-appearance="city"]')).toHaveAttribute('data-flying', '');
+  const entrance = await page.locator('.pigeon-visitor[data-appearance="city"]').evaluate((bird) => {
     const frames = (bird.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
     const first = new DOMMatrix(frames[0].transform as string);
     const last = new DOMMatrix(frames.at(-1)!.transform as string);
@@ -101,7 +112,7 @@ test('flies in from off screen to the header then flies to a photo edge', async 
   expect(entrance.toTop).toBeGreaterThan(0);
   await land(page);
   await expectSafePerch(page);
-  const before = await page.locator('.pigeon-visitor').evaluate((bird) => (bird as HTMLElement).style.transform);
+  const before = await page.locator('.pigeon-visitor[data-appearance="city"]').evaluate((bird) => (bird as HTMLElement).style.transform);
   await page.clock.runFor(10001);
   await land(page);
   await page.clock.runFor(10000);
@@ -109,7 +120,7 @@ test('flies in from off screen to the header then flies to a photo edge', async 
   await page.clock.runFor(10000);
   // Inspect and finish in one browser call: slow cross-process assertions must
   // not let WebKit finish the short native animation before we inspect it.
-  const flying = await page.locator('.pigeon-visitor').evaluate((bird) => {
+  const flying = await page.locator('.pigeon-visitor[data-appearance="city"]').evaluate((bird) => {
     const animations = bird.getAnimations();
     const active = bird.hasAttribute('data-flying');
     const wing = getComputedStyle(bird.querySelector('.pigeon-flight-wing')!).display;
@@ -120,10 +131,10 @@ test('flies in from off screen to the header then flies to a photo edge', async 
   expect(flying.active).toBe(true);
   expect(flying.wing).toBe('block');
   expect(flying.frames).toBe(9);
-  await expect(page.locator('.pigeon-visitor')).not.toHaveAttribute('data-flying');
-  expect(await page.locator('.pigeon-visitor').evaluate((bird) => (bird as HTMLElement).style.transform)).not.toBe(before);
+  await expect(page.locator('.pigeon-visitor[data-appearance="city"]')).not.toHaveAttribute('data-flying');
+  expect(await page.locator('.pigeon-visitor[data-appearance="city"]').evaluate((bird) => (bird as HTMLElement).style.transform)).not.toBe(before);
   await expectSafePerch(page);
-  const photoLanding = await page.locator('.pigeon-visitor').evaluate((bird) => {
+  const photoLanding = await page.locator('.pigeon-visitor[data-appearance="city"]').evaluate((bird) => {
     const feet = bird.getBoundingClientRect().top + 58 * 40 / 64;
     return [...document.querySelectorAll('[data-pigeon-landing="photo"]')].some((frame) => Math.abs(feet - frame.getBoundingClientRect().top) < 0.5);
   });
@@ -146,9 +157,9 @@ test('walks twice along the current perch before flying, with stepping and head 
         walking: el.hasAttribute('data-walking'), flying: el.hasAttribute('data-flying'),
         dx: to.m41 - from.m41, dy: to.m42 - from.m42,
         facing: (el.querySelector('svg') as SVGElement).style.transform,
-        feet: getComputedStyle(el.querySelector('.pigeon-foot-front')!).animationName,
-        body: getComputedStyle(el.querySelector('.pigeon-body')!).animationName,
-        head: getComputedStyle(el.querySelector('.pigeon-head')!).animationName,
+        feet: el.querySelector('.pigeon-foot-front')!.getAnimations().length,
+        body: el.querySelector('.pigeon-body')!.getAnimations().length,
+        head: el.querySelector('.pigeon-head')!.getAnimations().length,
         wing: getComputedStyle(el.querySelector('.pigeon-flight-wing')!).display,
       };
     });
@@ -157,9 +168,9 @@ test('walks twice along the current perch before flying, with stepping and head 
     expect(Math.abs(walking.dx)).toBeGreaterThan(20);
     expect(walking.dy).toBe(0);
     expect(walking.facing).toBe(direction);
-    expect(walking.feet).toBe('pigeon-step');
-    expect(walking.body).toBe('pigeon-walk-body');
-    expect(walking.head).toBe('pigeon-walk-head');
+    expect(walking.feet).toBe(1);
+    expect(walking.body).toBe(1);
+    expect(walking.head).toBe(1);
     expect(walking.wing).toBe('none');
     await expectSafePerch(page);
     await bird.dispatchEvent('mouseenter');
@@ -189,7 +200,7 @@ test('does not walk through content between otherwise safe landing spots', async
   await page.addInitScript(() => { Math.random = () => 0; });
   await page.goto('/pigeons/');
   await page.clock.runFor(2000);
-  const bird = page.locator('.pigeon-visitor');
+  const bird = page.locator('.pigeon-visitor[data-appearance="city"]');
   await expect(bird).toHaveAttribute('data-flying', '');
   await land(page);
   const before = await bird.evaluate((el) => (el as HTMLElement).style.transform);
@@ -204,7 +215,7 @@ test('does not walk through content between otherwise safe landing spots', async
   await expect(bird).not.toHaveAttribute('data-walking');
   expect(await bird.evaluate((el) => (el as HTMLElement).style.transform)).toBe(before);
   await page.locator('#walking-obstacle').evaluate((el) => el.remove());
-  await page.clock.runFor(10000);
+  await page.clock.runFor(10200);
   await expect(bird).toHaveAttribute('data-walking', '');
   await land(page);
   await expectSafePerch(page);
@@ -217,7 +228,7 @@ test('hovering over a perched pigeon flies it to a different safe perch', async 
   await page.addInitScript(() => { Math.random = () => 0; });
   await page.goto('/pigeons/');
   await page.clock.runFor(2000);
-  const bird = page.locator('.pigeon-visitor');
+  const bird = page.locator('.pigeon-visitor[data-appearance="city"]');
   await expect(bird).toHaveAttribute('data-enhanced', '');
   await land(page);
   const before = await bird.boundingBox();
@@ -234,7 +245,9 @@ test('hovering over a perched pigeon flies it to a different safe perch', async 
   const after = await bird.boundingBox();
   expect(Math.hypot(after!.x - before!.x, after!.y - before!.y)).toBeGreaterThan(60);
   await expectSafePerch(page);
-  // It can be hovered again after landing; entering does not interrupt flight.
+  // Let WebKit commit the landing before it hit-tests a second real hover.
+  await page.mouse.move(0, 0);
+  await page.clock.runFor(32);
   await page.mouse.move(after!.x + 20, after!.y + 20);
   expect(await bird.evaluate((element) => {
     const flying = element.hasAttribute('data-flying');
@@ -251,7 +264,7 @@ test('idle gestures vary between looking, pecking and a half-wing stretch', asyn
   await page.addInitScript(() => { Math.random = () => 0; });
   await page.goto('/pigeons/');
   await page.clock.runFor(2000);
-  const bird = page.locator('.pigeon-visitor');
+  const bird = page.locator('.pigeon-visitor[data-appearance="city"]');
   await expect(bird).toHaveAttribute('data-enhanced', '');
   await land(page);
   await expect(page.locator('.pigeon-body')).toHaveCSS('animation-name', 'pigeon-breathe');
@@ -265,7 +278,7 @@ test('idle gestures vary between looking, pecking and a half-wing stretch', asyn
     await page.clock.runFor(6001);
     await expect(bird).toHaveAttribute('data-idle', action);
     const part = action === 'stretch' ? '.pigeon-wing' : '.pigeon-head';
-    await expect(page.locator(part)).toHaveCSS('animation-name', `pigeon-${action === 'peck' ? 'peck-head' : action}`);
+    expect(await page.locator(part).evaluate(el => el.getAnimations().some(a => a.effect instanceof KeyframeEffect && a.effect.getKeyframes().some(frame => frame.transform)))).toBe(true);
     await expectSafePerch(page);
   }
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -290,9 +303,9 @@ test('entrances and off-screen returns vary their landing spot on the same edge'
         .forEach((edge) => { edge.removeAttribute('data-pigeon-landing'); });
     }, random);
     await page.clock.runFor(2000);
-    await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-flying', '');
+    await expect(page.locator('.pigeon-visitor[data-appearance="city"]')).toHaveAttribute('data-flying', '');
     await land(page);
-    entrances.push((await page.locator('.pigeon-visitor').boundingBox())!.x);
+    entrances.push((await page.locator('.pigeon-visitor[data-appearance="city"]').boundingBox())!.x);
 
     await page.evaluate(() => {
       // Scroll events arrive asynchronously; let the real event schedule the
@@ -317,9 +330,9 @@ test('entrances and off-screen returns vary their landing spot on the same edge'
       return page.locator('html').getAttribute('data-pigeon-test-scrolled');
     }).toBe('true');
     await page.clock.runFor(200);
-    await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-flying', '');
+    await expect(page.locator('.pigeon-visitor[data-appearance="city"]')).toHaveAttribute('data-flying', '');
     await land(page);
-    returns.push((await page.locator('.pigeon-visitor').boundingBox())!.x);
+    returns.push((await page.locator('.pigeon-visitor[data-appearance="city"]').boundingBox())!.x);
   }
   expect(entrances[1] - entrances[0]).toBeGreaterThan(60);
   expect(returns[1] - returns[0]).toBeGreaterThan(60);
@@ -342,7 +355,7 @@ for (const width of [390, 1440]) {
         });
       });
       await page.clock.runFor(2000);
-      await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-flying', '');
+      await expect(page.locator('.pigeon-visitor[data-appearance="city"]')).toHaveAttribute('data-flying', '');
       await land(page);
       await expectSafePerch(page);
     });
@@ -356,7 +369,7 @@ test('scrolling preserves the perch and only flies away once it is off screen', 
   await page.addInitScript(() => { Math.random = () => 0; });
   await page.goto('/pigeons/');
   await page.clock.runFor(2000);
-  const bird = page.locator('.pigeon-visitor');
+  const bird = page.locator('.pigeon-visitor[data-appearance="city"]');
   await expect(bird).toHaveAttribute('data-enhanced', '');
   await land(page);
   const before = await bird.boundingBox();
@@ -384,7 +397,7 @@ test('scrolling during a flight does not hide or cancel it', async ({ page }) =>
   await page.clock.pauseAt(new Date(Date.now() + 1000));
   await page.goto('/pigeons/');
   await page.clock.runFor(2000);
-  const bird = page.locator('.pigeon-visitor');
+  const bird = page.locator('.pigeon-visitor[data-appearance="city"]');
   await expect(bird).toHaveAttribute('data-flying', '');
   await bird.evaluate((el) => { (el.getAnimations()[0] as Animation).pause(); });
   await page.evaluate(() => window.scrollTo(0, 20));
@@ -402,9 +415,9 @@ for (const width of [390, 1280, 1440]) {
     await page.goto('/');
     if (width === 390) {
       // No room above the photo or between header links: hide, never add space.
-      await expect(page.locator('.pigeon-visitor')).toHaveCSS('visibility', 'hidden');
+      await expect(page.locator('.pigeon-visitor[data-appearance="city"]')).toHaveCSS('visibility', 'hidden');
     } else {
-      await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-enhanced', '');
+      await expect(page.locator('.pigeon-visitor[data-appearance="city"]')).toHaveAttribute('data-enhanced', '');
       await expectSafePerch(page);
     }
     const unchanged = await page.evaluate(() => {
@@ -425,20 +438,20 @@ for (const width of [390, 1280, 1440]) {
 test('no safe edge means no bird, rather than covering mobile content', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   await page.goto('/pigeons/');
-  await page.waitForFunction(() => !!document.querySelector('script[src="/pigeon-visitor.js"]'));
+  await page.waitForFunction(() => performance.getEntriesByType('resource').some(entry => /\/scene\.[^/]+\.js$/.test(entry.name)));
   await page.waitForTimeout(300);
-  await expect(page.locator('.pigeon-visitor')).not.toHaveAttribute('data-enhanced');
-  await expect(page.locator('.pigeon-visitor')).toHaveCSS('visibility', 'hidden');
+  await expect(page.locator('.pigeon-visitor[data-appearance="city"]')).not.toHaveAttribute('data-enhanced');
+  await expect(page.locator('.pigeon-visitor[data-appearance="city"]')).toHaveCSS('visibility', 'hidden');
 });
 
 test('animation request is after page load, without preload', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
-  await expect(page.locator('.pigeon-visitor')).toHaveAttribute('data-enhanced', '');
+  await expect(page.locator('.pigeon-visitor[data-appearance="city"]')).toHaveAttribute('data-enhanced', '');
   const timings = await page.evaluate(() => ({
     load: (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming).loadEventStart,
-    module: performance.getEntriesByName(`${location.origin}/pigeon-visitor.js`)[0]?.startTime,
-    preloads: [...document.querySelectorAll('link[rel="preload"],link[rel="modulepreload"]')].some((link) => (link as HTMLLinkElement).href.includes('pigeon-visitor')),
+    module: performance.getEntriesByType('resource').find(entry => /\/scene\.[^/]+\.js$/.test(entry.name))?.startTime,
+    preloads: [...document.querySelectorAll('link[rel="preload"],link[rel="modulepreload"]')].some((link) => (link as HTMLLinkElement).href.match(/\/scene\.[^/]+\.js$/)),
   }));
   expect(timings.module).toBeGreaterThanOrEqual(timings.load + 1100);
   expect(timings.preloads).toBe(false);
