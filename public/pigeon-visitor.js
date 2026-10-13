@@ -6,8 +6,9 @@ const motion = matchMedia('(prefers-reduced-motion: reduce)');
 if (bird && perch) {
   const size = 40;
   const feet = 58 * size / 64;
-  let flightTimer, idleTimer, idleEnd, scrollTimer, flight, position;
+  let flightTimer, idleTimer, idleEnd, scrollTimer, walkTimer, movement, position;
   let lastIdle = -1;
+  let needsResettle = false;
 
   const stopIdle = () => {
     clearTimeout(idleTimer);
@@ -16,19 +17,21 @@ if (bird && perch) {
   };
   const hide = () => {
     clearTimeout(flightTimer);
+    clearTimeout(walkTimer);
     stopIdle();
-    if (flight) {
-      flight.onfinish = null;
-      flight.cancel();
-      flight = undefined;
+    if (movement) {
+      movement.onfinish = null;
+      movement.cancel();
+      movement = undefined;
     }
     delete bird.dataset.flying;
+    delete bird.dataset.walking;
     perch.style.visibility = 'hidden';
     delete bird.dataset.enhanced;
   };
 
   const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
-  const places = () => {
+  const places = (walkFrom) => {
     const width = document.documentElement.clientWidth;
     // Text and controls are off limits, including their touch targets. Image-link
     // wrappers include the frame border, so test the actual image pixels instead.
@@ -52,7 +55,10 @@ if (bird && perch) {
       for (const fraction of [0.2, 0.5, 0.8]) {
         const x = left + 12 + (right - left - 64) * fraction;
         const y = line - feet;
-        const clearance = { left: x - 10, right: x + size + 14, top: y - 6, bottom: line + 3 };
+        // Walking needs the entire corridor clear, not just its endpoints.
+        const sameEdge = walkFrom?.element === element;
+        const fromX = sameEdge ? walkFrom.x - scrollX : x;
+        const clearance = { left: Math.min(x, fromX) - 10, right: Math.max(x, fromX) + size + 14, top: y - 6, bottom: line + 3 };
         if (!blockers.some((r) => overlaps(clearance, r))) result.push({ x: x + scrollX, y: y + scrollY, element, fraction });
       }
     }
@@ -61,7 +67,7 @@ if (bird && perch) {
 
   const transform = (point) => `translate(${point.x}px, ${point.y}px)`;
   const idle = () => {
-    if (document.hidden || motion.matches || flight || !position) return;
+    if (document.hidden || motion.matches || movement || !position) return;
     // Never repeat the last action; breathing/blinking continue between gestures.
     lastIdle = (lastIdle + 1 + Math.floor(Math.random() * 2)) % 3;
     bird.dataset.idle = ['look', 'peck', 'stretch'][lastIdle];
@@ -70,8 +76,33 @@ if (bird && perch) {
   const scheduleIdle = () => { idleTimer = setTimeout(idle, 6000 + Math.random() * 8000); };
   const scheduleFlight = () => { flightTimer = setTimeout(flutter, 30000 + Math.random() * 30000); };
 
+  const scheduleWalk = () => { walkTimer = setTimeout(walk, 10000 + Math.random() * 8000); };
+  const walk = () => {
+    if (document.hidden || motion.matches || movement || !position) return;
+    const targets = places(position).filter((p) => p.element === position.element && Math.abs(p.x - position.x) > 20);
+    if (!targets.length) { scheduleWalk(); return; }
+    const destination = targets[Math.floor(Math.random() * targets.length)];
+    stopIdle();
+    bird.querySelector('svg').style.transform = destination.x >= position.x ? '' : 'scaleX(-1)';
+    bird.dataset.walking = '';
+    const duration = Math.max(1800, Math.min(5000, Math.abs(destination.x - position.x) * 28));
+    movement = bird.animate([
+      { transform: transform(position) },
+      { transform: transform(destination) },
+    ], { duration, easing: 'linear' });
+    movement.onfinish = () => {
+      position = destination;
+      bird.style.transform = transform(position);
+      delete bird.dataset.walking;
+      movement = undefined;
+      if (!scrollTimer) settle(needsResettle);
+    };
+  };
+
   const flutter = () => {
-    if (document.hidden || motion.matches || flight || !position) return;
+    if (document.hidden || motion.matches || !position) return;
+    // A due flight waits for the current walk to finish.
+    if (movement) { flightTimer = setTimeout(flutter, 1000); return; }
     const targets = places().filter((p) => Math.hypot(p.x - position.x, p.y - position.y) > 60);
     if (!targets.length) { scheduleFlight(); return; }
     // Prefer another horizontal edge, but a short hop along this one is fine.
@@ -83,6 +114,7 @@ if (bird && perch) {
 
   const flyTo = (destination) => {
     clearTimeout(flightTimer);
+    clearTimeout(walkTimer);
     const from = position ?? { x: destination.x, y: scrollY - size - 110 };
     stopIdle();
     bird.style.transform = transform(from);
@@ -101,23 +133,25 @@ if (bird && perch) {
         y: from.y + (destination.y - from.y) * t - Math.sin(Math.PI * t) * rise,
       }),
     }));
-    flight = bird.animate(frames, { duration, easing: 'ease-in-out' });
-    flight.onfinish = () => {
+    movement = bird.animate(frames, { duration, easing: 'ease-in-out' });
+    movement.onfinish = () => {
       position = destination;
       bird.style.transform = transform(position);
       delete bird.dataset.flying;
-      flight = undefined;
+      movement = undefined;
       if (!scrollTimer) settle();
     };
   };
 
-  const settle = () => {
+  const settle = (resetFlight = true) => {
     clearTimeout(scrollTimer);
     scrollTimer = undefined;
-    clearTimeout(flightTimer);
+    if (resetFlight) clearTimeout(flightTimer);
+    clearTimeout(walkTimer);
     stopIdle();
     if (motion.matches || document.hidden) { hide(); return; }
-    if (flight) return;
+    if (movement) { needsResettle = true; return; }
+    needsResettle = false;
     const targets = places();
     // Re-measure the same perch after layout changes, without moving on scroll.
     const current = targets.find((p) => p.element === position?.element && p.fraction === position.fraction);
@@ -131,11 +165,13 @@ if (bird && perch) {
     perch.style.visibility = 'visible';
     bird.dataset.enhanced = '';
     scheduleIdle();
-    scheduleFlight();
+    scheduleWalk();
+    if (resetFlight) scheduleFlight();
   };
-  bird.addEventListener('mouseenter', flutter);
+  bird.addEventListener('mouseenter', () => { if (!movement) flutter(); });
   window.addEventListener('resize', settle, { passive: true });
   window.addEventListener('scroll', () => {
+    clearTimeout(walkTimer);
     clearTimeout(flightTimer);
     stopIdle();
     clearTimeout(scrollTimer);

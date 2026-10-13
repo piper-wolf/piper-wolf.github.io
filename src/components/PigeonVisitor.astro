@@ -4,7 +4,10 @@
     <svg viewBox="0 0 64 64" width="40" height="40" focusable="false">
       <!-- Tapered tail, plump breast, small head, short beak and pink toes. -->
       <path class="pigeon-tail" d="M24 39 5 47q-2 2 1 3l22-3" fill="#525b6a" />
-      <path class="pigeon-feet" d="m27 49-1 8m0-1-5 2m5-2 5 2m9-9-1 8m0-1-5 2m5-2 5 2" fill="none" stroke="#c17a83" stroke-width="2" stroke-linecap="round" />
+      <g class="pigeon-feet" fill="none" stroke="#c17a83" stroke-width="2" stroke-linecap="round">
+        <path class="pigeon-foot-back" d="m27 49-1 8m0-1-5 2m5-2 5 2" />
+        <path class="pigeon-foot-front" d="m40 49-1 8m0-1-5 2m5-2 5 2" />
+      </g>
       <g class="pigeon-body">
         <path d="M16 35c3-7 12-9 18-10l5-10 13 5-2 12c5 9 0 20-13 21-14 1-25-6-21-18Z" fill="#99a3af" />
         <path d="M37 24q0-7 5-10l10 6-2 12q-5 5-14 0Z" fill="#55887f" />
@@ -37,7 +40,7 @@
 <style>
   .pigeon-perch { position: absolute; inset: 0; pointer-events: none; visibility: hidden; }
   .pigeon-visitor { position: absolute; left: 0; top: 0; width: 40px; height: 40px; pointer-events: none; }
-  .pigeon-visitor[data-enhanced]:not([data-flying]) { pointer-events: auto; }
+  .pigeon-visitor[data-enhanced]:not([data-flying]):not([data-walking]) { pointer-events: auto; }
   .pigeon-visitor svg { display: block; overflow: visible; }
   .pigeon-wing, .pigeon-flight-wing { transform-origin: 31px 34px; }
   .pigeon-flight-wing { display: none; }
@@ -57,6 +60,14 @@
   .pigeon-visitor[data-flying] .pigeon-body { animation: pigeon-flight-body var(--flight-duration) ease-in-out; }
   .pigeon-visitor[data-flying] .pigeon-feet { animation: pigeon-tuck var(--flight-duration) ease-in-out; }
   .pigeon-visitor[data-flying] .pigeon-tail { transform: rotate(8deg); }
+  .pigeon-visitor[data-walking] .pigeon-foot-back,
+  .pigeon-visitor[data-walking] .pigeon-foot-front { animation: pigeon-step 360ms linear infinite; }
+  .pigeon-visitor[data-walking] .pigeon-foot-front { animation-delay: -180ms; }
+  .pigeon-visitor[data-enhanced][data-walking] .pigeon-body { animation: pigeon-walk-body 180ms ease-in-out infinite; }
+  .pigeon-visitor[data-walking] .pigeon-head { animation: pigeon-walk-head 360ms linear infinite; }
+  @keyframes pigeon-step { 0%, 100% { transform: translateX(2px); } 50% { transform: translate(-2px, -2px); } }
+  @keyframes pigeon-walk-body { 50% { transform: translateY(-1px); } }
+  @keyframes pigeon-walk-head { 0%, 100% { transform: translateX(-1px); } 50% { transform: translateX(2px); } }
   @keyframes pigeon-breathe { 50% { transform: scaleY(1.025); } }
   @keyframes pigeon-look { 30% { transform: translateY(-1px) rotate(-9deg); } 65% { transform: rotate(8deg); } }
   @keyframes pigeon-peck-body { 35%, 55% { transform: translateY(4px) rotate(22deg); } }
