@@ -5,14 +5,22 @@ import { pigeon as definition, entranceDelays } from "../pigeon/definition";
 <div class="pigeon-perch" aria-hidden="true">
   {Array.from({ length: entranceDelays.length }, () => <span class="pigeon-visitor" data-state="suspended" data-appearance="city" data-pattern="bar" data-breed="rock" style={`--pigeon-size: ${definition.size}px`}>
     <svg viewBox="0 0 64 64" width={definition.size} height={definition.size} focusable="false">
+      <!-- Cornell: plump body, small head, short legs, slender bill, paired wing
+           bars, and one dark terminal tail band are rock-pigeon recognition cues.
+           The body/wing silhouettes and bar layers preserve those at icon size.
+           https://www.allaboutbirds.org/guide/rock_pigeon/id -->
       <!-- All variants share the same anchors, including the fancy feather layers. -->
       <g class="pigeon-tail">
         <g class="pigeon-tail-normal">
-          <path d="M27 38 3 46 4 51 29 47Z" fill="var(--pigeon-tail, #525b6a)" />
+          <path class="pigeon-contour" d="M27 38 3 46 4 51 29 47Z" fill="var(--pigeon-tail, #525b6a)" />
           <path d="m7 45 1 5" stroke="var(--pigeon-bars, #535e70)" stroke-width="4" />
         </g>
-        <g class="pigeon-fan" fill="var(--pigeon-wing, #bdc5ce)" stroke="var(--pigeon-feather, #929dab)" stroke-width=".7">
-          {[-60, -40, -20, 0, 20, 40, 60].map(angle => <path d="M23 45Q8 34 5 18q0-4 4-3c9 5 15 18 14 30Z" transform={`rotate(${angle} 23 45)`} />)}
+        <!-- Fantail standard: upright, circular tail with overlapping broad
+             feathers. Rotated petals suggest that fan; seven is a drawing choice,
+             not the breed's feather count. We keep the shared animation posture.
+             https://www.pigeoncote.com/standards/fantail/npafan.html -->
+        <g class="pigeon-fan" fill="var(--pigeon-wing, #b8c4d0)" stroke="var(--pigeon-feather, #929dab)" stroke-width=".7">
+          {[-60, -40, -20, 0, 20, 40, 60].map(angle => <path class="pigeon-contour" d="M23 45Q8 34 5 18q0-4 4-3c9 5 15 18 14 30Z" transform={`rotate(${angle} 23 45)`} />)}
         </g>
       </g>
       <g class="pigeon-feet" fill="none" stroke="#c17a83" stroke-width="2" stroke-linecap="round">
@@ -21,15 +29,15 @@ import { pigeon as definition, entranceDelays } from "../pigeon/definition";
       </g>
       <g class="pigeon-breath">
         <g class="pigeon-body">
-          <path d="M14 38C18 31 27 29 35 26L43 21Q51 24 52 36C55 46 46 53 35 53 22 53 12 47 14 38Z" fill="var(--pigeon-breast, #99a3af)" />
+          <path class="pigeon-contour" d="M14 38C18 31 27 29 35 26L43 21Q51 24 52 36C55 46 46 53 35 53 22 53 12 47 14 38Z" fill="var(--pigeon-breast, #99a3af)" />
           <g class="pigeon-neck">
-            <path d="M35 30C38 24 37 20 40 17L51 20Q48 25 51 33C48 39 39 39 35 30Z" fill="var(--pigeon-neck, #55887f)" />
+            <path class="pigeon-contour" d="M35 30C38 24 37 20 40 17L51 20Q48 25 51 33C48 39 39 39 35 30Z" fill="var(--pigeon-neck, #55887f)" />
             <path d="M37 29q7 6 13 0l1 5q-6 5-14-1Z" fill="var(--pigeon-iridescence, #887398)" />
           </g>
           <path class="pigeon-pied" d="M40 26q10 0 12 10c3 9-5 15-13 16l-2-7 7-6Z" fill="#f6f3eb" />
-          <path d="M47 36q6 11-7 14" fill="none" stroke="var(--pigeon-highlight, #b9c1c9)" stroke-width="3" stroke-linecap="round" />
+          <path d="M47 36q6 11-7 14" fill="none" stroke="var(--pigeon-highlight, #c1ccd6)" stroke-width="3" stroke-linecap="round" />
           <g class="pigeon-wing">
-            <path d="M15 37C22 30 33 30 39 36 35 43 23 48 9 48L15 37Z" fill="var(--pigeon-wing, #bdc5ce)" />
+            <path class="pigeon-contour" d="M15 37C22 30 33 30 39 36 35 43 23 48 9 48L15 37Z" fill="var(--pigeon-wing, #b8c4d0)" />
             <path class="pigeon-bars" d="m23 35-5 10m12-11-5 10" fill="none" stroke="var(--pigeon-bars, #535e70)" stroke-width="3.5" stroke-linecap="round" />
             <g class="pigeon-checks" fill="var(--pigeon-bars, #535e70)">
               {[ [19,37], [25,35], [31,35], [22,40], [28,39], [34,38], [17,42], [25,43] ].map(([x,y]) => <path d={`M${x} ${y}l3-1 1 3-3 1Z`} />)}
@@ -38,6 +46,10 @@ import { pigeon as definition, entranceDelays } from "../pigeon/definition";
               {[ [18,37], [24,35], [30,34], [21,40], [28,39], [34,37], [17,44], [25,43], [31,41] ].map(([x,y]) => <path d={`M${x} ${y}l2-1 1 2-2 2Z`} />)}
             </g>
             <path class="pigeon-pied" d="M15 37q5-5 10-4l-4 8 6 3-12 3-6 1Z" fill="#f6f3eb" />
+            <!-- Hieronymus (2016), https://doi.org/10.1111/joa.12511:
+                 coverts overlap the flight feathers. Scallops suggest the coverts
+                 and long seams the folded primaries; counts/positions are stylized. -->
+            <path d="M18 36q3 3 5 0m0-1q3 3 5 0m0-1q3 3 5 0M15 41q3 3 6 0m0-1q3 3 6 0" fill="none" stroke="var(--pigeon-feather, #929dab)" stroke-width=".65" opacity=".65" />
             <path d="m12 47 18-5m-14 3 15-5" fill="none" stroke="var(--pigeon-feather, #929dab)" stroke-width="1.5" stroke-linecap="round" />
           </g>
           <!-- Hieronymus (2016), https://doi.org/10.1111/joa.12511:
@@ -46,7 +58,7 @@ import { pigeon as definition, entranceDelays } from "../pigeon/definition";
                feather groups at icon size; they are not a literal feather count. -->
           <g class="pigeon-flight-wing">
             <!-- Broad inner wing: shoulder at (31,34), wrist near (20,19). -->
-            <path d="M34 36C26 36 17 31 13 25q-2-6 3-11 4-3 9 3l6 10 7 5Z" fill="var(--pigeon-flight, #b8c3cf)" />
+            <path class="pigeon-contour" d="M34 36C26 36 17 31 13 25q-2-6 3-11 4-3 9 3l6 10 7 5Z" fill="var(--pigeon-flight, #b8c3cf)" />
             <path class="pigeon-bars" d="m18 22 9 8m-5-12 10 8" fill="none" stroke="var(--pigeon-flight-bars, #59677b)" stroke-width="2.5" stroke-linecap="round" />
             <g class="pigeon-checks" fill="var(--pigeon-bars, #535e70)">
               {[ [16,20], [20,18], [20,25], [24,23], [25,29] ].map(([x,y]) => <path d={`M${x} ${y}l2-1 2 3-2 1Z`} />)}
@@ -56,22 +68,39 @@ import { pigeon as definition, entranceDelays } from "../pigeon/definition";
             <!-- The outer wing moves about the wrist instead of stretching
                  the whole silhouette. Its base overlaps the inner wing. -->
             <g class="pigeon-hand-wing">
-              <path d="M19 19Q11 12 5 1 3-1 1 2 0 7 5 15l-4-3q-2 0-1 4l6 8-3-2q-2 1 1 6l7 6q7-3 14-12Z" fill="var(--pigeon-feather, #929dab)" />
+              <path class="pigeon-contour" d="M19 19Q11 12 5 1 3-1 1 2 0 7 5 15l-4-3q-2 0-1 4l6 8-3-2q-2 1 1 6l7 6q7-3 14-12Z" fill="var(--pigeon-feather, #929dab)" />
               <path d="M19 19Q12 13 7 7q4 14 10 20l8-5Z" fill="var(--pigeon-flight, #b8c3cf)" />
               <path d="m7 16 10 11" fill="none" stroke="var(--pigeon-flight-bars, #59677b)" stroke-width="1.25" stroke-linecap="round" opacity=".5" />
             </g>
           </g>
-          <path class="pigeon-hood" d="M39 33C25 28 26 11 34 6q6-4 10 1l-5 9 2 10 7 7q-4 4-9 0Z" fill="var(--pigeon-neck, #55887f)" stroke="var(--pigeon-highlight, #b9c1c9)" stroke-width="1" />
-          <g class="pigeon-frill" fill="var(--pigeon-highlight, #b9c1c9)">
+          <!-- Jacobin standard: hood, rear mane, and front chain frame the head.
+               The tall curved layer and inner seams suggest that feather ruff.
+               Keeping the face exposed and drawing just a few seams are choices
+               for expression/readability, not literal feather growth or density.
+               https://pigeoncote.com/standards/jacobin/npajacob.html -->
+          <path class="pigeon-hood pigeon-contour" d="M39 35C29 32 26 24 28 15Q29 7 34 5q6-3 10 2l-4 5-3 6 3 9 8 6q-4 5-9 2Z" fill="var(--pigeon-neck, #55887f)" />
+          <path class="pigeon-hood" d="M35 8q-7 11 0 22m1-18q-4 9 2 16m-8-7 4 1m-3 5 5 1m0 4 6 1" fill="none" stroke="var(--pigeon-highlight, #c1ccd6)" stroke-width=".8" opacity=".65" />
+          <!-- Old German Owl: shell crest at the back of the head and an open
+               breast frill. These layers suggest those two defining features;
+               the shared body and crest/frill shapes are simplified silhouettes.
+               https://www.pigeoncote.com/hilight/oldgermanowl/oldger.html -->
+          <g class="pigeon-frill" fill="var(--pigeon-highlight, #c1ccd6)">
             <path d="m47 31-7 3 6 2-7 3 8 2-5 4 8-1q4-7-3-13Z" />
           </g>
           <g class="pigeon-head">
-            <path class="pigeon-crest" d="M38 16q-5-1-4-6l4 1-1-5q7 1 7 5Z" fill="var(--pigeon-head, #7c899a)" />
-            <path d="M37 17C36 11 40 8 45 8q10 0 10 9c0 5-5 9-10 8-5-1-8-3-8-8Z" fill="var(--pigeon-head, #7c899a)" />
+            <path class="pigeon-crest pigeon-contour" d="M38 16q-5-1-4-6l4 1-1-5q7 1 7 5Z" fill="var(--pigeon-head, #6e7d90)" />
+            <path class="pigeon-contour" d="M37 17C36 11 40 8 45 8q10 0 10 9c0 5-5 9-10 8-5-1-8-3-8-8Z" fill="var(--pigeon-head, #6e7d90)" />
             <path class="pigeon-pied" d="M37 17C36 11 40 8 45 8l-2 6 2 6-2 5q-6-1-6-8Z" fill="#f6f3eb" />
             <path class="pigeon-grizzle" d="m40 12 2-1 1 3-2 1Zm3 7 2-1 1 3-2 1Zm-4-3 2 1-1 3-2-1Z" fill="#f6f3eb" />
             <path d="M53 17 62 20 54 21Z" fill="#404956" />
+            <!-- The pale patch at the bill base represents the cere visible in
+                 Cornell's identification photos; its outline is simplified.
+                 https://www.allaboutbirds.org/guide/rock_pigeon/id -->
             <path d="M53 16q4-1 5 3l-5 1" fill="#eee8df" />
+            <!-- Utah's gallery illustrates variable iris colors and concentric
+                 eye rings. The rings suggest that anatomy; oversized pupils/eyes
+                 and a catchlight are deliberate cute exaggerations.
+                 https://learn.genetics.utah.edu/content/pigeons/other/ -->
             <g class="pigeon-eye">
               <circle cx="48.5" cy="15.5" r="4.3" fill="#d7d3cc" />
               <circle cx="48.5" cy="15.5" r="3.6" fill="var(--pigeon-iris, #e7a452)" />
@@ -91,6 +120,9 @@ import { pigeon as definition, entranceDelays } from "../pigeon/definition";
   .pigeon-visitor[data-state="perched"] { pointer-events: auto; }
   @media (max-width: 40rem) { .pigeon-visitor { width: 28px; height: 28px; } }
   .pigeon-visitor svg { width: 100%; height: 100%; display: block; overflow: visible; transform-box: view-box; transform-origin: 50% 50%; }
+  /* Feather-colored edges and gray shadows are contrast aids, not natural outlines. */
+  .pigeon-contour { stroke: var(--pigeon-contour, #657385); stroke-width: .8; stroke-linejoin: round; }
+  .pigeon-fan { stroke: var(--pigeon-contour, #657385); }
   .pigeon-wing, .pigeon-flight-wing { transform-origin: 31px 34px; }
   .pigeon-flight-wing { display: none; }
   .pigeon-hand-wing { transform-origin: 20px 19px; }
@@ -115,6 +147,7 @@ import { pigeon as definition, entranceDelays } from "../pigeon/definition";
   .pigeon-visitor[data-breed="fantail"] .pigeon-tail-normal { display: none; }
   .pigeon-visitor[data-state="flying"] .pigeon-wing { display: none; }
   .pigeon-visitor[data-state="flying"] .pigeon-flight-wing { display: block; }
+  /* Ambient breath/blink timing is decorative, not measured respiratory or blink rate. */
   @keyframes pigeon-breathe { 50% { transform: scaleY(1.025); } }
   @keyframes pigeon-blink { 0%, 94%, 98%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
   @media (prefers-reduced-motion: reduce) { .pigeon-visitor svg * { animation: none !important; } }

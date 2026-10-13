@@ -2,6 +2,7 @@ export type Gesture = 'look' | 'peck' | 'stretch';
 export type Action = { part: string; keyframes: Keyframe[]; timing: KeyframeAnimationOptions }[];
 type Part = [string, Keyframe[]];
 const frames = (transforms: string[]): Keyframe[] => transforms.map(transform => ({ transform }));
+// Look/stretch angles and durations are expressive poses, not measured kinematics.
 const catalog: Record<Exclude<Gesture, 'peck'>, { duration: number; parts: Part[] }> = {
   look: { duration: 1500, parts: [['head', frames(['none', 'translateY(-1px) rotate(-9deg)', 'rotate(8deg)', 'none'])]] },
   stretch: { duration: 1800, parts: [['wing', frames(['none', 'rotate(-38deg) scaleY(.8)', 'rotate(-20deg) scaleY(.9)', 'rotate(-38deg) scaleY(.8)', 'none'])]] },

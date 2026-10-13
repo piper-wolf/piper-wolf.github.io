@@ -23,7 +23,7 @@ that the scene is absent from preload links.
   and animations. Entrances randomly face left or right and start beyond the
   opposite viewport edge, facing inward. Four entrances are scheduled at 100ms,
   10s, 40s, and 3 minutes after scene initialization or resumption. A cursor within
-  120px triggers walking away, within 70px triggers running, and within 28px
+  240px triggers walking away, within 140px triggers running, and within 28px
   triggers flight. Closer approaches interrupt ground movement from its visible
   position; touch pointers are ignored. Escape paths lead away from the pointer
   along a safe corridor; blocked ground escapes wait instead of triggering flight. One timer wakes the next idle, walk, or flight deadline.
@@ -84,7 +84,9 @@ sets those properties and `data-pattern` / `data-breed`; the SVG switches reusab
 marking and feather layers without changing animation anchors or foot placement.
 Patterns include bars, checker, plain, grizzle, and pied. The Fantail adds a radial
 tail fan, the Jacobin a feather hood, and the Old German Owl a crest and breast
-frill. These are stylized breed cues, not show-standard illustrations. Large eyes
+frill. These are stylized breed cues, not show-standard illustrations. Muted contour strokes keep pale feathers visible on light backgrounds; the
+white palette uses cool gray shadows. Hood seams and overlapping wing coverts
+provide feather detail across breeds. Large eyes
 and catchlights deliberately exaggerate the otherwise pigeon-shaped silhouette.
 The anatomy follows [Cornell's rock pigeon identification](https://www.allaboutbirds.org/guide/rock_pigeon/id):
 full breast, small head, thin bill, paired wing bars, and a dark tail band.

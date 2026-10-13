@@ -1,6 +1,9 @@
 # Repository workflow
 
 - Always commit and push repository changes unless the user says otherwise.
+- Comments are allowed when documenting research that was done. Cite the source,
+  explain how the code reflects the findings, and distinguish observed behavior
+  from artistic or implementation choices.
 - Prefer extending existing test scenarios over adding a new test for each change.
   Consolidate duplicate coverage and share setup so the suite stays organized and fast.
 - When adding a page, include it in `src/pages/sitemap.xml.ts`, provide structured

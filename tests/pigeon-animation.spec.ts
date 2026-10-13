@@ -326,12 +326,12 @@ test.describe('actions and transitions', () => {
       await page.mouse.move(rect.x + rect.width + distance, rect.y + rect.height / 2);
       return rect;
     };
-    await approach(140);
+    await approach(250);
     await expect(bird).toHaveAttribute('data-state', 'perched');
     const rect = (await bird.boundingBox())!;
     await page.dispatchEvent('html', 'pointermove', { pointerType: 'touch', clientX: rect.x + rect.width + 10, clientY: rect.y + rect.height / 2 });
     await expect(bird).toHaveAttribute('data-state', 'perched');
-    await approach(110);
+    await approach(230);
     await expect(bird).toHaveAttribute('data-state', 'walking');
     const inspect = () => bird.evaluate(el => {
       const animation = el.getAnimations()[0];
@@ -346,7 +346,7 @@ test.describe('actions and transitions', () => {
     });
     const walk = await inspect();
     expect(walk.to).toBeLessThan(walk.from);
-    const beforeRun = await approach(60);
+    const beforeRun = await approach(130);
     await expect(bird).toHaveAttribute('data-state', 'running');
     const run = await inspect();
     expect(run.from).toBeCloseTo(beforeRun.x, 2);
@@ -354,7 +354,7 @@ test.describe('actions and transitions', () => {
     expect(run.speed).toBeGreaterThan(walk.speed * 1.5);
     expect(run.lean).toBeGreaterThan(.1);
     await expectSafePerch(page);
-    await approach(110);
+    await approach(230);
     await expect(bird).toHaveAttribute('data-state', 'running');
     // Geometry reconciliation must preserve a run and its reserved corridor.
     await page.locator('main').evaluate(el => { el.style.backgroundColor = 'transparent'; });
@@ -370,11 +370,11 @@ test.describe('actions and transitions', () => {
     await expectSafePerch(page);
     // This landing is at the leftmost preferred sample. Retreating further
     // left must use the remaining local space, rather than fall back to flight.
-    await approach(110);
+    await approach(230);
     await expect(bird).toHaveAttribute('data-state', 'walking');
     await land(page);
     await expectSafePerch(page);
-    await approach(60);
+    await approach(130);
     await expect(bird).toHaveAttribute('data-state', 'running');
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect(bird).toHaveAttribute('data-state', 'suspended');
@@ -392,7 +392,7 @@ test.describe('actions and transitions', () => {
     });
     await page.clock.runFor(200);
     await expectSafePerch(page);
-    for (const distance of [110, 60]) {
+    for (const distance of [230, 130]) {
       await approach(distance);
       await expect(bird).toHaveAttribute('data-state', 'perched');
     }
@@ -808,14 +808,14 @@ test.describe('independent birds and layout', () => {
       wing: getComputedStyle(b.querySelector('.pigeon-wing path')!).fill,
     })));
     expect(colors).toEqual([
-      { appearance: 'city', wing: 'rgb(189, 197, 206)' },
-      { appearance: 'dark', wing: 'rgb(107, 106, 120)' },
-      { appearance: 'white', wing: 'rgb(245, 242, 233)' },
-      { appearance: 'red', wing: 'rgb(214, 197, 182)' },
+      { appearance: 'city', wing: 'rgb(184, 196, 208)' },
+      { appearance: 'dark', wing: 'rgb(89, 99, 115)' },
+      { appearance: 'white', wing: 'rgb(243, 242, 235)' },
+      { appearance: 'red', wing: 'rgb(203, 183, 171)' },
     ]);
     await expectSafePerch(page);
     const nearby = await page.locator('.pigeon-visitor').last().boundingBox();
-    await page.mouse.move(nearby!.x + nearby!.width / 2, nearby!.y - 140);
+    await page.mouse.move(nearby!.x + nearby!.width / 2, nearby!.y - 260);
     await expect(page.locator('.pigeon-visitor[data-state="perched"]')).toHaveCount(count);
     // Trigger just this bird: a real nearby pointer can also scare companions.
     await page.locator('.pigeon-visitor').last().dispatchEvent('mouseenter');

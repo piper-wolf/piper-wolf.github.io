@@ -18,7 +18,9 @@ export const pigeon = {
   idleDelay: 12000,
   walkDelay: 20000,
   flightDelay: 60000,
-  escapeRadius: { flight: 28, run: 70, walk: 120 },
+  // Screen-space interaction choices, not measured pigeon escape distances.
+  // Walking and running react at twice their original radii; flight stays at 28px.
+  escapeRadius: { flight: 28, run: 140, walk: 240 },
   actions: ['look', 'peck', 'stretch'],
 } as const;
 
