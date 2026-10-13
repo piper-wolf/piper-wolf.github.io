@@ -1,4 +1,4 @@
-import { pigeon, companionAppearances, maxBirds } from './definition';
+import { pigeon, companionAppearances, entranceDelays } from './definition';
 import { Bird } from './bird';
 import { Geometry, type Point } from './geometry';
 const scenes = new WeakMap<HTMLElement, Scene>();
@@ -11,12 +11,10 @@ class Scene {
   private geometryDirty = true;
   constructor(overlay: HTMLElement) {
     const slots = [...overlay.querySelectorAll<HTMLElement>('.pigeon-visitor')];
-    const count = 1 + Math.floor(Math.random() * maxBirds);
-    slots.slice(count).forEach(element => element.remove());
-    this.birds = slots.slice(0, count).map((element, index) => {
+    this.birds = slots.slice(0, entranceDelays.length).map((element, index) => {
       const appearance = index === 0 ? 'city' : companionAppearances[Math.floor(Math.random() * companionAppearances.length)];
       element.dataset.appearance = appearance;
-      return new Bird(element, pigeon, this, index * 320);
+      return new Bird(element, pigeon, this, entranceDelays[index]);
     });
     overlay.style.visibility = 'visible';
     const invalidate = () => this.invalidate();

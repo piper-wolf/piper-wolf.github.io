@@ -2,19 +2,25 @@ import { expect, type Page } from '@playwright/test';
 export const runtime = /\/scene\.[^/]+\.js$/;
 
 // JS deadlines use the fake clock; native animations are held and completed explicitly.
-export async function prepare(page: Page, { width = 1440, height = 900, count = 1, random = 0, colors = [0, 0], facings = [0, 0, 0], separateEdges = false } = {}) {
+export async function prepare(page: Page, { width = 1440, height = 900, count = 1, random = .25, colors = [0, 0], facings = [0, 0, 0], separateEdges = false } = {}) {
   await page.setViewportSize({ width, height });
   await page.clock.install();
   await page.clock.pauseAt(new Date(Date.now() + 1000));
   await page.addInitScript(({ count, random, colors, facings, separateEdges }) => {
+    // Isolate smaller groups for action/geometry scenarios; production keeps all four.
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.pigeon-visitor').forEach((bird, index) => { if (index >= count) bird.remove(); });
+    });
     let choices = 0;
     Math.random = () => {
       const index = choices++;
-      if (index === 0) return (count - .5) / 3;
-      if (index < count) return colors[index - 1];
+      if (index < count - 1) return colors[index] ?? 0;
       // Each initial destination is followed by its bird's facing choice.
-      if (index >= count && index < count * 3 && (index - count) % 2 === 1) return facings[(index - count - 1) / 2];
-      return separateEdges && index === count + 2 ? .999 : random;
+      if (index >= count - 1 && index < count * 3 - 1) {
+        if ((index - count + 1) % 2 === 1) return facings[(index - count) / 2] ?? 0;
+        return separateEdges && index === count + 1 ? .999 : 0;
+      }
+      return random;
     };
     const animate = Element.prototype.animate;
     Element.prototype.animate = function (...args) {
@@ -25,13 +31,20 @@ export async function prepare(page: Page, { width = 1440, height = 900, count = 
   }, { count, random, colors, facings, separateEdges });
 }
 
+// Allow the deferred module to initialize, then advance the first entrance wait.
+export async function enter(page: Page) {
+  await page.clock.runFor(2000);
+  await expect(page.locator('.pigeon-perch')).toHaveCSS('visibility', 'visible');
+  await page.clock.runFor(100);
+}
+
 export async function start(page: Page, options: Parameters<typeof prepare>[1] = {}) {
   await prepare(page, options);
   await page.goto('/pigeons/');
-  await page.clock.runFor(2000);
+  await enter(page);
   await expect(page.locator('.pigeon-visitor').first()).toHaveAttribute('data-state', 'flying');
   for (let index = 1; index < (options.count ?? 1); index++) {
-    await page.clock.runFor(319);
+    await page.clock.runFor([9900, 30000, 140000][index - 1] - 1);
     await expect(page.locator('.pigeon-visitor[data-state="flying"]')).toHaveCount(index);
     await page.clock.runFor(1);
     await expect(page.locator('.pigeon-visitor[data-state="flying"]')).toHaveCount(index + 1);
@@ -41,7 +54,7 @@ export async function start(page: Page, options: Parameters<typeof prepare>[1] =
 export async function land(page: Page) {
   await expect.poll(async () => {
     await page.locator('.pigeon-visitor').evaluateAll(birds => birds.forEach(bird => bird.getAnimations().forEach(a => a.finish())));
-    return page.locator('.pigeon-visitor:is([data-state="flying"], [data-state="walking"])').count();
+    return page.locator('.pigeon-visitor:is([data-state="flying"], [data-state="walking"], [data-state="running"])').count();
   }).toBe(0);
 }
 
@@ -51,7 +64,7 @@ export async function finishGesture(page: Page) {
   }));
 }
 
-export async function dueMovement(page: Page, elapsed = 10000) {
+export async function dueMovement(page: Page, elapsed = 5000) {
   await page.clock.runFor(elapsed);
   await finishGesture(page);
   await page.clock.runFor(1);

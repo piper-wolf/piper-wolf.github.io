@@ -1,9 +1,9 @@
 ---
-import { pigeon as definition, maxBirds } from "../pigeon/definition";
+import { pigeon as definition, entranceDelays } from "../pigeon/definition";
 ---
 <!-- Optional decoration; safe horizontal perches are measured after load + idle. -->
 <div class="pigeon-perch" aria-hidden="true">
-  {Array.from({ length: maxBirds }, () => <span class="pigeon-visitor" data-state="suspended" data-appearance="city" style={`--pigeon-size: ${definition.size}px`}>
+  {Array.from({ length: entranceDelays.length }, () => <span class="pigeon-visitor" data-state="suspended" data-appearance="city" style={`--pigeon-size: ${definition.size}px`}>
     <svg viewBox="0 0 64 64" width={definition.size} height={definition.size} focusable="false">
       <!-- Tapered tail, plump breast, small head, short beak and pink toes. -->
       <path class="pigeon-tail" d="M24 39 5 47q-2 2 1 3l22-3" fill="var(--pigeon-tail, #525b6a)" />

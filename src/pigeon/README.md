@@ -7,28 +7,34 @@ Keep this dynamic import: browser tests verify production request timing and
 that the scene is absent from preload links.
 
 - `definition.ts` describes dimensions, foot anchors, clearance, gestures, and
-  delay ranges (minimum plus random spread). Birds render at 28px on narrow
+  maximum waits (sampled from zero) and escape radii. Birds render at 28px on narrow
   screens and 40px on desktop; geometry scales the foot anchor to the rendered
-  size. Borderless photo tops remain valid perches. One to three birds use the same
+  size. Borderless photo tops remain valid perches. Four birds use the same
   behavior; the first has the city palette and others choose red, white, or dark.
 - `scene.ts` owns page lifecycle and cached geometry. It observes sizes, DOM/style
   edits, image completion, and fonts. Invalidation debounces reconciliation
   without canceling actions or resetting deadlines. Count and colors survive
   suspension; birds act independently.
 - `geometry.ts` subtracts content and bird reservations into safe intervals.
-  Walks reserve their full corridor; flights reserve their destination. Existing
+  Walks and runs reserve their full corridor; flights reserve their destination. Existing
   positions are validated directly, keeping safe birds in place.
 - `bird.ts` manages one bird's state, facing, position, reservations, deadlines,
   and animations. Entrances randomly face left or right and start beyond the
-  opposite viewport edge, facing inward, staggered by 320ms. A cursor within
-  28px of a perched bird triggers flight without blocking nearby links. One timer wakes the next idle, walk, or flight deadline.
+  opposite viewport edge, facing inward. Four entrances are scheduled at 100ms,
+  10s, 40s, and 3 minutes after scene initialization or resumption. A cursor within
+  120px triggers walking away, within 70px triggers running, and within 28px
+  triggers flight. Closer approaches interrupt ground movement from its visible
+  position; touch pointers are ignored. Escape paths lead away from the pointer
+  along a safe corridor, falling back to flight when blocked. One timer wakes the next idle, walk, or flight deadline.
   Gestures finish before timed movement; flight takes priority when overdue.
   Hover can interrupt a gesture, preserving its opening pose in the flight.
-  Walks preserve the flight deadline. Landings commit their held endpoint before
+  Walks and runs preserve the flight deadline. Landings commit their held endpoint before
   cancellation, then reconcile fresh geometry. Suspension cancels all work;
   stale completions cannot restart it.
 - `actions.ts` returns finite keyframes and timing only. Walks cover a few
   steps at 3.6–4.8 steps/s, with alternating planted feet and lifted recovery.
+  Escape runs use 7–8.2 steps/s, higher foot lifts, a shorter head hold, and
+  a forward lean. These running parameters are decorative choices.
   Travel duration follows stride length and cadence, scaled to the rendered
   bird size. Head motion cancels forward travel and body bob during each hold,
   then thrusts forward; see [Troje & Frost (2000)](https://doi.org/10.1242/jeb.203.5.935).
@@ -59,7 +65,7 @@ that the scene is absent from preload links.
   [Stowers et al. (2017)](https://doi.org/10.1098/rsif.2017.0224), and
   [Crandell & Tobalske (2011)](https://doi.org/10.1242/jeb.051342).
 
-`data-state` (`suspended`, `perched`, `walking`, `flying`) and `data-idle` are the
+`data-state` (`suspended`, `perched`, `walking`, `running`, `flying`) and `data-idle` are the
 rendering contract. Translation belongs to the outer element, facing to the SVG,
 body poses to `.pigeon-body`, and CSS breathing to its separate `.pigeon-breath`
 wrapper. Breathing pauses during movement and pecking; blinking continues while

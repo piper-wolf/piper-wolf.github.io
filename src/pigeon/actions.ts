@@ -61,16 +61,17 @@ function peck(): Action {
 
 // Troje & Frost (2000), https://doi.org/10.1242/jeb.203.5.935:
 // head bobs synchronize with footfalls (~3–8Hz), with a world-stable hold
-// followed by a fast forward thrust. Use a leisurely 3.6–4.8 steps/s.
+// followed by a fast forward thrust. Walk at 3.6–4.8 steps/s; the decorative
+// escape run uses 7–8.2 steps/s, higher foot lifts and a forward lean.
 // The stride length and stance fraction are SVG-scale choices; deriving
 // duration from strides keeps long walks from becoming fast sliding feet.
-function walking(from: { x: number; y: number }, to: { x: number; y: number }, size: number): Action {
+function walking(from: { x: number; y: number }, to: { x: number; y: number }, size: number, running = false): Action {
   const distance = Math.abs(to.x - from.x) * 64 / size;
   const strides = Math.max(1, Math.round(distance / 16));
   const stride = distance / strides;
-  const cadence = 3.6 + Math.random() * 1.2;
+  const cadence = (running ? 7 : 3.6) + Math.random() * 1.2;
   const duration = strides * 2000 / cadence;
-  const stance = .62, hold = .65;
+  const stance = running ? .5 : .62, hold = running ? .45 : .65;
   const samples = Math.ceil(duration / 1000 * 120);
   const parts: Part[] = ['foot-back', 'foot-front', 'body', 'head'].map(part => [part, []]);
   for (let i = 0; i <= samples; i++) {
@@ -81,16 +82,16 @@ function walking(from: { x: number; y: number }, to: { x: number; y: number }, s
       const phase = (cycle + stance / 2 + foot * .5) % 1;
       const swing = (phase - stance) / (1 - stance);
       const x = phase < stance ? stride * (stance / 2 - phase) : stride * stance * (swing - .5);
-      const lift = phase < stance ? 0 : -3 * Math.sin(Math.PI * swing);
+      const lift = phase < stance ? 0 : -(running ? 5 : 3) * Math.sin(Math.PI * swing);
       const fade = Math.min(1, offset * duration / 100, (1 - offset) * duration / 100);
       parts[foot][1].push({ offset, transform: i === samples ? 'none' : `translate(${x}px, ${lift * fade}px)` });
     }
     // During hold, local head velocity cancels forward translation. Undo the
-    // body's small vertical bob too; thrust happens in the remaining 35%.
+    // body's small vertical bob too; running shortens the hold for a quicker thrust.
     const phase = (cycle * 2 + hold / 2) % 1;
     const advance = stride / 2;
     const x = phase < hold ? advance * (hold / 2 - phase) : advance * hold * ((phase - hold) / (1 - hold) - .5);
-    parts[2][1].push({ offset, transform: i === samples ? 'none' : `translateY(${bob}px)` });
+    parts[2][1].push({ offset, transform: i === samples ? 'none' : `translateY(${bob}px) rotate(${running ? 8 : 0}deg)` });
     parts[3][1].push({ offset, transform: i === samples ? 'none' : `translate(${x}px, ${-bob}px)` });
   }
   return [{ part: '', keyframes: frames([transform(from), transform(to)]), timing: { duration, easing: 'linear' } },
@@ -103,8 +104,8 @@ function walking(from: { x: number; y: number }, to: { x: number; y: number }, s
 // https://doi.org/10.1242/jeb.038109
 // Seven pigeons flew between perches 6–8m apart; these are short-flight
 // observations, adapted below for a small side-view SVG.
-export function movement(from: { x: number; y: number }, to: { x: number; y: number }, kind: 'walking' | 'flying', size = 40): Action {
-  if (kind === 'walking') return walking(from, to, size);
+export function movement(from: { x: number; y: number }, to: { x: number; y: number }, kind: 'walking' | 'running' | 'flying', size = 40): Action {
+  if (kind !== 'flying') return walking(from, to, size, kind === 'running');
   const distance = Math.hypot(to.x - from.x, to.y - from.y);
   const dy = to.y - from.y;
   const level = Math.abs(dy) < 1;

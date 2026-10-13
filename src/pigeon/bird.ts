@@ -1,7 +1,7 @@
 import type { BirdDefinition } from './definition';
 import { gesture, movement, transform, type Action } from './actions';
 import type { Point, Reservation } from './geometry';
-export type MovementState = 'suspended' | 'perched' | 'walking' | 'flying';
+export type MovementState = 'suspended' | 'perched' | 'walking' | 'running' | 'flying';
 export interface BirdScene {
   places(bird: Bird, walkFrom?: Point): Point[];
   current(bird: Bird): Point | undefined;
@@ -23,11 +23,18 @@ export class Bird {
     this.render('suspended');
     element.addEventListener('mouseenter', () => { if (this.state === 'perched') this.flight(); });
     document.addEventListener('pointermove', event => {
-      if (this.state !== 'perched' || event.pointerType === 'touch') return;
+      if (this.state === 'suspended' || this.state === 'flying' || event.pointerType === 'touch') return;
       const rect = element.getBoundingClientRect();
       const dx = Math.max(rect.left - event.clientX, 0, event.clientX - rect.right);
       const dy = Math.max(rect.top - event.clientY, 0, event.clientY - rect.bottom);
-      if (Math.hypot(dx, dy) <= 28) this.flight();
+      const distance = Math.hypot(dx, dy);
+      const radius = this.definition.escapeRadius;
+      const reaction = distance <= radius.flight ? 'flying' : distance <= radius.run ? 'running' : distance <= radius.walk ? 'walking' : undefined;
+      if (!reaction || (this.state === 'running' && reaction !== 'flying') || (this.state === 'walking' && reaction === 'walking')) return;
+      // Escalation starts from the visible position, even midway through a step.
+      if (this.state !== 'perched') this.position = { ...this.position!, x: rect.left + scrollX, y: rect.top + scrollY };
+      if (reaction === 'flying') this.flight();
+      else this.walk(reaction, event.clientX + scrollX);
     });
   }
   get definition(): BirdDefinition {
@@ -39,8 +46,8 @@ export class Bird {
     this.element.dataset.state = state;
     this.element.style.visibility = state === 'suspended' ? 'hidden' : 'visible';
   }
-  private after(delay: readonly [number, number]) {
-    return performance.now() + delay[0] + Math.random() * delay[1];
+  private after(delay: number) {
+    return performance.now() + Math.random() * delay;
   }
   private cancelAction() {
     this.generation++;
@@ -62,7 +69,7 @@ export class Bird {
       this.timer = window.setTimeout(() => this.reconcile(), this.entranceAt - performance.now());
       return;
     }
-    if (this.state !== 'walking' && this.state !== 'flying') this.settle();
+    if (this.state === 'suspended' || this.state === 'perched') this.settle();
   }
   private settle(arrived = false) {
     const current = this.scene.current(this);
@@ -107,16 +114,19 @@ export class Bird {
       this.wake();
     }
   }
-  private walk() {
-    const targets = this.scene.places(this, this.position).filter(p => p.element === this.position!.element && Math.abs(p.x - this.position!.x) > this.definition.size * .3);
+  private walk(kind: 'walking' | 'running' = 'walking', awayFrom?: number) {
+    const direction = awayFrom === undefined ? 0 : Math.sign(this.position!.x + this.definition.size / 2 - awayFrom);
+    const targets = this.scene.places(this, this.position).filter(p => p.element === this.position!.element && Math.abs(p.x - this.position!.x) > this.definition.size * .3 &&
+      (!direction || (p.x - this.position!.x) * direction > 0));
     if (targets.length) {
       const target = choose(targets);
       // A few steps between inspections, rather than marching an entire edge.
       // The full candidate corridor was checked; its shorter prefix is safe.
       const dx = target.x - this.position!.x;
-      const distance = Math.min(Math.abs(dx), this.definition.size * (.6 + Math.random() * .6));
-      this.move({ ...target, x: this.position!.x + Math.sign(dx) * distance }, 'walking');
+      const distance = Math.min(Math.abs(dx), this.definition.size * (kind === 'running' ? 2 + Math.random() : .6 + Math.random() * .6));
+      this.move({ ...target, x: this.position!.x + Math.sign(dx) * distance }, kind);
     }
+    else if (awayFrom !== undefined) this.flight();
     else { this.deadlines.walk = this.after(this.definition.walkDelay); this.wake(); }
   }
   private flight() {
@@ -141,7 +151,7 @@ export class Bird {
       return generation === this.generation;
     } catch { return false; }
   }
-  private async move(destination: Point, kind: 'walking' | 'flying') {
+  private async move(destination: Point, kind: 'walking' | 'running' | 'flying') {
     if (!this.position) this.facing = Math.random() < .5 ? 'right' : 'left';
     const from = this.position ?? {
       ...destination,
@@ -150,14 +160,14 @@ export class Bird {
         destination.y - scrollY + (destination.y - scrollY < innerHeight / 2 ? 220 : -220))),
     };
     const action = movement(from, destination, kind, this.definition.size);
-    const opening = kind === 'flying' && this.animations.length ?
+    const opening = this.animations.length ?
       new Map(action.filter(a => a.part).map(a => [a.part, getComputedStyle(this.element.querySelector(`.pigeon-${a.part}`)!).transform])) : undefined;
     this.cancelAction();
     if (kind === 'flying') this.deadlines.flight = Infinity;
     const dx = destination.x - from.x;
     if (Math.abs(dx) > .5) this.facing = dx > 0 ? 'right' : 'left';
     this.element.querySelector<SVGElement>('svg')!.style.transform = this.facing === 'left' ? 'scaleX(-1)' : '';
-    this.reservation = { from: kind === 'walking' ? from : destination, to: destination, definition: this.definition };
+    this.reservation = { from: kind === 'flying' ? destination : from, to: destination, definition: this.definition };
     this.element.style.transform = transform(from);
     this.render(kind);
     if (await this.run(action, opening)) {
