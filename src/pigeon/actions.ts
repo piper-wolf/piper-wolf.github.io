@@ -15,6 +15,12 @@ export function gesture(name: Gesture): Action {
   const action = catalog[name];
   return action.parts.map(([part, keyframes]) => ({ part, keyframes, timing: { duration: action.duration, easing: 'ease-in-out' } }));
 }
+// Research: Angela M. Berg & Andrew A. Biewener (2010),
+// "Wing and body kinematics of takeoff and landing flight in the pigeon
+// (Columba livia)", Journal of Experimental Biology 213:1651–1658.
+// https://doi.org/10.1242/jeb.038109
+// Seven pigeons flew between perches 6–8m apart; these are short-flight
+// observations, adapted below for a small side-view SVG.
 export function movement(from: { x: number; y: number }, to: { x: number; y: number }, kind: 'walking' | 'flying'): Action {
   const distance = Math.hypot(to.x - from.x, to.y - from.y);
   const dy = to.y - from.y;
@@ -32,6 +38,11 @@ export function movement(from: { x: number; y: number }, to: { x: number; y: num
   const lengths = [0];
   for (let i = 1; i < path.length; i++) lengths.push(lengths[i - 1] + Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y));
   const length = lengths.at(-1)!;
+  // Fig. 2: acceleration peaked on takeoff wingbeat 2 (~9.1m/s²);
+  // braking intensified before contact (~−8.5m/s² on the final wingbeat).
+  // Our constant acceleration/braking phases simplify that varying force.
+  // Pixel values, the cruise cap, climb penalty, and swoop are visual tuning,
+  // not measured accelerations, speeds, or reconstructed flight trajectories.
   const acceleration = 1800, braking = 1500; // Screen pixels/s², independent of destination.
   const verticalShare = Math.abs(dy) / (distance || 1);
   const cruise = 650 * (1 - verticalShare * (dy < 0 ? .5 : .25));
@@ -60,9 +71,11 @@ export function movement(from: { x: number; y: number }, to: { x: number; y: num
         y: start.y + (end.y - start.y) * fraction,
       }) };
     });
-  // Berg & Biewener (2010), doi:10.1242/jeb.038109: ~8.9 Hz at
-  // takeoff, ~6.6 Hz in cruise, ~7.8 Hz during braking. Keep wingbeats
-  // on elapsed time so longer journeys add strokes rather than slow them.
+  // Fig. 4: wingbeats declined from 8.88 to 7.68Hz over four takeoff
+  // strokes, versus 6.57Hz mid-flight and a 7.78Hz pre-landing peak.
+  // Takeoff also had broader, faster downstrokes. Effort approximates these
+  // trends; the .45s taper, SVG angles, and stroke split are visual choices.
+  // Keep wingbeats on elapsed time so longer journeys add strokes.
   const wing: Keyframe[] = [{ offset: 0, transform: 'none' }];
   let time = 0;
   while (time < seconds) {
@@ -86,6 +99,9 @@ export function movement(from: { x: number; y: number }, to: { x: number; y: num
     ['head', frames(['none', 'translateX(-1px)', 'translateX(2px)', 'none'])],
   ] : [
     ['flight-wing', wing],
+    // Figs. 3/5: body, tail, and wing planes become more upright on
+    // approach, increasing drag and redirecting force for braking.
+    // These modest SVG rotations suggest that change, not the measured angles.
     ['body', [
       { offset: 0, transform: 'none' },
       { offset: launchOffset * .5, transform: 'rotate(-14deg)' },
@@ -101,6 +117,8 @@ export function movement(from: { x: number; y: number }, to: { x: number; y: num
       { offset: brakeOffset, transform: 'translateY(-3px) scaleY(.55)' },
       { offset: 1, transform: 'none' },
     ]],
+    // Fig. 3: tails were somewhat wider in landing than takeoff;
+    // within-phase spread changes were not significant. Scaling suggests a fan.
     ['tail', [
       { offset: 0, transform: 'none' },
       { offset: launchOffset, transform: 'rotate(8deg)' },
