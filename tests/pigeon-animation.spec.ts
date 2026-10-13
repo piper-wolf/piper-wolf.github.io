@@ -720,13 +720,21 @@ test.describe('actions and transitions', () => {
     expect(returns[1] - returns[0]).toBeGreaterThan(60);
   });
 
-  for (const width of [390, 1440]) {
-    for (const edge of ['details', 'footer']) {
+  for (const width of [320, 390, 700, 1440]) {
+    for (const edge of ['header', 'photo', 'details', 'footer']) {
       test(`lands safely on the ${edge} divider at ${width}px`, async ({ page }) => {
         await prepare(page, { width });
         await page.goto('/pigeons/047/');
         const target = page.locator(`[data-pigeon-landing="${edge}"]`);
         await expect(target).toHaveCount(1);
+        if (edge === 'photo' && width < 768) {
+          await expect(target).toHaveCSS('padding-top', '0px');
+          const tops = await target.evaluate(element => ({
+            frame: element.getBoundingClientRect().top,
+            image: element.querySelector('img')!.getBoundingClientRect().top,
+          }));
+          expect(tops.frame).toBe(tops.image);
+        }
         await target.evaluate((element) => {
           // Center the divider, not the whole (potentially tall) section.
           window.scrollTo(0, element.getBoundingClientRect().top + scrollY - 300);
@@ -738,6 +746,18 @@ test.describe('actions and transitions', () => {
         await expect(page.locator('.pigeon-visitor:first-child')).toHaveAttribute('data-state', 'flying');
         await land(page);
         await expectSafePerch(page);
+        const firstX = (await page.locator('.pigeon-visitor:first-child').boundingBox())!.x;
+        await dueMovement(page);
+        await land(page);
+        await expectSafePerch(page);
+        if (edge === 'header' && width < 400) {
+          await page.evaluate(() => { Math.random = () => .999; });
+          await page.locator('.pigeon-visitor:first-child').dispatchEvent('mouseenter');
+          await land(page);
+          await expectSafePerch(page);
+          const lastX = (await page.locator('.pigeon-visitor:first-child').boundingBox())!.x;
+          expect(lastX - firstX).toBeGreaterThan(100);
+        }
       });
     }
   }
@@ -806,7 +826,8 @@ test.describe('actions and transitions', () => {
         await expect(bird.locator('svg')).toHaveCSS('width', '28px');
         const photoTop = await page.locator('[data-pigeon-landing="photo"]').evaluate(el => el.getBoundingClientRect().top);
         const feet = await bird.evaluate(el => { const r = el.getBoundingClientRect(); return r.top + 58 * r.height / 64; });
-        expect(feet).toBeCloseTo(photoTop);
+        const headerLine = await page.locator('[data-pigeon-landing="header"]').evaluate(el => el.getBoundingClientRect().bottom - 1);
+        expect([photoTop, headerLine].some(line => Math.abs(feet - line) < .5)).toBe(true);
         const bottom = await page.evaluate(() => document.documentElement.scrollHeight);
         await scrollTo(page, bottom);
         await page.clock.runFor(200);
@@ -816,7 +837,8 @@ test.describe('actions and transitions', () => {
         await page.clock.runFor(200);
         await land(page);
         await expectSafePerch(page);
-        expect(await bird.evaluate(el => { const r = el.getBoundingClientRect(); return r.top + 58 * r.height / 64; })).toBeCloseTo(photoTop);
+        const returnedFeet = await bird.evaluate(el => { const r = el.getBoundingClientRect(); return r.top + 58 * r.height / 64; });
+        expect([photoTop, headerLine].some(line => Math.abs(returnedFeet - line) < .5)).toBe(true);
         await page.goto('/pigeons/');
         await enter(page);
         await land(page);

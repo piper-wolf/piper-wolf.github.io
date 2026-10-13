@@ -15,12 +15,9 @@ export class Geometry {
     this.edges = [...document.querySelectorAll<HTMLElement>('[data-pigeon-landing]')].map(element => {
       const rect = element.getBoundingClientRect();
       const header = element.dataset.pigeonLanding === 'header';
-      let left = Math.max(perchMargin, rect.left + perchMargin);
-      let right = Math.min(document.documentElement.clientWidth - perchMargin, rect.right - perchMargin);
-      if (header) {
-        left = Math.max(left, (element.firstElementChild?.getBoundingClientRect().right ?? left) + perchMargin);
-        right = Math.min(right, (element.querySelector('nav')?.getBoundingClientRect().left ?? right) - perchMargin);
-      }
+      // Consider the whole divider; blockers below trim any unsafe link space.
+      const left = Math.max(perchMargin, rect.left + perchMargin);
+      const right = Math.min(document.documentElement.clientWidth - perchMargin, rect.right - perchMargin);
       return { element, left: left + scrollX, right: right + scrollX, line: (header ? rect.bottom - 1 : rect.top) + scrollY };
     });
   }

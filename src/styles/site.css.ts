@@ -37,6 +37,8 @@ export const header = style({
   margin: "0 auto",
   padding: "1.5rem 0",
   borderBottom: "1px solid #cfd2c8",
+  // A 28px mobile visitor needs 25.375px to its feet plus 6px clearance.
+  "@media": { "screen and (max-width: 40rem)": { paddingBottom: "2rem" } },
 });
 
 export const brand = style({
@@ -298,6 +300,13 @@ export const detailPage = style({
 export const detailHeader = style({
   maxWidth: "42rem",
   marginBottom: "1.5rem",
+  // Frameless photo tops need room above them for the whole visitor.
+  "@media": {
+    "screen and (max-width: 40rem)": { marginBottom: "2rem" },
+    [`screen and (width > 40rem) and (max-width: ${layout.breakpoint}) and (orientation: portrait)`]: {
+      marginBottom: "2.75rem",
+    },
+  },
 });
 
 export const detailTitle = style({

@@ -20,6 +20,8 @@ that the scene is absent from preload links.
   suspension; birds act independently. Each entrance timer adds its bird once,
   even if the scene is hidden; reconciliation controls whether it can appear.
 - `geometry.ts` subtracts content and bird reservations into safe intervals.
+  The whole header divider is considered, not just the logo–navigation gap;
+  mobile header padding and detail-photo spacing leave clearance above perches.
   Walks reserve their full corridor; flights reserve their destination. Existing
   positions are validated directly, keeping safe birds in place.
 - `bird.ts` manages one bird's state, facing, position, reservations, deadlines,
