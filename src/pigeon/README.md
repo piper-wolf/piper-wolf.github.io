@@ -33,8 +33,9 @@ that the scene is absent from preload links.
   Flight interrupts ground movement from its visible position. Ground movement
   checks the last cursor position each animation frame,
   so a stationary cursor also changes walking speed or triggers flight.
-  Monitoring stops when ground movement ends; leaving the page or blurring the
-  window clears the cursor. Touch pointers are ignored. Escape paths lead away from the pointer
+  Each landing rechecks the stationary cursor, continuing to walk away while
+  it remains nearby. Blocked escapes retain their normal retry deadline.
+  Leaving the page or blurring the window clears the cursor. Touch pointers are ignored. Escape paths lead away from the pointer
   along a safe corridor; blocked ground escapes wait instead of triggering flight.
   Pointer-triggered flights prefer safe destinations in the direction away from
   the cursor, falling back to other safe destinations when that direction is unavailable.

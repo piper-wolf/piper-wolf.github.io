@@ -403,8 +403,21 @@ test.describe('actions and transitions', () => {
       lastSpeed = faster.speed;
     }
     await expectSafePerch(page);
+    // Completing a step must keep escaping from the same stationary cursor.
+    await approach(200);
+    const escaping = await inspect();
+    await bird.evaluate(el => el.getAnimations({ subtree: true })
+      .filter(a => Number.isFinite(a.effect!.getTiming().iterations)).forEach(a => a.finish()));
+    await page.clock.runFor(16);
+    await expect(bird).toHaveAttribute('data-state', 'walking');
+    const continued = await inspect();
+    expect(continued.from).toBeCloseTo(escaping.to, 2);
+    expect(continued.to).toBeLessThan(continued.from);
+    expect(continued.rates[0]).toBeLessThan(escaping.rates[0]);
+    expect(continued.rates.every(rate => Math.abs(rate - continued.rates[0]) < .001)).toBe(true);
+    expect(await bird.evaluate((el, a) => el.getAnimations()[0] === a, animationHandle)).toBe(false);
     await approach(310);
-    expect((await inspect()).speed).toBeCloseTo(walk.speed, 2);
+    expect((await inspect()).rates[0]).toBeCloseTo(walk.rates[0], 2);
     // Geometry reconciliation preserves the gait and its reserved corridor.
     await page.locator('main').evaluate(el => { el.style.backgroundColor = 'transparent'; });
     await page.clock.runFor(200);

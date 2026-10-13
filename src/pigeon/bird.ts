@@ -40,11 +40,13 @@ export class Bird {
     window.addEventListener('blur', forgetPointer);
   }
   private watchPointer() {
-    if (!this.pointer || this.pointerFrame !== undefined || this.state !== 'walking') return;
+    if (!this.pointer || this.pointerFrame !== undefined || (this.state !== 'walking' && this.state !== 'perched')) return;
     this.pointerFrame = requestAnimationFrame(() => {
       this.pointerFrame = undefined;
       this.reactToPointer();
-      this.watchPointer();
+      // Recheck after landing; keep sampling only while the bird moves.
+      // A blocked escape retains its normal retry deadline.
+      if (this.state === 'walking') this.watchPointer();
     });
   }
   private reactToPointer() {
