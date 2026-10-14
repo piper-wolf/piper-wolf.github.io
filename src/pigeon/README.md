@@ -14,8 +14,13 @@ that the scene is absent from preload links.
   in `appearances.ts` with equal probability, excluding fancy breeds. Each companion
   independently chooses from the full catalog in `appearances.ts` with equal probability,
   including blue bar; duplicates are allowed.
-- `scene.ts` owns page lifecycle, one-time staggered entrances, and cached
-  geometry. It observes sizes, DOM/style edits, image completion, and fonts.
+- `scene.ts` owns page lifecycle, one-time staggered entrances, cached
+  geometry, and the cursor. Pointer events only update its latest position and
+  request one shared frame. The frame reads each grounded bird's bounds before
+  applying any reactions. It continues only while birds walk; landings and
+  geometry changes request another check. It observes sizes, DOM/style edits,
+  image completion, and fonts. Bird dimensions refresh with geometry rather
+  than on every definition access.
   Invalidation debounces reconciliation
   without canceling actions or resetting deadlines. Count and colors survive
   suspension; birds act independently. Each entrance timer adds its bird once,
@@ -37,10 +42,15 @@ that the scene is absent from preload links.
   from 0.5× at the outer edge to 2× near the 14px flight margin. Animation and
   travel share the same playback rate, preserving planted feet and head holds.
   Flight interrupts ground movement from its visible position. Ground movement
-  checks the last cursor position each animation frame,
+  uses the scene's last cursor position each animation frame,
   so a stationary cursor also changes walking speed or triggers flight.
   Each landing rechecks the stationary cursor, continuing to walk away while
-  it remains nearby. Blocked escapes retain their normal retry deadline.
+  it remains nearby. One distance calculation selects flight, walking, or a
+  walking speed adjustment; hover uses this same path. Blocked escapes retain
+  their normal retry deadline without searching again on every pointer event.
+  A changed escape direction, action, or geometry allows an earlier retry;
+  flight directions use eight sectors. Deadline retries use the same cursor
+  check, including when the cursor is stationary.
   Leaving the page or blurring the window clears the cursor. Touch pointers are ignored. Escape paths lead away from the pointer
   along a safe corridor; blocked ground escapes wait instead of triggering flight.
   Pointer-triggered flights prefer safe destinations in the direction away from

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { appearances, commonAppearances, companionAppearances } from '../src/pigeon/appearances';
 import { movement } from '../src/pigeon/actions';
 import { pigeon } from '../src/pigeon/definition';
-import { prepare, enter, start, land, finishGesture, dueMovement, expectSafePerch, scrollTo, runtime } from './helpers/pigeons';
+import { prepare, enter, start, land, finishGesture, dueMovement, expectSafePerch, scrollTo, runtime, scare, trackPointerWork, pointerBurst } from './helpers/pigeons';
 
 test.describe('loading and motion preferences', () => {
   test('initial reduced motion can enable the deferred scene exactly once', async ({ page }) => {
@@ -273,8 +273,6 @@ test.describe('actions and transitions', () => {
       expect(walking.wing).toBe('none');
       expect(walking.neutralEnds).toBe(true);
       await expectSafePerch(page);
-      await bird.dispatchEvent('mouseenter');
-      await expect(bird).not.toHaveAttribute('data-state', 'flying');
       if (direction) {
         await page.clock.runFor(5000);
         await expect(bird).toHaveAttribute('data-state', 'walking');
@@ -332,7 +330,21 @@ test.describe('actions and transitions', () => {
     const approach = async (distance: number) => {
       const rect = (await bird.boundingBox())!;
       await page.mouse.move(rect.x + rect.width + distance, rect.y + rect.height / 2);
+      await page.clock.runFor(16);
       return rect;
+    };
+    const narrowPerch = async (onlyEdge = false) => {
+      await bird.evaluate((el, onlyEdge) => {
+        const rect = el.getBoundingClientRect();
+        const feet = rect.top + 58 * rect.height / 64;
+        const edge = [...document.querySelectorAll<HTMLElement>('[data-pigeon-landing]')]
+          .find(edge => Math.abs(edge.getBoundingClientRect().top - feet) < .5)!;
+        if (onlyEdge) document.querySelectorAll('[data-pigeon-landing]').forEach(other => {
+          if (other !== edge) other.removeAttribute('data-pigeon-landing');
+        });
+        edge.style.cssText = `position:fixed;left:${rect.left - 26}px;top:${feet}px;width:${rect.width + 52}px;height:1px`;
+      }, onlyEdge);
+      await page.clock.runFor(200);
     };
     // A stationary cursor must change playback without replacing the gait.
     await dueMovement(page, 5001);
@@ -343,6 +355,7 @@ test.describe('actions and transitions', () => {
       return Math.sign(new DOMMatrix(frames.at(-1)!.transform as string).m41 - new DOMMatrix(frames[0].transform as string).m41);
     });
     await page.mouse.move(direction > 0 ? before.x + before.width + 25 : before.x - 25, before.y + before.height / 2);
+    await page.clock.runFor(16);
     await expect(bird).toHaveAttribute('data-state', 'walking');
     const animation = await bird.evaluateHandle(el => el.getAnimations()[0]);
     const rate = await animation.evaluate(a => a.playbackRate);
@@ -449,14 +462,7 @@ test.describe('actions and transitions', () => {
     await page.clock.runFor(100);
     await expect(bird).toHaveAttribute('data-state', 'perched');
     // Make this perch too narrow for a step, with another edge for flight.
-    await bird.evaluate(el => {
-      const rect = el.getBoundingClientRect();
-      const feet = rect.top + 58 * rect.height / 64;
-      const edge = [...document.querySelectorAll<HTMLElement>('[data-pigeon-landing]')]
-        .find(edge => Math.abs(edge.getBoundingClientRect().top - feet) < .5)!;
-      edge.style.cssText = `position:fixed;left:${rect.left - 26}px;top:${feet}px;width:${rect.width + 52}px;height:1px`;
-    });
-    await page.clock.runFor(200);
+    await narrowPerch();
     await expectSafePerch(page);
     for (const distance of [310, 130]) {
       await approach(distance);
@@ -466,6 +472,35 @@ test.describe('actions and transitions', () => {
     await expect(bird).toHaveAttribute('data-state', 'flying');
     await land(page);
     await expectSafePerch(page);
+
+    await page.dispatchEvent('html', 'pointerleave');
+    await reset();
+    await narrowPerch(true);
+    await approach(330);
+    const blocked = (await bird.boundingBox())!;
+    const work = await trackPointerWork(page);
+    const burst = async (x: number) => {
+      await work.evaluate(work => { work.bounds = work.sizes = work.frames = work.draws = 0; });
+      await pointerBurst(page, x, blocked.y + blocked.height / 2);
+      expect(await work.jsonValue()).toEqual({ bounds: 0, sizes: 0, frames: 1, draws: 0 });
+      await page.clock.runFor(16);
+      await expect(bird).toHaveAttribute('data-state', 'perched');
+      return work.jsonValue();
+    };
+    expect(await burst(blocked.x + blocked.width + 100)).toEqual({ bounds: 1, sizes: 0, frames: 1, draws: 1 });
+    expect(await burst(blocked.x + blocked.width + 130)).toEqual({ bounds: 1, sizes: 0, frames: 1, draws: 0 });
+    expect(await burst(blocked.x - 100)).toEqual({ bounds: 1, sizes: 0, frames: 1, draws: 1 });
+    expect(await burst(blocked.x - 10)).toEqual({ bounds: 1, sizes: 0, frames: 1, draws: 1 });
+    expect(await burst(blocked.x - 11)).toEqual({ bounds: 1, sizes: 0, frames: 1, draws: 0 });
+    await dueMovement(page, 15001);
+    expect((await work.jsonValue()).bounds).toBe(2);
+    await page.clock.runFor(16);
+    expect(await burst(blocked.x - 11)).toEqual({ bounds: 1, sizes: 0, frames: 1, draws: 0 });
+    await page.locator('main').evaluate(el => { el.style.backgroundColor = 'transparent'; });
+    await page.clock.runFor(200);
+    expect((await work.jsonValue()).draws).toBe(1);
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    expect(await burst(blocked.x - 11)).toEqual({ bounds: 1, sizes: 0, frames: 1, draws: 1 });
   });
 
   test('every action can start without a minimum wait and reduced motion cancels it', async ({ page }) => {
@@ -532,6 +567,7 @@ test.describe('actions and transitions', () => {
     const before = await bird.boundingBox();
     await expect(bird).toHaveCSS('pointer-events', 'auto');
     await page.mouse.move(before!.x + 20, before!.y + 20);
+    await page.clock.runFor(16);
     // Pause before cross-process assertions so native flight cannot finish early.
     const flight = await bird.evaluate((element) => {
       const animation = element.getAnimations()[0];
@@ -549,16 +585,17 @@ test.describe('actions and transitions', () => {
     await page.mouse.move(0, 0);
     await page.clock.runFor(32);
     await page.mouse.move(after!.x + 20, after!.y + 20);
+    await page.clock.runFor(16);
     expect(await bird.evaluate((element) => {
       const flying = element.getAttribute('data-state') === 'flying';
       element.getAnimations().forEach((animation) => animation.finish());
       return flying;
     })).toBe(true);
     await expectSafePerch(page);
-    for (const { dx, dy, hover, fallback } of [
+    for (const { dx, dy, fallback } of [
       { dx: -30, dy: 0 }, { dx: 30, dy: 0 },
       { dx: 0, dy: -30 }, { dx: 0, dy: 30 },
-      { dx: -19, dy: 0, hover: true },
+      { dx: -19, dy: 0 },
       { dx: 30, dy: 0, fallback: true },
     ]) {
       await page.goto('/pigeons/');
@@ -576,9 +613,10 @@ test.describe('actions and transitions', () => {
       await land(page);
       await page.evaluate(() => { Math.random = () => .25; });
       const from = (await bird.boundingBox())!;
-      await bird.dispatchEvent(hover ? 'mouseenter' : 'pointermove', {
+      await bird.dispatchEvent('pointermove', {
         pointerType: 'mouse', clientX: from.x + from.width / 2 + dx, clientY: from.y + from.height / 2 + dy,
       });
+      await page.clock.runFor(16);
       await expect(bird).toHaveAttribute('data-state', 'flying');
       const to = await bird.evaluate(el => {
         const frames = (el.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
@@ -671,7 +709,7 @@ test.describe('actions and transitions', () => {
     });
     expect(repeat.count).toBe(5);
     expect(repeat.rate).toBeCloseTo(3.2, 2);
-    await bird.dispatchEvent('mouseenter');
+    await scare(page, bird);
     await expect(bird).toHaveAttribute('data-state', 'flying');
     const recovered = await bird.evaluate(el => ['head', 'neck'].map(part => {
       const target = el.querySelector(`.pigeon-${part}`)!;
@@ -703,7 +741,7 @@ test.describe('actions and transitions', () => {
             return { selector: `.${target.classList[0]}`, transform: getComputedStyle(target).transform };
           });
         });
-        await bird.dispatchEvent('mouseenter');
+        await scare(page, bird);
         await expect(bird).toHaveAttribute('data-state', 'flying');
         expect(await bird.evaluate((el, poses) => poses.map(pose => getComputedStyle(el.querySelector(pose.selector)!).transform), poses)).toEqual(poses.map(pose => pose.transform));
         expect(await bird.evaluate((el, poses) => poses.filter(pose => ['.pigeon-wing', '.pigeon-foot-front'].includes(pose.selector)).every(pose => {
@@ -809,7 +847,7 @@ test.describe('actions and transitions', () => {
         await expectSafePerch(page);
         if (edge === 'header' && width < 400) {
           await page.evaluate(() => { Math.random = () => .999; });
-          await page.locator('.pigeon-visitor:first-child').dispatchEvent('mouseenter');
+          await scare(page, page.locator('.pigeon-visitor:first-child'));
           await land(page);
           await expectSafePerch(page);
           const lastX = (await page.locator('.pigeon-visitor:first-child').boundingBox())!.x;
@@ -1029,19 +1067,23 @@ test.describe('independent birds and layout', () => {
     ]);
     await expectSafePerch(page);
     const nearby = await page.locator('.pigeon-visitor').last().boundingBox();
+    const work = await trackPointerWork(page);
+    await pointerBurst(page, -1000, -1000);
+    expect(await work.jsonValue()).toEqual({ bounds: 0, sizes: 0, frames: 1, draws: 0 });
+    await page.clock.runFor(16);
+    expect(await work.jsonValue()).toEqual({ bounds: count, sizes: 0, frames: 1, draws: 0 });
     await page.mouse.move(nearby!.x + nearby!.width / 2, nearby!.y - 340);
     await expect(page.locator('.pigeon-visitor[data-state="perched"]')).toHaveCount(count);
-    // Trigger just this bird: a real nearby pointer can also scare companions.
-    await page.locator('.pigeon-visitor').last().dispatchEvent('mouseenter');
+    await scare(page, page.locator('.pigeon-visitor').last());
     await expect(page.locator('.pigeon-visitor[data-state="flying"]')).toHaveCount(1);
-    await expect(page.locator('.pigeon-visitor[data-state="perched"]')).toHaveCount(count - 1);
-    await page.locator('.pigeon-visitor').first().dispatchEvent('mouseenter');
+    await expect(page.locator('.pigeon-visitor:not([data-state="flying"])')).toHaveCount(count - 1);
+    await scare(page, page.locator('.pigeon-visitor').first());
     await expect(page.locator('.pigeon-visitor[data-state="flying"]')).toHaveCount(2);
     await land(page);
     await expectSafePerch(page);
     for (const lifecycle of ['visibility', 'page', 'motion']) {
       // Hide during a flight, then restore without an unrelated event.
-      await page.locator('.pigeon-visitor').last().dispatchEvent('mouseenter');
+      await scare(page, page.locator('.pigeon-visitor').last());
       await expect(page.locator('.pigeon-visitor[data-state="flying"]')).toHaveCount(1);
       if (lifecycle === 'visibility') {
         await page.evaluate(() => {

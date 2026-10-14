@@ -5,6 +5,7 @@ export type MovementState = 'suspended' | 'perched' | 'walking' | 'flying';
 export interface BirdScene {
   places(bird: Bird, walkFrom?: Point): Point[];
   current(bird: Bird): Point | undefined;
+  watchPointer(): void;
 }
 const choose = <T>(items: readonly T[]) => items[Math.floor(Math.random() * items.length)];
 export class Bird {
@@ -14,61 +15,46 @@ export class Bird {
   private animations: Animation[] = [];
   private timer?: number;
   private offscreenTimer?: number;
-  private pointer?: { x: number; y: number };
-  private pointerFrame?: number;
+  definition: BirdDefinition;
+  private blockedEscape?: { kind: 'walk' | 'flight'; direction: number };
   private generation = 0;
   private lastIdle = -1;
   private facing: 'left' | 'right' = 'right';
   private deadlines = { idle: Infinity, walk: Infinity, flight: Infinity };
   constructor(readonly element: HTMLElement, private baseDefinition: BirdDefinition, private scene: BirdScene) {
+    this.definition = baseDefinition;
+    this.measure();
     this.render('suspended');
-    element.addEventListener('mouseenter', event => {
-      if (this.state === 'perched') this.flight({ x: event.clientX + scrollX, y: event.clientY + scrollY });
-    });
-    document.addEventListener('pointermove', event => {
-      if (event.pointerType === 'touch') return;
-      this.pointer = { x: event.clientX, y: event.clientY };
-      this.reactToPointer();
-      this.watchPointer();
-    });
-    const forgetPointer = () => {
-      this.pointer = undefined;
-      this.setWalkSpeed(1);
-      cancelAnimationFrame(this.pointerFrame!);
-      this.pointerFrame = undefined;
-    };
-    document.addEventListener('pointerleave', forgetPointer);
-    window.addEventListener('blur', forgetPointer);
   }
-  private watchPointer() {
-    if (!this.pointer || this.pointerFrame !== undefined || (this.state !== 'walking' && this.state !== 'perched')) return;
-    this.pointerFrame = requestAnimationFrame(() => {
-      this.pointerFrame = undefined;
-      this.reactToPointer();
-      // Recheck after landing; keep sampling only while the bird moves.
-      // A blocked escape retains its normal retry deadline.
-      if (this.state === 'walking') this.watchPointer();
-    });
-  }
-  private reactToPointer() {
-    if (!this.pointer || this.state === 'suspended' || this.state === 'flying') return;
-    const { x, y } = this.pointer;
-    const rect = this.element.getBoundingClientRect();
+  reactToPointer({ x, y }: { x: number; y: number }, rect: DOMRect) {
     const dx = Math.max(rect.left - x, 0, x - rect.right);
     const dy = Math.max(rect.top - y, 0, y - rect.bottom);
     const distance = Math.hypot(dx, dy);
-    const radius = this.definition.escapeRadius;
-    if (distance <= radius.flight) {
-      // Flight starts from the visible position, even midway through a step.
-      if (this.state === 'walking') this.position = { ...this.position!, x: rect.left + scrollX, y: rect.top + scrollY };
-      this.flight({ x: x + scrollX, y: y + scrollY });
-      return;
-    }
-    // One gait, continuously scaled from a cautious half-speed walk to 2×.
+    const radius = this.baseDefinition.escapeRadius;
+    const kind = distance <= radius.flight ? 'flight'
+      : distance <= radius.walk && this.state === 'perched' ? 'walk' : undefined;
     const proximity = Math.max(0, Math.min(1, (radius.walk - distance) / (radius.walk - radius.flight)));
     const speed = distance <= radius.walk ? .5 + 1.5 * proximity : 1;
-    if (this.state === 'walking') this.setWalkSpeed(speed);
-    else if (distance <= radius.walk) this.walk(x + scrollX, speed);
+    if (!kind) {
+      const wasBlocked = !!this.blockedEscape;
+      this.blockedEscape = undefined;
+      this.setWalkSpeed(speed);
+      if (wasBlocked) this.wake();
+      return;
+    }
+    const awayX = rect.left + rect.width / 2 - x;
+    const awayY = rect.top + rect.height / 2 - y;
+    const direction = kind === 'walk' ? Math.sign(awayX)
+      : Math.round((Math.atan2(awayY, awayX) + Math.PI) / (Math.PI / 4)) % 8;
+    if (this.blockedEscape?.kind === kind && this.blockedEscape.direction === direction && this.deadlines[kind] > performance.now()) return;
+    this.blockedEscape = undefined;
+    const escaped = kind === 'flight' ? this.flight({ x: x + scrollX, y: y + scrollY },
+      { ...this.position!, x: rect.left + scrollX, y: rect.top + scrollY }) : this.walk(x + scrollX, speed);
+    if (!escaped) this.blockedEscape = { kind, direction };
+  }
+  forgetPointer() {
+    this.blockedEscape = undefined;
+    this.setWalkSpeed(1);
   }
   private setWalkSpeed(speed: number) {
     if (this.state === 'walking') this.animations.forEach(animation => {
@@ -76,15 +62,16 @@ export class Bird {
     });
   }
 
-  get definition(): BirdDefinition {
+  measure() {
     const size = this.element.offsetWidth;
-    return { ...this.baseDefinition, size, feet: this.baseDefinition.feet * size / this.baseDefinition.size };
+    this.definition = { ...this.baseDefinition, size, feet: this.baseDefinition.feet * size / this.baseDefinition.size };
+    this.blockedEscape = undefined;
   }
   private render(state: MovementState) {
     this.state = state;
     this.element.dataset.state = state;
     this.element.style.visibility = state === 'suspended' ? 'hidden' : 'visible';
-    this.watchPointer();
+    this.scene.watchPointer();
   }
   private after(delay: number) {
     return performance.now() + Math.random() * delay;
@@ -94,8 +81,6 @@ export class Bird {
     clearTimeout(this.timer);
     clearTimeout(this.offscreenTimer);
     this.offscreenTimer = undefined;
-    cancelAnimationFrame(this.pointerFrame!);
-    this.pointerFrame = undefined;
     this.animations.forEach(a => a.cancel());
     this.animations = [];
     delete this.element.dataset.idle;
@@ -104,6 +89,7 @@ export class Bird {
     this.cancelAction();
     this.deadlines = { idle: Infinity, walk: Infinity, flight: Infinity };
     this.reservation = undefined;
+    this.blockedEscape = undefined;
     this.render('suspended');
   }
   reconcile() {
@@ -120,9 +106,9 @@ export class Bird {
       this.element.style.transform = transform(current);
       this.render('perched');
       if (!wasPerched) {
-        this.deadlines.idle = this.after(this.definition.idleDelay);
-        this.deadlines.walk = this.after(this.definition.walkDelay);
-        if (!Number.isFinite(this.deadlines.flight)) this.deadlines.flight = this.after(this.definition.flightDelay);
+        this.deadlines.idle = this.after(this.baseDefinition.idleDelay);
+        this.deadlines.walk = this.after(this.baseDefinition.walkDelay);
+        if (!Number.isFinite(this.deadlines.flight)) this.deadlines.flight = this.after(this.baseDefinition.flightDelay);
       }
       this.wake();
     } else {
@@ -151,18 +137,20 @@ export class Bird {
   private tick() {
     if (this.state !== 'perched' || this.animations.length) return;
     const now = performance.now();
-    if (this.deadlines.flight <= now) this.flight();
-    else if (this.deadlines.walk <= now) this.walk();
+    const due = this.deadlines.flight <= now ? 'flight' : this.deadlines.walk <= now ? 'walk' : undefined;
+    if (due && this.blockedEscape?.kind === due) this.scene.watchPointer();
+    else if (due === 'flight') this.flight();
+    else if (due === 'walk') this.walk();
     else if (this.deadlines.idle <= now) this.idle();
     else this.wake();
   }
   private async idle() {
-    this.lastIdle = (this.lastIdle + 1 + Math.floor(Math.random() * 2)) % this.definition.actions.length;
-    const name = this.definition.actions[this.lastIdle];
+    this.lastIdle = (this.lastIdle + 1 + Math.floor(Math.random() * 2)) % this.baseDefinition.actions.length;
+    const name = this.baseDefinition.actions[this.lastIdle];
     this.element.dataset.idle = name;
     if (await this.run(gesture(name))) {
       this.cancelAction();
-      this.deadlines.idle = this.after(this.definition.idleDelay);
+      this.deadlines.idle = this.after(this.baseDefinition.idleDelay);
       this.wake();
     }
   }
@@ -177,20 +165,28 @@ export class Bird {
       const dx = target.x - this.position!.x;
       const distance = Math.min(Math.abs(dx), this.definition.size * (.6 + Math.random() * .6));
       this.move({ ...target, x: this.position!.x + Math.sign(dx) * distance }, 'walking', speed);
+      return true;
     }
-    else { this.deadlines.walk = this.after(this.definition.walkDelay); this.wake(); }
+    this.deadlines.walk = this.after(this.baseDefinition.walkDelay);
+    this.wake();
+    return false;
   }
-  private flight(awayFrom?: { x: number; y: number }) {
-    const targets = this.scene.places(this).filter(p => Math.hypot(p.x - this.position!.x, p.y - this.position!.y) > 60);
-    const from = this.position!;
+  private flight(awayFrom?: { x: number; y: number }, from = this.position!) {
+    const targets = this.scene.places(this).filter(p => Math.hypot(p.x - from.x, p.y - from.y) > 60);
     const dx = awayFrom ? from.x + this.definition.size / 2 - awayFrom.x : 0;
     const dy = awayFrom ? from.y + this.definition.size / 2 - awayFrom.y : 0;
     const away = targets.filter(p => (p.x - from.x) * dx + (p.y - from.y) * dy >
       .1 * Math.hypot(p.x - from.x, p.y - from.y) * Math.hypot(dx, dy));
     const preferred = away.length ? away : targets;
     const other = preferred.filter(p => p.element !== from.element);
-    if (preferred.length) this.move(choose(other.length ? other : preferred), 'flying');
-    else { this.deadlines.flight = this.after(this.definition.flightDelay); this.wake(); }
+    if (preferred.length) {
+      this.position = from;
+      this.move(choose(other.length ? other : preferred), 'flying');
+      return true;
+    }
+    this.deadlines.flight = this.after(this.baseDefinition.flightDelay);
+    this.wake();
+    return false;
   }
   private async run(action: Action, opening?: Map<string, string>) {
     const start = document.timeline.currentTime;
@@ -230,6 +226,7 @@ export class Bird {
     const opening = this.animations.length ?
       new Map(action.filter(a => a.part).map(a => [a.part, getComputedStyle(this.element.querySelector(`.pigeon-${a.part}`)!).transform])) : undefined;
     this.cancelAction();
+    this.blockedEscape = undefined;
     if (kind === 'flying') this.deadlines.flight = Infinity;
     const dx = destination.x - from.x;
     if (Math.abs(dx) > .5) this.facing = dx > 0 ? 'right' : 'left';

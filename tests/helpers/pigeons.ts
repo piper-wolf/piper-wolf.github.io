@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Page, type Locator } from '@playwright/test';
 import { entranceDelays } from '../../src/pigeon/definition';
 export const runtime = /\/scene\.[^/]+\.js$/;
 
@@ -105,4 +105,36 @@ export async function scrollTo(page: Page, y: number) {
     await page.clock.runFor(16);
     return page.locator('html').getAttribute('data-pigeon-test-scrolled');
   }).toBe('true');
+}
+
+export async function scare(page: Page, bird: Locator) {
+  const rect = (await bird.boundingBox())!;
+  await bird.dispatchEvent('pointermove', { pointerType: 'mouse', clientX: rect.x + rect.width / 2, clientY: rect.y + rect.height / 2 });
+  await page.clock.runFor(16);
+  await page.dispatchEvent('html', 'pointerleave');
+}
+
+export async function trackPointerWork(page: Page) {
+  return page.evaluateHandle(() => {
+    const work = { bounds: 0, sizes: 0, frames: 0, draws: 0 };
+    document.querySelectorAll<HTMLElement>('.pigeon-visitor').forEach(bird => {
+      const bounds = bird.getBoundingClientRect.bind(bird);
+      bird.getBoundingClientRect = () => { work.bounds++; return bounds(); };
+      const size = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth')!.get!;
+      Object.defineProperty(bird, 'offsetWidth', { get() { work.sizes++; return size.call(bird); } });
+    });
+    const frame = window.requestAnimationFrame;
+    window.requestAnimationFrame = callback => { work.frames++; return frame(callback); };
+    const random = Math.random;
+    Math.random = () => { work.draws++; return random(); };
+    return work;
+  });
+}
+
+export async function pointerBurst(page: Page, x: number, y: number) {
+  await page.evaluate(({ x, y }) => {
+    for (let i = 0; i < 50; i++) document.dispatchEvent(new PointerEvent('pointermove', {
+      pointerType: 'mouse', clientX: x, clientY: y,
+    }));
+  }, { x, y });
 }
