@@ -1,17 +1,52 @@
-export type Gesture = 'look' | 'peck' | 'stretch';
 export type Action = { part: string; keyframes: Keyframe[]; timing: KeyframeAnimationOptions }[];
 type Part = [string, Keyframe[]];
 const frames = (transforms: string[]): Keyframe[] => transforms.map(transform => ({ transform }));
-// Look/stretch angles and durations are expressive poses, not measured kinematics.
-const catalog: Record<Exclude<Gesture, 'peck'>, { duration: number; parts: Part[] }> = {
-  look: { duration: 1500, parts: [['head', frames(['none', 'translateY(-1px) rotate(-9deg)', 'rotate(8deg)', 'none'])]] },
-  stretch: { duration: 1800, parts: [['wing', frames(['none', 'rotate(-38deg) scaleY(.8)', 'rotate(-20deg) scaleY(.9)', 'rotate(-38deg) scaleY(.8)', 'none'])]] },
-};
+// Kano et al. (2018): pigeon gaze includes rapid head saccades and fixation.
+// https://doi.org/10.1242/jeb.183475
+// Repeated poses hold the head between short shifts; these 2D tilts, angles and
+// durations suggest scanning rather than reconstructing the measured 3D gaze.
+const catalog = {
+  look: { duration: 1500, easing: 'linear', parts: [['head', [
+    { offset: 0, transform: 'none' }, { offset: .18, transform: 'none' },
+    { offset: .23, transform: 'translateY(-1px) rotate(-9deg)' },
+    { offset: .57, transform: 'translateY(-1px) rotate(-9deg)' },
+    { offset: .62, transform: 'rotate(8deg)' }, { offset: .9, transform: 'rotate(8deg)' },
+    { offset: .95, transform: 'none' }, { offset: 1, transform: 'none' },
+  ]]] },
+  // Goodwin's pigeon ethogram describes a backward wing/leg stretch on the same
+  // side with the tail spread. Shared wing, foot and tail tracks suggest that
+  // coordination; extension angles and timing are illustration choices.
+  // https://greatlakespigeonrescue.org/ethogram-of-the-pigeon
+  stretch: { duration: 1800, easing: 'ease-in-out', parts: [
+    ['wing', frames(['none', 'rotate(22deg) scaleX(1.1)', 'rotate(26deg) scaleX(1.15)', 'rotate(22deg) scaleX(1.1)', 'none'])],
+    ['foot-front', frames(['none', 'translate(-4px, -3px) rotate(12deg)', 'translate(-5px, -4px) rotate(15deg)', 'translate(-4px, -3px) rotate(12deg)', 'none'])],
+    ['tail', frames(['none', 'rotate(-6deg)', 'rotate(-9deg)', 'rotate(-6deg)', 'none'])],
+  ] },
+  // Waite et al. (2012): Rock Pigeons preen plumage with their bill.
+  // This short wing-directed preen uses shared head/neck/wing parts; the pose,
+  // two strokes and timing are artistic rather than a measured grooming bout.
+  // https://darwin.biology.utah.edu/PDFs/113.pdf
+  preen: { duration: 2100, easing: 'ease-in-out', parts: [
+    ['head', frames(['none', 'translate(-3px, -1px) rotate(125deg)', 'translate(-1px, -3px) rotate(115deg)', 'translate(-3px, -1px) rotate(125deg)', 'none'])],
+    ['neck', frames(['none', 'rotate(30deg) scaleY(.65)', 'rotate(25deg) scaleY(.7)', 'rotate(30deg) scaleY(.65)', 'none'])],
+    ['wing', frames(['none', 'rotate(8deg)', 'rotate(4deg)', 'rotate(8deg)', 'none'])],
+  ] },
+  // Goodwin describes raised body feathers, wings held away and a shake, often
+  // followed by tail movement. Small scales/rotations suggest that puff/settle;
+  // amplitudes and timing are art, not a claim about mechanically zipping feathers.
+  // https://greatlakespigeonrescue.org/ethogram-of-the-pigeon
+  ruffle: { duration: 1100, easing: 'ease-in-out', parts: [
+    ['body', frames(['none', 'scale(1.06, 1.04)', 'scale(1.02, 1.01)', 'scale(1.05, 1.03)', 'none'])],
+    ['wing', frames(['none', 'rotate(6deg)', 'rotate(-3deg)', 'rotate(4deg)', 'none'])],
+    ['tail', frames(['none', 'rotate(-8deg)', 'rotate(6deg)', 'rotate(-4deg)', 'none'])],
+  ] },
+} satisfies Record<string, { duration: number; easing: string; parts: Part[] }>;
+export type Gesture = keyof typeof catalog | 'peck';
 export const transform = (p: { x: number; y: number }) => `translate(${p.x}px, ${p.y}px)`;
 export function gesture(name: Gesture): Action {
   if (name === 'peck') return peck();
   const action = catalog[name];
-  return action.parts.map(([part, keyframes]) => ({ part, keyframes, timing: { duration: action.duration, easing: 'ease-in-out' } }));
+  return action.parts.map(([part, keyframes]) => ({ part, keyframes, timing: { duration: action.duration, easing: action.easing } }));
 }
 // Theunissen, Reid & Troje (2017), https://doi.org/10.1242/jeb.147850:
 // two head stops help aim a peck before its final approach. Ostheim et al.

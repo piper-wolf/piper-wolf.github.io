@@ -217,6 +217,16 @@ export class Bird {
         destination.y - scrollY + (destination.y - scrollY < innerHeight / 2 ? 220 : -220))),
     };
     const action = movement(from, destination, kind, this.definition.size);
+    // Recover gesture-only parts (e.g. a stretched foot or preening wing) on
+    // the movement's timeline too, so cancellation doesn't snap them upright.
+    for (const animation of this.animations) {
+      const target = (animation.effect as KeyframeEffect).target;
+      if (!target || target === this.element) continue;
+      const part = [...target.classList].find(name => name.startsWith('pigeon-'))?.slice(7);
+      if (!part || action.some(track => track.part === part)) continue;
+      const duration = Number(action[0].timing.duration);
+      action.push({ part, keyframes: [0, Math.min(1, 120 / duration), 1].map(offset => ({ offset, transform: 'none' })), timing: { duration, easing: 'linear' } });
+    }
     const opening = this.animations.length ?
       new Map(action.filter(a => a.part).map(a => [a.part, getComputedStyle(this.element.querySelector(`.pigeon-${a.part}`)!).transform])) : undefined;
     this.cancelAction();

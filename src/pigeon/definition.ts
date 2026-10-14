@@ -20,7 +20,7 @@ export const pigeon = {
   flightDelay: 60000,
   // Screen-space interaction choices, not measured pigeon escape distances.
   escapeRadius: { flight: 14, walk: 320 },
-  actions: ['look', 'peck', 'stretch'],
+  actions: ['look', 'peck', 'stretch', 'preen', 'ruffle'],
 } as const;
 
 export const entranceDelays = [100, 10000, 40000, 90000, 180000] as const;

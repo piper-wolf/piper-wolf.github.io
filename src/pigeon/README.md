@@ -63,7 +63,14 @@ that the scene is absent from preload links.
   [Theunissen et al. (2017)](https://doi.org/10.1242/jeb.147850) informs the stops;
   [Ostheim et al. (2020)](https://doi.org/10.1242/jeb.223313) informs the rate
   and squint. Short bout counts, pauses, stride geometry, and posture angles
-  are decorative choices, not measurements. All poses end neutral. The manager
+  are decorative choices, not measurements. All poses end neutral. Scanning uses
+  quick tilts with fixation pauses, informed by
+  [Kano et al. (2018)](https://doi.org/10.1242/jeb.183475). A backward wing/leg
+  stretch, wing-directed preen and brief ruffle/settle add variety. Bill grooming
+  follows [Waite et al. (2012)](https://darwin.biology.utah.edu/PDFs/113.pdf);
+  gesture angles and durations are illustration choices. Interrupted gestures
+  recover every animated part on the movement timeline, including parts that
+  the next movement would otherwise leave untouched. The manager
   starts each action on one native timeline origin. No animation library or
   frame loop is required to animate movement. Flights follow a logarithmic vertical progression
   that flattens into a horizontal approach; level flights use a symmetric lift
@@ -88,7 +95,7 @@ that the scene is absent from preload links.
 `data-state` (`suspended`, `perched`, `walking`, `flying`) and `data-idle` are the
 rendering contract. Translation belongs to the outer element, facing to the SVG,
 body poses to `.pigeon-body`, and CSS breathing to its separate `.pigeon-breath`
-wrapper. Breathing pauses during movement and pecking; blinking continues while
+wrapper. Breathing pauses during movement and posed gestures other than looking; blinking continues while
 visible. Ambient loops retain their phase across active states and stop when
 suspended. Birds stay hidden when no safe space exists.
 
@@ -99,16 +106,26 @@ clearance. Palettes share anatomy and behavior.
 `appearances.ts` separates the palette, wing pattern, and breed for each variant.
 Add a catalog entry to make it available to companions automatically. Palette keys
 map to `--pigeon-*` custom properties, including iris color. `applyAppearance`
-sets those properties and `data-pattern` / `data-breed`; the SVG switches reusable
+sets those properties and `data-pattern` / `data-breed` / `data-features`; the SVG switches reusable
 marking and feather layers without changing animation anchors or foot placement.
 Patterns include bars, checker, plain, grizzle, and pied. The Fantail adds a radial
 tail fan, the Jacobin a feather hood, and the Old German Owl a crest and breast
-frill. These are stylized breed cues, not show-standard illustrations. Muted contour strokes keep pale feathers visible on light backgrounds; the
+frill. The English Nun combines that crest with a colored bib, primary tips and
+tail; the Lahore adds a white cheek and feathered feet; the Bavarian Pouter adds
+a rounded crop, bib, white flights and feathered feet; the Indian Fantail combines
+the fan, crest and feathered feet. `breedFeatures` composes those layers, and
+each foot's shared template carries its boot through the same walking gait.
+Common and fancy pigeons use one SVG template and animation system. Source
+comments cite each breed standard and explain the simplified geometry.
+These are stylized breed cues, not show-standard illustrations. Muted contour strokes keep pale feathers visible on light backgrounds; the
 white palette uses cool gray shadows. Hood seams and overlapping wing coverts
 provide feather detail across breeds. Large eyes
 and catchlights deliberately exaggerate the otherwise pigeon-shaped silhouette.
 The anatomy follows [Cornell's rock pigeon identification](https://www.allaboutbirds.org/guide/rock_pigeon/id):
 full breast, small head, thin bill, paired wing bars, and a dark tail band.
+Curved green/purple layers suggest neck iridescence, and the backward hallux is
+visible without drawing subpixel joints or claws. Check/grizzle flecks are
+compound paths generated from editable coordinates, with no individual motion.
 
 Browser coverage lives in `tests/pigeon-animation.spec.ts`, grouped by loading,
 actions/transitions, and independent birds/layout. Shared helpers control JS

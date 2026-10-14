@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { appearances, commonAppearances, companionAppearances } from '../src/pigeon/appearances';
 import { movement } from '../src/pigeon/actions';
+import { pigeon } from '../src/pigeon/definition';
 import { prepare, enter, start, land, finishGesture, dueMovement, expectSafePerch, scrollTo, runtime } from './helpers/pigeons';
 
 test.describe('loading and motion preferences', () => {
@@ -591,19 +592,33 @@ test.describe('actions and transitions', () => {
     }
   });
 
-  test('idle gestures vary between looking, pecking and a half-wing stretch', async ({ page }) => {
+  test('idle gestures scan, peck, stretch, preen and ruffle with neutral recovery', async ({ page }) => {
     await start(page);
     const bird = page.locator('.pigeon-visitor:first-child');
     await expect(bird).not.toHaveAttribute('data-state', 'suspended');
     await land(page);
     await expect(page.locator('.pigeon-breath')).toHaveCSS('animation-name', 'pigeon-breathe');
     await expect(page.locator('.pigeon-eye')).toHaveCSS('animation-name', 'pigeon-blink');
-    for (const action of ['look', 'peck', 'stretch']) {
+    for (const action of pigeon.actions) {
       await page.clock.runFor(3001);
       await expect(bird).toHaveAttribute('data-idle', action);
-      const part = action === 'stretch' ? '.pigeon-wing' : '.pigeon-head';
+      const part = ['stretch', 'ruffle'].includes(action) ? '.pigeon-wing' : '.pigeon-head';
       expect(await page.locator(part).evaluate(el => el.getAnimations().some(a => a.effect instanceof KeyframeEffect && a.effect.getKeyframes().some(frame => frame.transform)))).toBe(true);
       await expectSafePerch(page);
+      if (action === 'look') {
+        const holds = await bird.locator('.pigeon-head').evaluate(el => {
+          const effect = el.getAnimations()[0].effect as KeyframeEffect;
+          const animation = el.getAnimations()[0];
+          const at = (fraction: number) => { animation.currentTime = Number(effect.getTiming().duration) * fraction; return getComputedStyle(el).transform; };
+          return { first: [at(.3), at(.5)], second: [at(.7), at(.85)] };
+        });
+        expect(holds.first[0]).toBe(holds.first[1]);
+        expect(holds.second[0]).toBe(holds.second[1]);
+        expect(holds.first[0]).not.toBe(holds.second[0]);
+      }
+      expect(await bird.evaluate(el => el.getAnimations({ subtree: true })
+        .filter(a => Number.isFinite(a.effect!.getTiming().iterations))
+        .every(a => (a.effect as KeyframeEffect).getKeyframes().at(-1)!.transform === 'none'))).toBe(true);
       if (action === 'peck') {
         const peck = await bird.evaluate(el => {
           const headEffect = el.querySelector('.pigeon-head')!.getAnimations()[0].effect as KeyframeEffect;
@@ -670,6 +685,47 @@ test.describe('actions and transitions', () => {
     await expect(bird).toHaveAttribute('data-state', 'suspended');
     await expect(bird).not.toHaveAttribute('data-idle');
     await expect(page.locator('.pigeon-body')).toHaveCSS('animation-name', 'none');
+    // Exercise interruption of the new multi-part gestures through the manager,
+    // including parts absent from the normal flight tracks (wing/front foot).
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.goto('/pigeons/');
+    await enter(page);
+    await land(page);
+    for (const action of pigeon.actions) {
+      await page.clock.runFor(3001);
+      await expect(bird).toHaveAttribute('data-idle', action);
+      if (['stretch', 'preen', 'ruffle'].includes(action)) {
+        const poses = await bird.evaluate(el => {
+          const animations = el.getAnimations({ subtree: true }).filter(a => Number.isFinite(a.effect!.getTiming().iterations));
+          animations.forEach(a => { a.currentTime = Number(a.effect!.getTiming().duration) * .4; });
+          return animations.map(a => {
+            const target = (a.effect as KeyframeEffect).target!;
+            return { selector: `.${target.classList[0]}`, transform: getComputedStyle(target).transform };
+          });
+        });
+        await bird.dispatchEvent('mouseenter');
+        await expect(bird).toHaveAttribute('data-state', 'flying');
+        expect(await bird.evaluate((el, poses) => poses.map(pose => getComputedStyle(el.querySelector(pose.selector)!).transform), poses)).toEqual(poses.map(pose => pose.transform));
+        expect(await bird.evaluate((el, poses) => poses.filter(pose => ['.pigeon-wing', '.pigeon-foot-front'].includes(pose.selector)).every(pose => {
+          const target = el.querySelector(pose.selector)!;
+          // Sample just after the boundary to avoid sub-frame interpolation
+          // rounding at the normalized 120ms keyframe offset in Chromium.
+          target.getAnimations()[0].currentTime = 121;
+          return new DOMMatrix(getComputedStyle(target).transform).isIdentity;
+        }), poses)).toBe(true);
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await expect(bird).toHaveAttribute('data-state', 'suspended');
+        await expect(bird).not.toHaveAttribute('data-idle');
+        expect(await bird.evaluate(el => el.getAnimations({ subtree: true }).filter(a => Number.isFinite(a.effect!.getTiming().iterations)).length)).toBe(0);
+        await page.emulateMedia({ reducedMotion: 'no-preference' });
+        await expect(bird).not.toHaveAttribute('data-state', 'suspended');
+        await land(page);
+      } else {
+        await finishGesture(page);
+        await page.clock.runFor(2000);
+        await land(page);
+      }
+    }
   });
 
   test('entrances and off-screen returns vary their landing spot on the same edge', async ({ page }) => {
@@ -1040,10 +1096,12 @@ test.describe('independent birds and layout', () => {
       const visible = await variant.evaluate(el => {
         const shown = (selector: string) => getComputedStyle(el.querySelector(selector)!).display !== 'none';
         return { pattern: (el as HTMLElement).dataset.pattern, wing: getComputedStyle(el.querySelector('.pigeon-wing > path')!).fill,
-          checks: shown('.pigeon-checks'), grizzle: shown('.pigeon-grizzle'), pied: shown('.pigeon-pied'), fan: shown('.pigeon-fan'), hood: shown('.pigeon-hood'), frill: shown('.pigeon-frill'), bars: shown('.pigeon-bars') };
+          checks: shown('.pigeon-checks'), grizzle: shown('.pigeon-grizzle'), pied: shown('.pigeon-pied'), fan: shown('.pigeon-fan'), hood: shown('.pigeon-hood'), frill: shown('.pigeon-frill'), bars: shown('.pigeon-bars'),
+          crest: shown('.pigeon-crest'), muffs: shown('.pigeon-muffs'), crop: shown('.pigeon-crop'), bib: shown('.pigeon-bib'), cheek: shown('.pigeon-white-cheek'), flights: shown('.pigeon-flight-mark'), normalTail: shown('.pigeon-tail-normal') };
       });
       expect(visible).toEqual({ pattern: appearance.pattern, wing: `rgb(${appearance.palette.wing.slice(1).match(/../g)!.map(n => parseInt(n, 16)).join(', ')})`,
-        checks: appearance.pattern === 'checker', grizzle: appearance.pattern === 'grizzle', pied: appearance.pattern === 'pied', fan: appearance.breed === 'fantail', hood: appearance.breed === 'jacobin', frill: appearance.breed === 'owl', bars: !['plain', 'checker'].includes(appearance.pattern) });
+        checks: appearance.pattern === 'checker', grizzle: appearance.pattern === 'grizzle', pied: appearance.pattern === 'pied', fan: ['fantail', 'indian-fantail'].includes(appearance.breed), hood: appearance.breed === 'jacobin', frill: appearance.breed === 'owl', bars: !['plain', 'checker'].includes(appearance.pattern),
+        crest: ['owl', 'nun', 'indian-fantail'].includes(appearance.breed), muffs: ['lahore', 'pouter', 'indian-fantail'].includes(appearance.breed), crop: appearance.breed === 'pouter', bib: ['nun', 'pouter'].includes(appearance.breed), cheek: appearance.breed === 'lahore', flights: ['nun', 'pouter'].includes(appearance.breed), normalTail: !['fantail', 'indian-fantail'].includes(appearance.breed) });
       await page.clock.runFor(180000);
       await expect(variant).toHaveAttribute('data-state', 'flying');
       await expect(variant.locator('.pigeon-flight-wing')).toHaveCSS('display', 'block');
