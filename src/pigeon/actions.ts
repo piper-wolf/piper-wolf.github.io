@@ -1,98 +1,133 @@
+import { variation, type Variation } from './variation';
+
 export type Action = { part: string; keyframes: Keyframe[]; timing: KeyframeAnimationOptions }[];
 type Part = [string, Keyframe[]];
 const frames = (transforms: string[]): Keyframe[] => transforms.map(transform => ({ transform }));
-// Kano et al. (2018): pigeon gaze includes rapid head saccades and fixation.
-// https://doi.org/10.1242/jeb.183475
-// Repeated poses hold the head between short shifts; these 2D tilts, angles and
-// durations suggest scanning rather than reconstructing the measured 3D gaze.
+const clip = (duration: number, easing: string, parts: Part[]): Action =>
+  parts.map(([part, keyframes]) => ({ part, keyframes, timing: { duration, easing } }));
+
+// Each factory samples bounded, coordinated parameters once, then produces an
+// ordinary finite action. No random transforms during playback or shared state.
 const catalog = {
-  look: { duration: 1500, easing: 'linear', parts: [['head', [
-    { offset: 0, transform: 'none' }, { offset: .18, transform: 'none' },
-    { offset: .23, transform: 'translateY(-1px) rotate(-9deg)' },
-    { offset: .57, transform: 'translateY(-1px) rotate(-9deg)' },
-    { offset: .62, transform: 'rotate(8deg)' }, { offset: .9, transform: 'rotate(8deg)' },
-    { offset: .95, transform: 'none' }, { offset: 1, transform: 'none' },
-  ]]] },
-  // Goodwin's pigeon ethogram describes a backward wing/leg stretch on the same
-  // side with the tail spread. Shared wing, foot and tail tracks suggest that
-  // coordination; extension angles and timing are illustration choices.
+  // Kano et al. (2018): rapid head saccades separated by fixation.
+  // https://doi.org/10.1242/jeb.183475
+  // Angles, tilt direction and timing are illustrative, not measured 3D gaze.
+  look(v: Variation): Action {
+    const direction = v.integer(0, 1) ? -1 : 1;
+    const first = `translateY(-1px) rotate(${direction * v.range(7, 12)}deg)`;
+    const second = `rotate(${-direction * v.range(5, 10)}deg)`;
+    return clip(v.range(1350, 1750), 'linear', [['head', [
+      { offset: 0, transform: 'none' }, { offset: .18, transform: 'none' },
+      { offset: .23, transform: first }, { offset: .57, transform: first },
+      { offset: .62, transform: second }, { offset: .9, transform: second },
+      { offset: .95, transform: 'none' }, { offset: 1, transform: 'none' },
+    ]]]);
+  },
+  peck,
+  // Goodwin: backward wing/leg stretch on the same side, with tail spread.
   // https://greatlakespigeonrescue.org/ethogram-of-the-pigeon
-  stretch: { duration: 1800, easing: 'ease-in-out', parts: [
-    ['wing', frames(['none', 'rotate(22deg) scaleX(1.1)', 'rotate(26deg) scaleX(1.15)', 'rotate(22deg) scaleX(1.1)', 'none'])],
-    ['foot-front', frames(['none', 'translate(-4px, -3px) rotate(12deg)', 'translate(-5px, -4px) rotate(15deg)', 'translate(-4px, -3px) rotate(12deg)', 'none'])],
-    ['tail', frames(['none', 'rotate(-6deg)', 'rotate(-9deg)', 'rotate(-6deg)', 'none'])],
-  ] },
-  // Waite et al. (2012): Rock Pigeons preen plumage with their bill.
-  // This short wing-directed preen uses shared head/neck/wing parts; the pose,
-  // two strokes and timing are artistic rather than a measured grooming bout.
+  // One reach parameter coordinates the parts; angles/timing are art choices.
+  stretch(v: Variation): Action {
+    const reach = v.range(.85, 1.12);
+    const wing = (angle: number) => `rotate(${angle * reach}deg) scaleX(${1 + .15 * reach})`;
+    const foot = (amount: number) => `translate(${-16 * reach * amount}px, ${-2 * reach * amount}px) rotate(${32 * reach * amount}deg) scaleY(${1 + .15 * reach * amount})`;
+    return clip(v.range(1650, 2050), 'ease-in-out', [
+      ['wing', frames(['none', wing(22), wing(26), wing(22), 'none'])],
+      ['foot-front', frames(['none', foot(.8), foot(1), foot(.8), 'none'])],
+      ['tail', frames(['none', `rotate(${-6 * reach}deg)`, `rotate(${-9 * reach}deg)`, `rotate(${-6 * reach}deg)`, 'none'])],
+    ]);
+  },
+  // Waite et al. (2012): bill-directed plumage grooming.
   // https://darwin.biology.utah.edu/PDFs/113.pdf
-  preen: { duration: 2100, easing: 'ease-in-out', parts: [
-    ['head', frames(['none', 'translate(-3px, -1px) rotate(125deg)', 'translate(-1px, -3px) rotate(115deg)', 'translate(-3px, -1px) rotate(125deg)', 'none'])],
-    ['neck', frames(['none', 'rotate(30deg) scaleY(.65)', 'rotate(25deg) scaleY(.7)', 'rotate(30deg) scaleY(.65)', 'none'])],
-    ['wing', frames(['none', 'rotate(8deg)', 'rotate(4deg)', 'rotate(8deg)', 'none'])],
-  ] },
-  // Goodwin describes raised body feathers, wings held away and a shake, often
-  // followed by tail movement. Small scales/rotations suggest that puff/settle;
-  // amplitudes and timing are art, not a claim about mechanically zipping feathers.
-  // https://greatlakespigeonrescue.org/ethogram-of-the-pigeon
-  ruffle: { duration: 1100, easing: 'ease-in-out', parts: [
-    ['body', frames(['none', 'scale(1.06, 1.04)', 'scale(1.02, 1.01)', 'scale(1.05, 1.03)', 'none'])],
-    ['wing', frames(['none', 'rotate(6deg)', 'rotate(-3deg)', 'rotate(4deg)', 'none'])],
-    ['tail', frames(['none', 'rotate(-8deg)', 'rotate(6deg)', 'rotate(-4deg)', 'none'])],
-  ] },
-} satisfies Record<string, { duration: number; easing: string; parts: Part[] }>;
-export type Gesture = keyof typeof catalog | 'peck';
-export const transform = (p: { x: number; y: number }) => `translate(${p.x}px, ${p.y}px)`;
-export function gesture(name: Gesture): Action {
-  if (name === 'peck') return peck();
-  const action = catalog[name];
-  return action.parts.map(([part, keyframes]) => ({ part, keyframes, timing: { duration: action.duration, easing: action.easing } }));
-}
-// Theunissen, Reid & Troje (2017), https://doi.org/10.1242/jeb.147850:
-// two head stops help aim a peck before its final approach. Ostheim et al.
-// (2020), https://doi.org/10.1242/jeb.223313: serial feeding was ~3 pecks/s;
-// eyelids narrow rather than fully close during contact. Their feeding bouts
-// were much longer (50–200 pecks). Our 2–5-peck snippets and upright pauses
-// are a decorative foraging choice, not a measured natural bout distribution.
-function peck(): Action {
-  const count = 2 + Math.floor(Math.random() * 4);
-  const period = 1000 / (2.6 + Math.random() * .6);
-  const lead = 240, recovery = 360;
-  const duration = lead + count * period + recovery;
-  const body: Keyframe[] = [{ offset: 0, transform: 'none' }, { offset: lead / duration, transform: 'rotate(18deg)' }];
-  const head: Keyframe[] = [{ offset: 0, transform: 'none' }];
-  const eye: Keyframe[] = [{ offset: 0, transform: 'none' }];
-  const neck: Keyframe[] = [{ offset: 0, transform: 'none' }];
-  // The body leans about the feet; neck extension and head rotation together
-  // put the beak tip near SVG y=58 (the perch), without moving the feet.
-  for (let i = 0; i < count; i++) {
-    for (const [phase, pose, squint] of [
-      [0, 'translate(0px, 4px) rotate(12deg)', 'none'],
-      [.18, 'translate(0px, 4px) rotate(12deg)', 'none'],
-      [.32, 'translate(-1px, 9px) rotate(35deg)', 'none'],
-      [.48, 'translate(-1px, 9px) rotate(35deg)', 'none'],
-      [.62, 'translate(-2px, 14px) rotate(55deg)', 'scaleY(.35)'],
-      [.68, 'translate(-2px, 14px) rotate(55deg)', 'scaleY(.35)'],
-      [.9, 'translate(0px, 4px) rotate(12deg)', 'none'],
-      [1, 'translate(0px, 4px) rotate(12deg)', 'none'],
-    ] as const) {
-      const offset = (lead + (i + phase) * period) / duration;
-      head.push({ offset, transform: pose });
-      eye.push({ offset, transform: squint });
-      // Tuck the upright neck silhouette as the head reaches down; retain
-      // an overlapping connection rather than leaving a spike above the head.
-      neck.push({ offset, transform: phase >= .62 && phase <= .68 ? 'rotate(45deg) scaleY(.3)' :
-        phase >= .32 && phase <= .48 ? 'rotate(30deg) scaleY(.65)' : 'rotate(8deg) scaleY(.9)' });
+  // Stroke depth, count and duration are stylized rather than measured bouts.
+  preen(v: Variation): Action {
+    const depth = v.range(-5, 5), strokes = v.integer(2, 3);
+    const head = ['none'], neck = ['none'], wing = ['none'];
+    for (let i = 0; i < strokes; i++) {
+      head.push(`translate(-3px, -1px) rotate(${125 + depth}deg)`, `translate(-1px, -3px) rotate(${115 + depth}deg)`);
+      neck.push('rotate(30deg) scaleY(.65)', 'rotate(25deg) scaleY(.7)');
+      wing.push('rotate(8deg)', 'rotate(4deg)');
     }
+    return clip(v.range(350, 420) * (strokes * 2 + 1), 'ease-in-out', [
+      ['head', frames([...head, 'none'])], ['neck', frames([...neck, 'none'])], ['wing', frames([...wing, 'none'])],
+    ]);
+  },
+  // Goodwin: raised feathers, wings held away, shake, then tail movement.
+  // https://greatlakespigeonrescue.org/ethogram-of-the-pigeon
+  // Shared vigor coordinates the puff and shake; amplitudes/timing are art.
+  ruffle(v: Variation): Action {
+    const vigor = v.range(.8, 1.2);
+    return clip(v.range(950, 1300), 'ease-in-out', [
+      ['body', frames(['none', `scale(${1 + .06 * vigor}, ${1 + .04 * vigor})`, `scale(${1 + .02 * vigor}, ${1 + .01 * vigor})`, `scale(${1 + .05 * vigor}, ${1 + .03 * vigor})`, 'none'])],
+      ['wing', frames(['none', `rotate(${6 * vigor}deg)`, `rotate(${-3 * vigor}deg)`, `rotate(${4 * vigor}deg)`, 'none'])],
+      ['tail', frames(['none', `rotate(${-8 * vigor}deg)`, `rotate(${6 * vigor}deg)`, `rotate(${-4 * vigor}deg)`, 'none'])],
+    ]);
+  },
+} satisfies Record<string, (v: Variation) => Action>;
+export type Gesture = keyof typeof catalog;
+export const transform = (p: { x: number; y: number }) => `translate(${p.x}px, ${p.y}px)`;
+export function gesture(name: Gesture, random: () => number = Math.random): Action {
+  return catalog[name](variation(random));
+}
+
+// Theunissen, Reid & Troje (2017), https://doi.org/10.1242/jeb.147850:
+// initial F1 and lower F2 aiming stops. Ostheim et al. (2020),
+// https://doi.org/10.1242/jeb.223313, Results / Experiment I: serial pecks
+// return only to F2, approach ~80ms, contact ~20ms, withdrawal ~100ms.
+// Horizontal paths/fixation locations varied more than vertical excursions;
+// eyes squinted, never fully shut. Their bouts lasted 50–200 pecks at ~3Hz.
+// Our 2–5-peck snippets, bounded timing jitter and SVG poses are art choices.
+function peck(v: Variation): Action {
+  const count = v.integer(2, 5);
+  const lead = v.range(280, 400), recovery = v.range(380, 520);
+  const body: Keyframe[] = [{ offset: 0, transform: 'none', easing: 'ease-in-out' }, { offset: lead * .25, transform: 'rotate(18deg)' }];
+  const head: Keyframe[] = [{ offset: 0, transform: 'none' }, { offset: lead * .5, transform: 'none', easing: 'ease-in-out' }];
+  const neck: Keyframe[] = [{ offset: 0, transform: 'none' }];
+  const eye: Keyframe[] = [{ offset: 0, transform: 'none' }];
+  const fixation = () => `translate(${v.range(-1.5, .5)}px, ${v.range(7, 9)}px) rotate(${v.range(28, 34)}deg)`;
+  const tucked = 'rotate(24deg) scaleY(.7)';
+  head.push({ offset: lead, transform: fixation() });
+  neck.push({ offset: lead, transform: tucked });
+  let time = lead;
+  for (let i = 0; i < count; i++) {
+    const period = 1000 / v.range(2.6, 3.2);
+    const approach = v.range(74, 86), contact = 20, withdrawal = v.range(90, 110);
+    const strike = time + period - withdrawal - contact;
+    const aim = strike - approach, release = strike + contact;
+    const angle = v.range(53, 57), x = v.range(-3.5, -.5);
+    // Solve the beak tip (61,20), head pivot (42,25), body pivot (34,51)
+    // and body lean (18deg) against perch y=58. Vary reach/angle without
+    // varying depth into the perch. These anchors match PigeonVisitor.astro.
+    const radians = angle * Math.PI / 180, lean = 18 * Math.PI / 180;
+    const tipX = 42 + 19 * Math.cos(radians) + 5 * Math.sin(radians) + x;
+    const tipY = 25 + 19 * Math.sin(radians) - 5 * Math.cos(radians);
+    const y = 51 + (7 - Math.sin(lean) * (tipX - 34)) / Math.cos(lean) - tipY;
+    const touch = `translate(${x}px, ${y}px) rotate(${angle}deg)`;
+    head.push(
+      { offset: aim, transform: head.at(-1)!.transform, easing: 'cubic-bezier(.4, 0, .9, .55)' },
+      { offset: strike, transform: touch }, { offset: release, transform: touch, easing: 'ease-out' },
+      { offset: time + period, transform: fixation() },
+    );
+    neck.push(
+      { offset: aim, transform: tucked, easing: 'cubic-bezier(.4, 0, .9, .55)' },
+      { offset: strike, transform: 'rotate(45deg) scaleY(.3)' },
+      { offset: release, transform: 'rotate(45deg) scaleY(.3)', easing: 'ease-out' },
+      { offset: time + period, transform: tucked },
+    );
+    eye.push(
+      { offset: strike - 28, transform: 'none' }, { offset: strike - 8, transform: 'scaleY(.35)' },
+      { offset: release, transform: 'scaleY(.35)' }, { offset: release + 50, transform: 'none' },
+    );
+    time += period;
   }
-  body.push({ offset: (lead + count * period) / duration, transform: 'rotate(18deg)' }, { offset: 1, transform: 'none' });
-  head.push({ offset: 1, transform: 'none' });
-  eye.push({ offset: 1, transform: 'none' });
-  neck.push({ offset: 1, transform: 'none' });
+  body.push({ offset: time, transform: 'rotate(18deg)', easing: 'ease-in-out' });
+  const duration = time + recovery;
   const parts: Part[] = [['body', body], ['head', head], ['eye', eye], ['neck', neck]];
-  return parts.map(([part, keyframes]) => ({
-    part, keyframes, timing: { duration, easing: 'linear' },
-  }));
+  for (const [, keyframes] of parts) {
+    keyframes.push({ offset: time + recovery * .7, transform: 'none' }, { offset: duration, transform: 'none' });
+    keyframes.forEach(frame => { frame.offset = Number(frame.offset) / duration; });
+  }
+  return clip(duration, 'linear', parts);
 }
 
 // Troje & Frost (2000), https://doi.org/10.1242/jeb.203.5.935:

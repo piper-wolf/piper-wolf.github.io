@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { appearances, commonAppearances, companionAppearances } from '../src/pigeon/appearances';
-import { movement } from '../src/pigeon/actions';
+import { gesture, movement } from '../src/pigeon/actions';
 import { pigeon } from '../src/pigeon/definition';
-import { prepare, enter, start, land, finishGesture, dueMovement, expectSafePerch, scrollTo, runtime, scare, trackPointerWork, pointerBurst } from './helpers/pigeons';
+import { prepare, enter, start, land, finishGesture, dueMovement, expectSafePerch, scrollTo, runtime, scare, trackPointerWork, pointerBurst, inspectPecks } from './helpers/pigeons';
 
 test.describe('loading and motion preferences', () => {
   test('initial reduced motion can enable the deferred scene exactly once', async ({ page }) => {
@@ -631,6 +631,28 @@ test.describe('actions and transitions', () => {
   });
 
   test('idle gestures scan, peck, stretch, preen and ruffle with neutral recovery', async ({ page }) => {
+    const invalid: string[] = [];
+    for (const name of pigeon.actions) {
+      const low = gesture(name, () => 0), high = gesture(name, () => .999);
+      expect(low).not.toEqual(high);
+      expect(low).toEqual(gesture(name, () => 0));
+      for (const draw of [0, .25, .5, .999]) {
+        const action = gesture(name, () => draw);
+        const duration = Number(action[0].timing.duration);
+        for (const track of action) {
+          const offsets = track.keyframes.map(f => f.offset).filter((o): o is number => o !== undefined && o !== null);
+          if (!(duration > 0 && duration < 3500 && track.timing.duration === duration &&
+            track.keyframes[0].transform === 'none' && track.keyframes.at(-1)!.transform === 'none' &&
+            offsets.every((offset, i) => Number.isFinite(offset) && offset >= 0 && offset <= 1 && (!i || offset >= offsets[i - 1])))) {
+            invalid.push(`${name}/${draw}/${track.part}`);
+          }
+        }
+      }
+    }
+    expect(invalid).toEqual([]);
+    // Deterministic nonconstant draws exercise variation within a single bout.
+    let sample = 0;
+    const varied = gesture('peck', () => [0, .999, .2, .8, .4, .6][sample++ % 6]);
     await start(page);
     const bird = page.locator('.pigeon-visitor:first-child');
     await expect(bird).not.toHaveAttribute('data-state', 'suspended');
@@ -643,6 +665,22 @@ test.describe('actions and transitions', () => {
       const part = ['stretch', 'ruffle'].includes(action) ? '.pigeon-wing' : '.pigeon-head';
       expect(await page.locator(part).evaluate(el => el.getAnimations().some(a => a.effect instanceof KeyframeEffect && a.effect.getKeyframes().some(frame => frame.transform)))).toBe(true);
       await expectSafePerch(page);
+      if (action === 'stretch') {
+        const stance = await bird.evaluate(el => {
+          const front = el.querySelector<SVGGraphicsElement>('.pigeon-foot-front')!;
+          const back = el.querySelector<SVGGraphicsElement>('.pigeon-foot-back')!;
+          const animations = el.getAnimations({ subtree: true }).filter(a => Number.isFinite(a.effect!.getTiming().iterations));
+          animations.forEach(a => { a.currentTime = Number(a.effect!.getTiming().duration) / 2; });
+          const lifted = new DOMPoint(40, 58).matrixTransform(front.getScreenCTM()!);
+          const planted = new DOMPoint(27, 58).matrixTransform(back.getScreenCTM()!);
+          return { origin: getComputedStyle(front).transformOrigin, back: getComputedStyle(back).transform,
+            lift: planted.y - lifted.y, reach: (planted.x - lifted.x) * Math.sign(el.querySelector('svg')!.getScreenCTM()!.a) };
+        });
+        expect(stance.origin).toBe('40px 49px');
+        expect(stance.back).toBe('none');
+        expect(stance.lift).toBeGreaterThan(1);
+        expect(stance.reach).toBeGreaterThan(2);
+      }
       if (action === 'look') {
         const holds = await bird.locator('.pigeon-head').evaluate(el => {
           const effect = el.getAnimations()[0].effect as KeyframeEffect;
@@ -658,33 +696,17 @@ test.describe('actions and transitions', () => {
         .filter(a => Number.isFinite(a.effect!.getTiming().iterations))
         .every(a => (a.effect as KeyframeEffect).getKeyframes().at(-1)!.transform === 'none'))).toBe(true);
       if (action === 'peck') {
-        const peck = await bird.evaluate(el => {
-          const headEffect = el.querySelector('.pigeon-head')!.getAnimations()[0].effect as KeyframeEffect;
-          const frames = headEffect.getKeyframes();
-          const contacts = frames.filter(frame => String(frame.transform).includes('rotate(55deg)'));
-          const duration = Number(headEffect.getTiming().duration);
-          const contactTime = Number(contacts[0].offset) * duration;
-          const nextContact = Number(contacts[2].offset) * duration;
-          el.getAnimations({ subtree: true }).filter(a => Number.isFinite(a.effect!.getTiming().iterations)).forEach(a => { a.currentTime = contactTime; });
-          const tip = new DOMPoint(61, 20).matrixTransform(el.querySelector<SVGGraphicsElement>('.pigeon-head')!.getScreenCTM()!);
-          const rect = el.getBoundingClientRect();
-          return {
-            count: contacts.length / 2, rate: 1000 / (nextContact - contactTime), duration,
-            perchGap: Math.abs(tip.y - rect.top - rect.height * 58 / 64),
-            squint: new DOMMatrix(getComputedStyle(el.querySelector('.pigeon-eye')!).transform).d,
-            stops: frames.filter((frame, i) => i > 0 && frame.transform === frames[i - 1].transform && String(frame.transform).includes('rotate(35deg)')).length,
-            neutralEnds: el.getAnimations({ subtree: true }).filter(a => Number.isFinite(a.effect!.getTiming().iterations)).every(a => (a.effect as KeyframeEffect).getKeyframes().at(-1)!.transform === 'none'),
-          };
-        });
-        expect(peck.count).toBe(3);
-        expect(peck.count).toBeLessThanOrEqual(5);
-        expect(peck.rate).toBeGreaterThanOrEqual(2.6 - .001);
-        expect(peck.rate).toBeLessThanOrEqual(3.2 + .001);
-        expect(peck.perchGap).toBeLessThan(.5);
-        expect(peck.squint).toBeCloseTo(.35, 2);
-        expect(peck.stops).toBe(peck.count);
+        const samples = await inspectPecks(bird, [gesture('peck', () => 0), gesture('peck', () => .999), varied]);
+        const [peck, low, high, mixed] = samples;
+        expect(samples.map(take => take.count)).toEqual([3, 2, 5, 2]);
+        expect(low.rate).toBeCloseTo(2.6, 2);
+        expect(high.rate).toBeCloseTo(3.2, 2);
+        expect(mixed.targets).toBeGreaterThan(1);
         expect(peck.duration).toBeGreaterThan(peck.count / peck.rate * 1000 + 500);
-        expect(peck.neutralEnds).toBe(true);
+        expect(Math.max(...samples.map(take => take.gap))).toBeLessThan(.5);
+        expect(Math.max(...samples.map(take => take.penetration))).toBeLessThan(.5);
+        expect(Math.max(...samples.map(take => take.contactError))).toBeLessThan(.01);
+        expect(samples.every(take => take.stops === take.count && Math.abs(take.squint - .35) < .01)).toBe(true);
       }
       await page.clock.runFor(2000);
       await expect(bird).toHaveAttribute('data-state', 'perched');
@@ -698,15 +720,7 @@ test.describe('actions and transitions', () => {
     await page.evaluate(() => { Math.random = () => .999; });
     await page.clock.runFor(3001);
     await expect(bird).toHaveAttribute('data-idle', 'peck');
-    const repeat = await bird.evaluate(el => {
-      const effect = el.querySelector('.pigeon-head')!.getAnimations()[0].effect as KeyframeEffect;
-      const contacts = effect.getKeyframes().filter(frame => String(frame.transform).includes('rotate(55deg)'));
-      const duration = Number(effect.getTiming().duration);
-      const at = Number(contacts[0].offset) * duration;
-      el.getAnimations({ subtree: true }).filter(a => Number.isFinite(a.effect!.getTiming().iterations)).forEach(a => { a.currentTime = at; });
-      return { count: contacts.length / 2, rate: 1000 / ((Number(contacts[2].offset) - Number(contacts[0].offset)) * duration),
-        pose: ['head', 'neck'].map(part => getComputedStyle(el.querySelector(`.pigeon-${part}`)!).transform) };
-    });
+    const [repeat] = await inspectPecks(bird);
     expect(repeat.count).toBe(5);
     expect(repeat.rate).toBeCloseTo(3.2, 2);
     await scare(page, bird);
@@ -723,12 +737,12 @@ test.describe('actions and transitions', () => {
     await expect(bird).toHaveAttribute('data-state', 'suspended');
     await expect(bird).not.toHaveAttribute('data-idle');
     await expect(page.locator('.pigeon-body')).toHaveCSS('animation-name', 'none');
-    // Exercise interruption of the new multi-part gestures through the manager,
-    // including parts absent from the normal flight tracks (wing/front foot).
-    await page.emulateMedia({ reducedMotion: 'no-preference' });
-    await page.goto('/pigeons/');
-    await enter(page);
+  });
+
+  test('posed gestures recover every part on escape and cancel on suspension', async ({ page }) => {
+    await start(page);
     await land(page);
+    const bird = page.locator('.pigeon-visitor:first-child');
     for (const action of pigeon.actions) {
       await page.clock.runFor(3001);
       await expect(bird).toHaveAttribute('data-idle', action);

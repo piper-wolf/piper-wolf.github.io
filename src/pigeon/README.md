@@ -68,8 +68,17 @@ that the scene is absent from preload links.
   Travel duration follows stride length and cadence, scaled to the rendered
   bird size. Head motion cancels forward travel and body bob during each hold,
   then thrusts forward; see [Troje & Frost (2000)](https://doi.org/10.1242/jeb.203.5.935).
-  Peck snippets contain 2–5 pecks at 2.6–3.2Hz, two aiming stops, brief beak
-  contact at the perch, partial eye squinting, and an upright recovery pause.
+  Peck snippets contain 2–5 pecks at 2.6–3.2Hz. An initial higher aiming stop
+  leads into low fixation; serial pecks return only to that lower stop, not
+  upright between strikes. An accelerating ~80ms approach, 20ms contact and
+  ~100ms eased withdrawal suggest the measured feeding sequence. The eyes
+  narrow just before contact and reopen on withdrawal. Bounded horizontal
+  reach/angle changes select nearby targets; the beak's depth is solved against
+  the perch so variety cannot drive it through the surface. Feet remain planted.
+  The head returns upright and holds briefly only after the snippet. The rounded
+  breast avoids an upright throat ridge above the tucked head; the articulated
+  neck supplies the throat silhouette. Each foot rotates about its own leg
+  anchor, keeping the backward stretch attached rather than orbiting the SVG.
   [Theunissen et al. (2017)](https://doi.org/10.1242/jeb.147850) informs the stops;
   [Ostheim et al. (2020)](https://doi.org/10.1242/jeb.223313) informs the rate
   and squint. Short bout counts, pauses, stride geometry, and posture angles
@@ -108,6 +117,29 @@ body poses to `.pigeon-body`, and CSS breathing to its separate `.pigeon-breath`
 wrapper. Breathing pauses during movement and posed gestures other than looking; blinking continues while
 visible. Ambient loops retain their phase across active states and stop when
 suspended. Birds stay hidden when no safe space exists.
+
+## Action variation
+
+`variation.ts` supplies bounded `range(min, max)` and inclusive `integer(min, max)`
+samples. Every idle action is a factory in `actions.ts` using that same sampler:
+look changes tilt direction/angles and duration, stretch coordinates reach across
+wing/leg/tail, preen varies depth/stroke count, ruffle varies vigor, and peck varies
+count, timing, fixation and target for each strike. Parameters are sampled once
+when building an action, never during playback. Related body parts share values,
+all tracks share one duration, and every take ends neutral. No persistent variant
+state, extra timers, per-frame randomness, or animation dependency is needed.
+
+`gesture(name, random)` accepts an optional random source for reproducible takes
+and boundary tests. Production defaults to `Math.random`. This is bounded uniform
+variation, not a claim about the statistical distribution of pigeon behavior.
+The same sampler can later parameterize walk/flight factories without changing
+`bird.ts` or its interruption handling. Add parameters to the action factory,
+not to the manager; keep contact constraints and neutral endpoints explicit.
+
+Existing-option preflight: [GSAP's function/random values and repeat refresh](https://gsap.com/docs/v3/GSAP/gsap.to())
+provide similar per-take parameter sampling. The native Web Animations timeline
+already supplies playback and cancellation here; a dependency would not improve
+the small range-sampling requirement. Avoid adding one just for randomness.
 
 To add a gesture, extend the action catalog and definition's choices. Another
 SVG anatomy must provide the named parts plus its own size, foot anchor, and

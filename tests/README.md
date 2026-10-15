@@ -8,8 +8,11 @@ Run `npm test` for type checking, a production build, and Playwright. Run
 - `integrity.spec.ts`: sitemap, links, assets, metadata, RSS, original dates,
   no-EXIF details, 404 recovery, and browsing without JavaScript.
 - `pigeon-animation.spec.ts`: deferred loading, action transitions, geometry,
-  independent birds, and lifecycle. `helpers/pigeons.ts` shares deterministic
-  setup, safety assertions, clock advancement, and animation completion.
+  independent birds, and lifecycle. Pose/variation checks cover neutral endpoints,
+  bounded timing, reproducible takes, planted support feet, and mirrored perch
+  contact at variation extremes and between poses. Interruption/suspension is a
+  separate scenario so it does not overload the pose test. `helpers/pigeons.ts`
+  shares deterministic setup, safety assertions, clock advancement, and animation completion.
 - `publication.spec.ts`: data-contract validation, run once in the `contracts`
   project because it does not depend on a browser. Rendering checks run in
   Chromium and WebKit.

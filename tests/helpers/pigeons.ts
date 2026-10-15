@@ -1,4 +1,5 @@
 import { expect, type Page, type Locator } from '@playwright/test';
+import type { Action } from '../../src/pigeon/actions';
 import { entranceDelays } from '../../src/pigeon/definition';
 export const runtime = /\/scene\.[^/]+\.js$/;
 
@@ -137,4 +138,53 @@ export async function pointerBurst(page: Page, x: number, y: number) {
       pointerType: 'mouse', clientX: x, clientY: y,
     }));
   }, { x, y });
+}
+
+// Inspect the real gesture and optional boundary takes with the same native
+// timeline/geometry sampler. Temporary takes are canceled, never finished, so
+// they cannot advance the bird manager or change the current gesture.
+export async function inspectPecks(bird: Locator, takes: Action[] = []) {
+  return bird.evaluate((el, takes) => {
+    const finite = () => el.getAnimations({ subtree: true }).filter(a => Number.isFinite(a.effect!.getTiming().iterations));
+    const svg = el.querySelector('svg')!, facing = svg.style.transform;
+    const rect = el.getBoundingClientRect(), perch = rect.top + rect.height * 58 / 64;
+    return [undefined, ...takes].map(take => {
+      const animations = take ? take.map(track => {
+        const a = el.querySelector(`.pigeon-${track.part}`)!.animate(track.keyframes, { ...track.timing, fill: 'both' });
+        a.pause();
+        return a;
+      }) : finite();
+      const head = animations.find(a => (a.effect as KeyframeEffect).target!.classList.contains('pigeon-head'))!;
+      const frames = (head.effect as KeyframeEffect).getKeyframes(), duration = Number(head.effect!.getTiming().duration);
+      const angle = (f: ComputedKeyframe) => Number(String(f.transform).match(/rotate\(([-.\d]+)deg\)/)?.[1]);
+      const contacts = frames.filter(f => angle(f) > 50);
+      const setTime = (time: number) => animations.forEach(a => { a.currentTime = time; });
+      const depth = (time: number) => {
+        setTime(time);
+        return new DOMPoint(61, 20).matrixTransform(el.querySelector<SVGGraphicsElement>('.pigeon-head')!.getScreenCTM()!).y - perch;
+      };
+      let gap = 0, penetration = 0;
+      for (const direction of ['', 'scaleX(-1)']) {
+        svg.style.transform = direction;
+        for (const frame of contacts) gap = Math.max(gap, Math.abs(depth(Number(frame.offset) * duration)));
+        for (let i = 0; i < frames.length; i++) {
+          penetration = Math.max(penetration, depth(Number(frames[i].offset) * duration));
+          if (i) penetration = Math.max(penetration, depth((Number(frames[i].offset) + Number(frames[i - 1].offset)) / 2 * duration));
+        }
+      }
+      svg.style.transform = facing;
+      setTime(Number(contacts[0].offset) * duration + 10);
+      const result = {
+        count: contacts.length / 2, duration, gap, penetration,
+        rate: 1000 / ((Number(contacts[2].offset) - Number(contacts[0].offset)) * duration),
+        contactError: Math.max(...contacts.filter((_, i) => i % 2).map((f, i) => Math.abs((Number(f.offset) - Number(contacts[i * 2].offset)) * duration - 20))),
+        targets: new Set(contacts.map(f => f.transform)).size,
+        stops: frames.filter((f, i) => i && f.transform === frames[i - 1].transform && angle(f) < 40).length,
+        squint: new DOMMatrix(getComputedStyle(el.querySelector('.pigeon-eye')!).transform).d,
+        pose: ['head', 'neck'].map(part => getComputedStyle(el.querySelector(`.pigeon-${part}`)!).transform),
+      };
+      if (take) animations.forEach(a => a.cancel());
+      return result;
+    });
+  }, takes);
 }
