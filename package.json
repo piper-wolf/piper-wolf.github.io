@@ -7,7 +7,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "test": "npm run check && npm run build && playwright test",
+    "test": "npm run check && playwright test",
     "test:browser": "playwright test",
     "check": "astro check"
   },

@@ -1,4 +1,4 @@
-import { expect, type Page, type Locator } from '@playwright/test';
+import { expect, type Page, type Locator, type JSHandle } from '@playwright/test';
 import type { Action } from '../../src/pigeon/actions';
 import { entranceDelays } from '../../src/pigeon/definition';
 export const runtime = /\/scene\.[^/]+\.js$/;
@@ -6,8 +6,9 @@ export const runtime = /\/scene\.[^/]+\.js$/;
 // JS deadlines use the fake clock; native animations are held and completed explicitly.
 export async function prepare(page: Page, { width = 1440, height = 900, count = 1, random = .25, colors = [0, 0], facings = [0, 0, 0], separateEdges = false } = {}) {
   await page.setViewportSize({ width, height });
-  await page.clock.install();
-  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  const epoch = new Date('2026-01-01T12:00:00Z');
+  await page.clock.install({ time: epoch });
+  await page.clock.pauseAt(new Date(epoch.getTime() + 1000));
   await page.addInitScript(({ count, random, colors, facings, separateEdges }) => {
     // Isolate smaller groups for action/geometry scenarios; production keeps all five.
     document.addEventListener('DOMContentLoaded', () => {
@@ -115,6 +116,42 @@ export async function scare(page: Page, bird: Locator) {
   await page.dispatchEvent('html', 'pointerleave');
 }
 
+export async function settleGeometry(page: Page) {
+  await page.evaluate(() => new Promise<void>(resolve => {
+    const observer = new ResizeObserver(() => { observer.disconnect(); resolve(); });
+    observer.observe(document.documentElement);
+  }));
+  await page.clock.runFor(200);
+}
+
+export async function perchScene(page: Page) {
+  await page.goto('/pigeons/');
+  await page.evaluate(() => {
+    Math.random = () => .25;
+    document.querySelectorAll('[data-pigeon-landing]').forEach(el => el.removeAttribute('data-pigeon-landing'));
+    const main = document.querySelector<HTMLElement>('main')!;
+    main.style.height = '1200px';
+    main.innerHTML = '<div data-pigeon-landing style="position:absolute;left:200px;top:400px;width:1000px;height:1px"></div><div data-pigeon-landing style="position:absolute;left:200px;top:600px;width:1000px;height:1px"></div>';
+  });
+  await enter(page);
+  await land(page);
+  await settleGeometry(page);
+  return page.locator('.pigeon-visitor');
+}
+
+export async function restrictPerch(page: Page, bird: Locator, onlyEdge = false) {
+  await bird.evaluate((el, onlyEdge) => {
+    const rect = el.getBoundingClientRect(), feet = rect.top + 58 * rect.height / 64;
+    const edge = [...document.querySelectorAll<HTMLElement>('[data-pigeon-landing]')]
+      .find(edge => Math.abs(edge.getBoundingClientRect().top - feet) < .5)!;
+    if (onlyEdge) document.querySelectorAll('[data-pigeon-landing]').forEach(other => {
+      if (other !== edge) other.removeAttribute('data-pigeon-landing');
+    });
+    edge.style.cssText = `position:fixed;left:${rect.left - 26}px;top:${feet}px;width:${rect.width + 52}px;height:1px`;
+  }, onlyEdge);
+  await settleGeometry(page);
+}
+
 export async function trackPointerWork(page: Page) {
   return page.evaluateHandle(() => {
     const work = { bounds: 0, sizes: 0, frames: 0, draws: 0 };
@@ -132,12 +169,15 @@ export async function trackPointerWork(page: Page) {
   });
 }
 
-export async function pointerBurst(page: Page, x: number, y: number) {
-  await page.evaluate(({ x, y }) => {
+type PointerWork = { bounds: number; sizes: number; frames: number; draws: number };
+export async function pointerBurst(page: Page, x: number, y: number, work?: JSHandle<PointerWork>) {
+  return page.evaluate(({ x, y, work }) => {
+    if (work) work.bounds = work.sizes = work.frames = work.draws = 0;
     for (let i = 0; i < 50; i++) document.dispatchEvent(new PointerEvent('pointermove', {
       pointerType: 'mouse', clientX: x, clientY: y,
     }));
-  }, { x, y });
+    return work && { ...work };
+  }, { x, y, work });
 }
 
 // Inspect the real gesture and optional boundary takes with the same native

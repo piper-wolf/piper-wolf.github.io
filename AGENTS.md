@@ -1,6 +1,11 @@
 # Repository workflow
 
 - Always commit and push repository changes unless the user says otherwise.
+- Before pushing implementation changes, finish `npm test` against the final
+  source tree. Do not edit implementation/tests during that run, count stale
+  builds as validation, or dismiss failed checks as host slowness. Use the local
+  defaults for this machine; keep CI fast. Verify the deployment result after push.
+- Fix forward when checks fail; do not revert requested improvements.
 - Comments are allowed when documenting research that was done. Cite the source,
   explain how the code reflects the findings, and distinguish observed behavior
   from artistic or implementation choices.

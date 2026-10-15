@@ -1,9 +1,4 @@
-import { expect, test } from "@playwright/test";
-
-test.beforeEach(async ({ page }) => {
-  // Keep analytics and other external services out of repeatable local checks.
-  await page.route("https://**", (route) => route.abort());
-});
+import { expect, test, blockExternalRequests } from "./helpers/browser";
 
 const pages = ["/", "/pigeons/", "/pigeons/016/", "/pigeons/001/"];
 
@@ -97,17 +92,18 @@ test("reduced motion disables photo zoom", async ({ page }) => {
   await expect(photo).toHaveCSS("transition-duration", "0s");
 });
 
-test("a touch phone uses its device width at high pixel density", async ({ browser }) => {
+test("a touch phone uses its device width at high pixel density", async ({ browser, baseURL }) => {
   const context = await browser.newContext({
+    baseURL,
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
     hasTouch: true,
   });
   try {
+    await blockExternalRequests(context, baseURL!);
     const page = await context.newPage();
-    await page.route("https://**", (route) => route.abort());
-    await page.goto("http://127.0.0.1:4321/pigeons/");
+    await page.goto("/pigeons/");
     expect(await page.evaluate(() => document.documentElement.clientWidth)).toBe(390);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
     await page.getByRole("link", { name: /^View pigeon no\./ }).first().tap();

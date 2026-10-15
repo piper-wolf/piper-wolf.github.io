@@ -1,9 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./helpers/browser";
 import AxeBuilder from "@axe-core/playwright";
-
-test.beforeEach(async ({ page }) => {
-  await page.route("https://**", (route) => route.abort());
-});
 
 test("missing pages return an accessible 404 with working recovery links", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 844 });

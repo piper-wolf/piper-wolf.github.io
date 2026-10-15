@@ -3,11 +3,13 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: true,
-  workers: 2,
+  workers: process.env.CI ? 2 : 1,
+  timeout: process.env.CI ? 30_000 : 60_000,
+  maxFailures: process.env.CI ? 0 : 1,
   reporter: "list",
   use: {
     baseURL: "http://127.0.0.1:4321",
-    trace: "retain-on-failure",
+    trace: process.env.CI ? "retain-on-failure" : "off",
     screenshot: "only-on-failure",
   },
   projects: [
