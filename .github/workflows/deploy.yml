@@ -40,7 +40,7 @@ jobs:
       - run: npm run check
       - run: npm run build
       - run: npx playwright install --with-deps chromium webkit
-      - run: npm run test:browser
+      - run: npm run test:browser -- --reporter=list,github
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
