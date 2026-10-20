@@ -1,0 +1,14 @@
+{
+  "queueId": "3b15019b07914276369b44c0239df322",
+  "permanentUrl": "https://piper-wolf.com/pigeons/055/",
+  "publicationDate": "2026-10-20",
+  "snapshot": {
+    "queueId": "3b15019b07914276369b44c0239df322",
+    "number": "055",
+    "dateTime": "2026-10-20",
+    "caption": "This fella is not big enough to ride my bike yet.",
+    "alt": "A gray pigeon walks on pavement in front of a blurred bicycle, with another pigeon partially visible on the left.",
+    "asset": "src/assets/2026-10-20.jpg",
+    "imageSha256": "bf609e0c6d814b65899e9de8e32151005f59d03112442259b74f56863fb9c255"
+  }
+}
