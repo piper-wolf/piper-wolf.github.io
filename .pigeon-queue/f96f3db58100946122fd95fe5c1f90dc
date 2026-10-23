@@ -1,0 +1,14 @@
+{
+  "queueId": "f96f3db58100946122fd95fe5c1f90dc",
+  "permanentUrl": "https://piper-wolf.com/pigeons/058/",
+  "publicationDate": "2026-10-23",
+  "snapshot": {
+    "queueId": "f96f3db58100946122fd95fe5c1f90dc",
+    "number": "058",
+    "dateTime": "2026-10-23",
+    "caption": "He's just standing there... menacingly.",
+    "alt": "A gray pigeon with an iridescent purple and green neck holds a crumb in its beak on pavement, with another pigeon blurred in the background.",
+    "asset": "src/assets/2026-10-23.jpg",
+    "imageSha256": "77aa1e5cf465f214dd3c97f9be8281edc21adfce1ac05f9ebb40841600788978"
+  }
+}
