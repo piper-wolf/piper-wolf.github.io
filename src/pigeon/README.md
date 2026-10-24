@@ -17,14 +17,14 @@ that the scene is absent from preload links.
 - `scene.ts` owns page lifecycle, staggered entrances and replacements, cached
   geometry, and the cursor. Pointer events only update its latest position and
   request one shared frame. The frame reads each grounded bird's bounds before
-  applying any reactions. It continues only while birds walk; landings and
+  applying any reactions. It continues only while birds walk or run; landings and
   geometry changes request another check. It observes content sizes, DOM/style edits,
   image completion, and fonts, excluding the decorative SVG tree. Only content
   insertions/removals refresh observer targets; invalidations share one scheduled
   reconciliation rather than continually resetting its timer. Bird dimensions refresh with geometry rather
   than on every definition access.
   Invalidation preserves actions and deadlines. Focus loss, hidden documents,
-  and pagehide cancel grounded gestures and walks, preserving the walk's current
+  and pagehide cancel grounded gestures and movement, preserving the bird's current
   position, and stop arrivals and action timers. Flights finish landing or departing
   before the scene sleeps and pauses CSS loops; old actions never resume on focus.
   Resuming shifts deadlines by the time asleep and refreshes geometry once;
@@ -54,15 +54,19 @@ that the scene is absent from preload links.
   0–1 minute). After 4–8 active minutes perched or moving, a bird flies offscreen;
   its slot receives a newly chosen companion 30–90 active seconds later. These
   timings are decorative choices. Birds have no entrance timers of their own.
-  A cursor within 320px triggers walking away, with one gait scaled continuously
-  from 0.5× at the outer edge to 2× near the 14px flight margin. Animation and
-  travel share the same playback rate, preserving planted feet and head holds.
+  A cursor within 320px triggers walking away, speeding up as it approaches.
+  Within 110px the bird switches to a short grounded scurry: quicker, longer
+  alternating steps, springy body compression, folded wings and reduced head bob.
+  Running continues until the cursor is over 140px away to avoid boundary chatter;
+  within 14px the bird flies. Ground gait changes blend the rendered pose over
+  about 100ms and preserve the reserved endpoint and visible position. Animation
+  and travel share the same playback rate, preserving planted support feet.
   Flight interrupts ground movement from its visible position. Ground movement
   uses the scene's last cursor position each animation frame,
-  so a stationary cursor also changes walking speed or triggers flight.
+  so a stationary cursor also changes gait or speed, or triggers flight.
   Each landing rechecks the stationary cursor, continuing to walk away while
-  it remains nearby. One distance calculation selects flight, walking, or a
-  walking speed adjustment; hover uses this same path. Blocked escapes retain
+  it remains nearby. One distance calculation selects flight, walking, running, or a
+  ground speed adjustment; hover uses this same path. Blocked escapes retain
   their normal retry deadline without searching again on every pointer event.
   A changed escape direction, action, or geometry allows an earlier retry;
   flight directions use eight sectors. Deadline retries use the same cursor
@@ -79,10 +83,18 @@ that the scene is absent from preload links.
   stale completions cannot restart it.
 - `actions.ts` returns finite keyframes and timing only. Walks cover a few
   steps at 3.6–4.8 steps/s, with alternating planted feet and lifted recovery.
-  Cursor proximity changes playback speed without changing the gait or restarting
-  the step. The speed gradient and interaction radii are decorative choices.
+  Runs share the ground-motion factory, using 6.8–7.6 steps/s and longer
+  strides with overlapping support. [Andrada et al. (2015)](https://doi.org/10.1038/srep13636)
+  observed mixed walking/grounded-running mechanics in pigeons with no aerial
+  phases on the treadmill. This informs alternating foot contact and springy
+  compression instead of a two-foot airborne hop. [Davies & Green (1988)](https://doi.org/10.1242/jeb.138.1.71)
+  found that running heads keep moving forward throughout the bobbing cycle;
+  the run therefore cancels only part of forward travel. Within each gait,
+  cursor proximity changes playback speed without restarting the step. Run
+  cadence, stride geometry, bounce amplitude, bout length, speed gradients and
+  interaction radii are illustration choices, not measured escape behavior.
   Travel duration follows stride length and cadence, scaled to the rendered
-  bird size. Head motion cancels forward travel and body bob during each hold,
+  bird size. Walking head motion cancels forward travel and body bob during each hold,
   then thrusts forward; see [Troje & Frost (2000)](https://doi.org/10.1242/jeb.203.5.935).
   Peck snippets contain 2–5 pecks at 2.6–3.2Hz. An initial higher aiming stop
   leads into low fixation; serial pecks return only to that lower stop, not
@@ -127,7 +139,7 @@ that the scene is absent from preload links.
   [Stowers et al. (2017)](https://doi.org/10.1098/rsif.2017.0224), and
   [Crandell & Tobalske (2011)](https://doi.org/10.1242/jeb.051342).
 
-`data-state` (`suspended`, `perched`, `walking`, `flying`) and `data-idle` are the
+`data-state` (`suspended`, `perched`, `walking`, `running`, `flying`) and `data-idle` are the
 rendering contract. Translation belongs to the outer element, facing to the SVG,
 body poses to `.pigeon-body`, and CSS breathing to its separate `.pigeon-breath`
 wrapper. Breathing pauses during movement and posed gestures other than looking; blinking continues while

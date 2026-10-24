@@ -1,7 +1,7 @@
 import type { BirdDefinition } from './definition';
 import { gesture, movement, transform, type Action } from './actions';
 import type { Point, Reservation } from './geometry';
-export type MovementState = 'suspended' | 'perched' | 'walking' | 'flying';
+export type MovementState = 'suspended' | 'perched' | 'walking' | 'running' | 'flying';
 export interface BirdScene {
   places(bird: Bird, walkFrom?: Point): Point[];
   current(bird: Bird): Point | undefined;
@@ -33,6 +33,7 @@ export class Bird {
     this.measure();
     this.render('suspended');
   }
+  get movingOnGround() { return this.state === 'walking' || this.state === 'running'; }
   reactToPointer({ x, y }: { x: number; y: number }, rect: DOMRect) {
     const dx = Math.max(rect.left - x, 0, x - rect.right);
     const dy = Math.max(rect.top - y, 0, y - rect.bottom);
@@ -41,11 +42,17 @@ export class Bird {
     const kind = distance <= radius.flight ? 'flight'
       : distance <= radius.walk && this.state === 'perched' ? 'walk' : undefined;
     const proximity = Math.max(0, Math.min(1, (radius.walk - distance) / (radius.walk - radius.flight)));
-    const speed = distance <= radius.walk ? .5 + 1.5 * proximity : 1;
+    // Hysteresis avoids switching gaits repeatedly at the run boundary.
+    const running = distance <= radius.run + (this.state === 'running' ? 30 : 0);
+    const speed = running ? 1 + .35 * Math.max(0, (radius.run - distance) / (radius.run - radius.flight))
+      : distance <= radius.walk ? .5 + 1.5 * proximity : 1;
     if (!kind) {
       const wasBlocked = !!this.blockedEscape;
       this.blockedEscape = undefined;
-      this.setWalkSpeed(speed);
+      if (this.movingOnGround && running !== (this.state === 'running')) {
+        this.position = { ...this.position!, x: rect.left + scrollX, y: rect.top + scrollY };
+        this.move(this.reservation!.to, running ? 'running' : 'walking', speed);
+      } else this.setGroundSpeed(speed);
       if (wasBlocked) this.wake();
       return;
     }
@@ -56,15 +63,15 @@ export class Bird {
     if (this.blockedEscape?.kind === kind && this.blockedEscape.direction === direction && this.deadlines[kind] > performance.now()) return;
     this.blockedEscape = undefined;
     const escaped = kind === 'flight' ? this.flight({ x: x + scrollX, y: y + scrollY },
-      { ...this.position!, x: rect.left + scrollX, y: rect.top + scrollY }) : this.walk(x + scrollX, speed);
+      { ...this.position!, x: rect.left + scrollX, y: rect.top + scrollY }) : this.walk(x + scrollX, speed, running);
     if (!escaped) this.blockedEscape = { kind, direction };
   }
   forgetPointer() {
     this.blockedEscape = undefined;
-    this.setWalkSpeed(1);
+    this.setGroundSpeed(1);
   }
-  private setWalkSpeed(speed: number) {
-    if (this.state === 'walking') this.animations.forEach(animation => {
+  private setGroundSpeed(speed: number) {
+    if (this.movingOnGround) this.animations.forEach(animation => {
       if (animation.playbackRate !== speed) animation.updatePlaybackRate(speed);
     });
   }
@@ -105,7 +112,7 @@ export class Bird {
     clearTimeout(this.timer);
     clearTimeout(this.offscreenTimer);
     if (this.state === 'flying') return;
-    if (this.state === 'walking') {
+    if (this.movingOnGround) {
       const matrix = new DOMMatrixReadOnly(getComputedStyle(this.element).transform);
       this.position = { ...this.position!, x: matrix.m41, y: matrix.m42 };
       this.reservation = { from: this.position, to: this.position, definition: this.definition };
@@ -232,7 +239,7 @@ export class Bird {
       this.wake();
     }
   }
-  private walk(awayFrom?: number, speed = 1) {
+  private walk(awayFrom?: number, speed = 1, running = false) {
     const direction = awayFrom === undefined ? 0 : Math.sign(this.position!.x + this.definition.size / 2 - awayFrom);
     const targets = this.scene.places(this, this.position).filter(p => p.element === this.position!.element && Math.abs(p.x - this.position!.x) > this.definition.size * .3 &&
       (!direction || (p.x - this.position!.x) * direction > 0));
@@ -241,8 +248,8 @@ export class Bird {
       // A few steps between inspections, rather than marching an entire edge.
       // The full candidate corridor was checked; its shorter prefix is safe.
       const dx = target.x - this.position!.x;
-      const distance = Math.min(Math.abs(dx), this.definition.size * (.6 + Math.random() * .6));
-      this.move({ ...target, x: this.position!.x + Math.sign(dx) * distance }, 'walking', speed);
+      const distance = Math.min(Math.abs(dx), this.definition.size * (running ? 1.4 + Math.random() * .8 : .6 + Math.random() * .6));
+      this.move({ ...target, x: this.position!.x + Math.sign(dx) * distance }, running ? 'running' : 'walking', speed);
       return true;
     }
     this.deadlines.walk = this.after(this.baseDefinition.walkDelay);
@@ -283,7 +290,7 @@ export class Bird {
       return generation === this.generation;
     } catch { return false; }
   }
-  private async move(destination: Point, kind: 'walking' | 'flying', speed = 1) {
+  private async move(destination: Point, kind: 'walking' | 'running' | 'flying', speed = 1) {
     if (!this.position) this.facing = Math.random() < .5 ? 'right' : 'left';
     const from = this.position ?? {
       ...destination,
@@ -296,6 +303,13 @@ export class Bird {
     // the movement's timeline too, so cancellation doesn't snap them upright.
     const poses = this.opening ?? this.pose();
     this.opening = undefined;
+    if (this.movingOnGround && kind !== 'flying' && kind !== this.state) {
+      // Blend from the rendered pose into the new gait over a brief recovery.
+      const recovery = Math.min(.2, 100 / Number(action[0].timing.duration));
+      action.filter(track => track.part).forEach(track => {
+        track.keyframes = track.keyframes.filter(frame => frame.offset === 0 || Number(frame.offset) >= recovery);
+      });
+    }
     for (const part of poses.keys()) {
       if (action.some(track => track.part === part)) continue;
       const duration = Number(action[0].timing.duration);
@@ -313,7 +327,7 @@ export class Bird {
     this.element.style.transform = transform(from);
     this.render(kind);
     const completion = this.run(action, opening);
-    this.setWalkSpeed(speed);
+    this.setGroundSpeed(speed);
     if (await completion) {
       // Commit the held endpoint before removing its animation, then validate the landing.
       this.position = destination;

@@ -100,15 +100,15 @@ class Scene {
   }
   watchPointer() {
     if (!this.pointer || this.pointerFrame !== undefined || !this.awake ||
-      !this.birds.some(bird => bird.state === 'walking' || bird.state === 'perched')) return;
+      !this.birds.some(bird => bird.movingOnGround || bird.state === 'perched')) return;
     this.pointerFrame = requestAnimationFrame(() => {
       this.measure();
       const pointer = this.pointer!;
-      const samples = this.birds.filter(bird => bird.state === 'walking' || bird.state === 'perched')
+      const samples = this.birds.filter(bird => bird.movingOnGround || bird.state === 'perched')
         .map(bird => ({ bird, rect: bird.element.getBoundingClientRect() }));
       samples.forEach(({ bird, rect }) => bird.reactToPointer(pointer, rect));
       this.pointerFrame = undefined;
-      if (this.birds.some(bird => bird.state === 'walking')) this.watchPointer();
+      if (this.birds.some(bird => bird.movingOnGround)) this.watchPointer();
     });
   }
   private forgetPointer() {

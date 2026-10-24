@@ -136,34 +136,41 @@ function peck(v: Variation): Action {
 // cursor proximity scales playback of both the gait and travel together.
 // The stride length and stance fraction are SVG-scale choices; deriving
 // duration from strides keeps long walks from becoming fast sliding feet.
-function walking(from: { x: number; y: number }, to: { x: number; y: number }, size: number): Action {
+// Andrada et al. (2015), https://doi.org/10.1038/srep13636: pigeons mixed
+// walking and grounded-running mechanics without aerial phases on a treadmill.
+// Keep alternating feet with overlapping stance; compression replaces vaulting.
+// Davies & Green (1988), https://doi.org/10.1242/jeb.138.1.71: running heads
+// continue forwards through the cycle, so cancel only part of forward travel.
+// Run cadence, stride, lift, compression and escape thresholds are art choices,
+// not measured escape kinematics. Wings stay folded throughout the scurry.
+function groundMovement(from: { x: number; y: number }, to: { x: number; y: number }, size: number, running: boolean): Action {
   const distance = Math.abs(to.x - from.x) * 64 / size;
-  const strides = Math.max(1, Math.round(distance / 16));
+  const strides = Math.max(1, Math.round(distance / (running ? 24 : 16)));
   const stride = distance / strides;
-  const cadence = 3.6 + Math.random() * 1.2;
+  const cadence = running ? 6.8 + Math.random() * .8 : 3.6 + Math.random() * 1.2;
   const duration = strides * 2000 / cadence;
-  const stance = .62, hold = .65;
+  const stance = running ? .54 : .62, hold = .65;
   const samples = Math.ceil(duration / 1000 * 120);
   const parts: Part[] = ['foot-back', 'foot-front', 'body', 'head'].map(part => [part, []]);
   for (let i = 0; i <= samples; i++) {
     const offset = i / samples;
     const cycle = offset * strides;
-    const bob = -.8 * (1 - Math.cos(cycle * Math.PI * 4));
+    const bob = (running ? 1.2 : -.8) * (1 - Math.cos(cycle * Math.PI * 4));
     for (let foot = 0; foot < 2; foot++) {
       const phase = (cycle + stance / 2 + foot * .5) % 1;
       const swing = (phase - stance) / (1 - stance);
       const x = phase < stance ? stride * (stance / 2 - phase) : stride * stance * (swing - .5);
-      const lift = phase < stance ? 0 : -3 * Math.sin(Math.PI * swing);
+      const lift = phase < stance ? 0 : -(running ? 5 : 3) * Math.sin(Math.PI * swing);
       const fade = Math.min(1, offset * duration / 100, (1 - offset) * duration / 100);
       parts[foot][1].push({ offset, transform: i === samples ? 'none' : `translate(${x}px, ${lift * fade}px)` });
     }
-    // During hold, local head velocity cancels forward translation. Undo the
-    // body's small vertical bob too.
+    // Walking holds cancel forward travel and body bob; running retains
+    // forward head motion and some of the springy body movement.
     const phase = (cycle * 2 + hold / 2) % 1;
     const advance = stride / 2;
     const x = phase < hold ? advance * (hold / 2 - phase) : advance * hold * ((phase - hold) / (1 - hold) - .5);
     parts[2][1].push({ offset, transform: i === samples ? 'none' : `translateY(${bob}px)` });
-    parts[3][1].push({ offset, transform: i === samples ? 'none' : `translate(${x}px, ${-bob}px)` });
+    parts[3][1].push({ offset, transform: i === samples ? 'none' : `translate(${x * (running ? .28 : 1)}px, ${-bob * (running ? .65 : 1)}px)` });
   }
   return [{ part: '', keyframes: frames([transform(from), transform(to)]), timing: { duration, easing: 'linear' } },
     ...parts.map(([part, keyframes]) => ({ part, keyframes, timing: { duration, easing: 'linear' } }))];
@@ -175,8 +182,8 @@ function walking(from: { x: number; y: number }, to: { x: number; y: number }, s
 // https://doi.org/10.1242/jeb.038109
 // Seven pigeons flew between perches 6–8m apart; these are short-flight
 // observations, adapted below for a small side-view SVG.
-export function movement(from: { x: number; y: number }, to: { x: number; y: number }, kind: 'walking' | 'flying', size = 40): Action {
-  if (kind !== 'flying') return walking(from, to, size);
+export function movement(from: { x: number; y: number }, to: { x: number; y: number }, kind: 'walking' | 'running' | 'flying', size = 40): Action {
+  if (kind !== 'flying') return groundMovement(from, to, size, kind === 'running');
   const distance = Math.hypot(to.x - from.x, to.y - from.y);
   const dy = to.y - from.y;
   const level = Math.abs(dy) < 1;
