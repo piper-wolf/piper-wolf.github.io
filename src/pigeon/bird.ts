@@ -6,6 +6,7 @@ export interface BirdScene {
   places(bird: Bird, walkFrom?: Point): Point[];
   current(bird: Bird): Point | undefined;
   watchPointer(): void;
+  departed(bird: Bird): void;
 }
 const choose = <T>(items: readonly T[]) => items[Math.floor(Math.random() * items.length)];
 export class Bird {
@@ -15,12 +16,18 @@ export class Bird {
   private animations: Animation[] = [];
   private timer?: number;
   private offscreenTimer?: number;
+  private offscreenAt?: number;
+  private sleeping = false;
+  private paused: Animation[] = [];
+  private navigationPoint?: { x: number; y: number };
+  private opening?: Map<string, string>;
+  private leaving = false;
   definition: BirdDefinition;
   private blockedEscape?: { kind: 'walk' | 'flight'; direction: number };
   private generation = 0;
   private lastIdle = -1;
   private facing: 'left' | 'right' = 'right';
-  private deadlines = { idle: Infinity, walk: Infinity, flight: Infinity };
+  private deadlines = { idle: Infinity, walk: Infinity, flight: Infinity, departure: Infinity };
   constructor(readonly element: HTMLElement, private baseDefinition: BirdDefinition, private scene: BirdScene) {
     this.definition = baseDefinition;
     this.measure();
@@ -81,18 +88,65 @@ export class Bird {
     clearTimeout(this.timer);
     clearTimeout(this.offscreenTimer);
     this.offscreenTimer = undefined;
+    this.offscreenAt = undefined;
     this.animations.forEach(a => a.cancel());
     this.animations = [];
     delete this.element.dataset.idle;
   }
   suspend() {
     this.cancelAction();
-    this.deadlines = { idle: Infinity, walk: Infinity, flight: Infinity };
+    this.deadlines = { idle: Infinity, walk: Infinity, flight: Infinity, departure: Infinity };
     this.reservation = undefined;
     this.blockedEscape = undefined;
     this.render('suspended');
   }
+  sleep() {
+    this.sleeping = true;
+    clearTimeout(this.timer);
+    clearTimeout(this.offscreenTimer);
+    this.paused = this.animations.filter(animation => animation.playState === 'running');
+    this.paused.forEach(animation => animation.pause());
+  }
+  resume(elapsed: number) {
+    this.sleeping = false;
+    for (const key of Object.keys(this.deadlines) as (keyof typeof this.deadlines)[]) this.deadlines[key] += elapsed;
+    this.paused.filter(animation => this.animations.includes(animation)).forEach(animation => animation.play());
+    this.paused = [];
+    if (this.offscreenAt !== undefined) {
+      this.offscreenAt += elapsed;
+      this.waitOffscreen();
+    }
+  }
+  prepareNavigation() {
+    if (this.state === 'suspended') return;
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(this.element).transform);
+    this.navigationPoint = { x: matrix.m41 - scrollX, y: matrix.m42 - scrollY };
+    this.opening = this.pose();
+    this.cancelAction();
+    this.reservation = undefined;
+  }
+  private pose() {
+    return new Map(this.animations.flatMap(animation => {
+      const target = (animation.effect as KeyframeEffect).target;
+      if (!target || target === this.element) return [];
+      const part = [...target.classList].find(name => name.startsWith('pigeon-'))?.slice(7);
+      return part ? [[part, getComputedStyle(target).transform] as const] : [];
+    }));
+  }
   reconcile() {
+    if (this.sleeping) return;
+    if (this.navigationPoint) {
+      this.position = { ...this.position!, x: this.navigationPoint.x + scrollX, y: this.navigationPoint.y + scrollY };
+      this.navigationPoint = undefined;
+      if (this.leaving) this.depart();
+      else {
+        const targets = this.scene.places(this);
+        const distant = targets.filter(point => Math.hypot(point.x - this.position!.x, point.y - this.position!.y) > 60);
+        if (targets.length) this.move(choose(distant.length ? distant : targets), 'flying');
+        else this.suspend();
+      }
+      return;
+    }
     if (this.state === 'suspended' || this.state === 'perched') this.settle();
   }
   private settle(arrived = false, offscreenDelayElapsed = false) {
@@ -100,6 +154,7 @@ export class Bird {
     if (current && (!arrived || Math.hypot(current.x - this.position!.x, current.y - this.position!.y) <= .5)) {
       clearTimeout(this.offscreenTimer);
       this.offscreenTimer = undefined;
+      this.offscreenAt = undefined;
       const wasPerched = this.state === 'perched';
       this.position = current;
       this.reservation = { from: current, to: current, definition: this.definition };
@@ -109,6 +164,7 @@ export class Bird {
         this.deadlines.idle = this.after(this.baseDefinition.idleDelay);
         this.deadlines.walk = this.after(this.baseDefinition.walkDelay);
         if (!Number.isFinite(this.deadlines.flight)) this.deadlines.flight = this.after(this.baseDefinition.flightDelay);
+        if (!Number.isFinite(this.deadlines.departure)) this.deadlines.departure = performance.now() + 240000 + Math.random() * 240000;
       }
       this.wake();
     } else {
@@ -117,10 +173,8 @@ export class Bird {
       if (this.state === 'perched' && outsideViewport && !offscreenDelayElapsed) {
         if (this.offscreenTimer === undefined) {
           this.cancelAction();
-          this.offscreenTimer = window.setTimeout(() => {
-            this.offscreenTimer = undefined;
-            this.settle(false, true);
-          }, Math.random() * 2000);
+          this.offscreenAt = this.after(2000);
+          this.waitOffscreen();
         }
         return;
       }
@@ -129,20 +183,35 @@ export class Bird {
       else this.suspend();
     }
   }
+  private waitOffscreen() {
+    this.offscreenTimer = window.setTimeout(() => {
+      this.offscreenTimer = undefined;
+      this.offscreenAt = undefined;
+      this.settle(false, true);
+    }, Math.max(0, this.offscreenAt! - performance.now()));
+  }
   private wake() {
     clearTimeout(this.timer);
-    if (this.state !== 'perched' || this.animations.length) return;
+    if (this.sleeping || this.state !== 'perched' || this.animations.length) return;
     this.timer = window.setTimeout(() => this.tick(), Math.max(0, Math.min(...Object.values(this.deadlines)) - performance.now()));
   }
   private tick() {
-    if (this.state !== 'perched' || this.animations.length) return;
+    if (this.sleeping || this.state !== 'perched' || this.animations.length) return;
     const now = performance.now();
+    if (this.deadlines.departure <= now) { this.depart(); return; }
     const due = this.deadlines.flight <= now ? 'flight' : this.deadlines.walk <= now ? 'walk' : undefined;
     if (due && this.blockedEscape?.kind === due) this.scene.watchPointer();
     else if (due === 'flight') this.flight();
     else if (due === 'walk') this.walk();
     else if (this.deadlines.idle <= now) this.idle();
     else this.wake();
+  }
+  private depart() {
+    this.leaving = true;
+    const from = this.position!;
+    const left = from.x - scrollX < innerWidth / 2;
+    this.move({ ...from, x: scrollX + (left ? -this.definition.size - 64 : innerWidth + 64),
+      y: scrollY + Math.max(24, Math.min(innerHeight - this.definition.size - 24, from.y - scrollY - 160)) }, 'flying');
   }
   private async idle() {
     this.lastIdle = (this.lastIdle + 1 + Math.floor(Math.random() * 2)) % this.baseDefinition.actions.length;
@@ -193,7 +262,8 @@ export class Bird {
     this.animations = action.map(({ part, keyframes, timing }) => {
       const target = part ? this.element.querySelector<SVGElement>(`.pigeon-${part}`)! : this.element;
       const initial = opening?.get(part);
-      const animation = target.animate(initial ? [{ ...keyframes[0], transform: initial }, ...keyframes.slice(1)] : keyframes, { ...timing, fill: 'forwards' });
+      const animation = target.animate(initial ? [{ ...keyframes[0], transform: initial },
+        ...keyframes.slice(1).filter(frame => frame.offset !== 0)] : keyframes, { ...timing, fill: 'forwards' });
       if (typeof start === 'number' && animation.playState !== 'paused') animation.startTime = start;
       return animation;
     });
@@ -215,16 +285,15 @@ export class Bird {
     const action = movement(from, destination, kind, this.definition.size);
     // Recover gesture-only parts (e.g. a stretched foot or preening wing) on
     // the movement's timeline too, so cancellation doesn't snap them upright.
-    for (const animation of this.animations) {
-      const target = (animation.effect as KeyframeEffect).target;
-      if (!target || target === this.element) continue;
-      const part = [...target.classList].find(name => name.startsWith('pigeon-'))?.slice(7);
-      if (!part || action.some(track => track.part === part)) continue;
+    const poses = this.opening ?? this.pose();
+    this.opening = undefined;
+    for (const part of poses.keys()) {
+      if (action.some(track => track.part === part)) continue;
       const duration = Number(action[0].timing.duration);
       action.push({ part, keyframes: [0, Math.min(1, 120 / duration), 1].map(offset => ({ offset, transform: 'none' })), timing: { duration, easing: 'linear' } });
     }
-    const opening = this.animations.length ?
-      new Map(action.filter(a => a.part).map(a => [a.part, getComputedStyle(this.element.querySelector(`.pigeon-${a.part}`)!).transform])) : undefined;
+    const opening = poses.size ? new Map(action.filter(a => a.part).map(a => [a.part,
+      poses.get(a.part) ?? getComputedStyle(this.element.querySelector(`.pigeon-${a.part}`)!).transform])) : undefined;
     this.cancelAction();
     this.blockedEscape = undefined;
     if (kind === 'flying') this.deadlines.flight = Infinity;
@@ -241,6 +310,11 @@ export class Bird {
       this.position = destination;
       this.element.style.transform = transform(destination);
       this.cancelAction();
+      if (this.leaving) {
+        this.suspend();
+        this.scene.departed(this);
+        return;
+      }
       this.settle(true);
     }
   }

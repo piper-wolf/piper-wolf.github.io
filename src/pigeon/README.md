@@ -2,32 +2,44 @@
 
 `PigeonVisitor.astro` renders hidden, decorative SVGs and a small loader. The
 loader waits for page load, idle time, and 300ms before dynamically importing
-`scene.ts`. It watches visibility and motion preferences even before loading.
+`scene.ts`. It watches focus, visibility, and motion preferences even before loading.
 Keep this dynamic import: browser tests verify production request timing and
 that the scene is absent from preload links.
 
 - `definition.ts` describes dimensions, foot anchors, clearance, gestures, and
   maximum waits (sampled from zero) and escape radii. Birds render at 28px on narrow
   screens and 40px on desktop; geometry scales the foot anchor to the rendered
-  size. Borderless photo tops remain valid perches. Five birds use the same
+  size. Borderless photo tops remain valid perches. Up to three birds use the same
   behavior; the first randomly chooses among the ordinary rock-pigeon coats
   in `appearances.ts` with equal probability, excluding fancy breeds. Each companion
   independently chooses from the full catalog in `appearances.ts` with equal probability,
   including blue bar; duplicates are allowed.
-- `scene.ts` owns page lifecycle, one-time staggered entrances, cached
+- `scene.ts` owns page lifecycle, staggered entrances and replacements, cached
   geometry, and the cursor. Pointer events only update its latest position and
   request one shared frame. The frame reads each grounded bird's bounds before
   applying any reactions. It continues only while birds walk; landings and
-  geometry changes request another check. It observes sizes, DOM/style edits,
-  image completion, and fonts. Bird dimensions refresh with geometry rather
+  geometry changes request another check. It observes content sizes, DOM/style edits,
+  image completion, and fonts, excluding the decorative SVG tree. Only content
+  insertions/removals refresh observer targets; invalidations share one scheduled
+  reconciliation rather than continually resetting its timer. Bird dimensions refresh with geometry rather
   than on every definition access.
-  Invalidation debounces reconciliation
-  without canceling actions or resetting deadlines. Count and colors survive
-  suspension; birds act independently. Each entrance timer adds its bird once,
-  even if the scene is hidden; reconciliation controls whether it can appear.
+  Invalidation preserves actions and deadlines. Focus loss, hidden documents,
+  and pagehide pause native animations, CSS loops, arrivals, and action timers.
+  Resuming shifts deadlines by the time asleep and refreshes geometry once;
+  there is no background polling or catch-up burst. Reduced motion cancels and
+  hides birds. Count and colors survive either lifecycle; birds act independently.
+  One shared arrival timer only runs while awake.
   Perched birds scrolled outside the viewport's safe perch area wait an independent
   random 0–2 seconds before relocating. Further scroll events do not restart that wait; returning
   to a valid visible perch or suspending the scene cancels it.
+  Navigation uses Astro's [persisted elements and swap lifecycle](https://docs.astro.build/en/guides/view-transitions/).
+  The overlay and scene survive internal links and back/forward navigation.
+  Before the swap, each active bird captures its rendered translation in viewport
+  coordinates and all animated part poses, then invalidates old completions.
+  After the swap and scroll restoration, fresh geometry supplies a safe destination.
+  Flights start from the captured location and recover the interrupted pose,
+  including walks and gestures. Reservations are rebuilt against the new document.
+  Reloads start a new flock.
 - `geometry.ts` subtracts content and bird reservations into safe intervals.
   The whole header divider is considered, not just the logo–navigation gap;
   mobile header padding and detail-photo spacing leave clearance above perches.
@@ -35,9 +47,11 @@ that the scene is absent from preload links.
   positions are validated directly, keeping safe birds in place.
 - `bird.ts` manages one bird's state, facing, position, reservations, deadlines,
   and animations. Entrances randomly face left or right and start beyond the
-  opposite viewport edge, facing inward. The scene adds five birds at 100ms,
-  10s, 40s, 90s, and 3 minutes after initialization. Birds have no entrance timers
-  or delays: suspension cancels actions and resumption reconciles immediately.
+  opposite viewport edge, facing inward. The scene adds birds at 100ms, 90s,
+  and 3 minutes of active time. Timed perch changes sample 0–3 minutes (previously
+  0–1 minute). After 4–8 active minutes perched or moving, a bird flies offscreen;
+  its slot receives a newly chosen companion 30–90 active seconds later. These
+  timings are decorative choices. Birds have no entrance timers of their own.
   A cursor within 320px triggers walking away, with one gait scaled continuously
   from 0.5× at the outer edge to 2× near the 14px flight margin. Animation and
   travel share the same playback rate, preserving planted feet and head holds.
@@ -55,8 +69,8 @@ that the scene is absent from preload links.
   along a safe corridor; blocked ground escapes wait instead of triggering flight.
   Pointer-triggered flights prefer safe destinations in the direction away from
   the cursor, falling back to other safe destinations when that direction is unavailable.
-  One timer wakes the next idle, walk, or flight deadline.
-  Gestures finish before timed movement; flight takes priority when overdue.
+  One timer wakes the next idle, walk, flight, or departure deadline.
+  Gestures finish before timed movement; departure, then flight, takes priority when overdue.
   Hover can interrupt a gesture, preserving its opening pose in the flight.
   Walks preserve the flight deadline. Landings commit their held endpoint before
   cancellation, then reconcile fresh geometry. Suspension cancels all actions;

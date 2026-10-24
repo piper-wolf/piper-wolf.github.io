@@ -2,6 +2,7 @@
 import * as styles from "../styles/site.css";
 import Icon from "../components/Icon.astro";
 import PigeonVisitor from "../components/PigeonVisitor.astro";
+import { ClientRouter } from "astro:transitions";
 
 interface Props {
   title: string;
@@ -68,6 +69,7 @@ const serializedStructuredData = structuredData
     {socialImage && <meta name="twitter:image:alt" content={socialImageAlt} />}
     {serializedStructuredData && <script is:inline type="application/ld+json" set:html={serializedStructuredData} />}
     <title>{pageTitle}</title>
+    <ClientRouter fallback="swap" />
   </head>
   <body class={styles.page}>
     <a class={styles.skipLink} href="#main-content">Skip to content</a>
@@ -91,5 +93,15 @@ const serializedStructuredData = structuredData
     </footer>
     <PigeonVisitor />
     <script is:inline data-goatcounter="https://piperwolf.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+    <script>
+      // Client navigation needs an explicit pageview after the initial count.js load.
+      // https://www.goatcounter.com/help/spa
+      let initialLoad = true;
+      document.addEventListener('astro:page-load', () => {
+        if (initialLoad) { initialLoad = false; return; }
+        const counter = (window as Window & { goatcounter?: { count(): void } }).goatcounter;
+        counter?.count();
+      });
+    </script>
   </body>
 </html>

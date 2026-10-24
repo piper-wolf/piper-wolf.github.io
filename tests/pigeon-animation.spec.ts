@@ -1,8 +1,8 @@
 import { test, expect } from './helpers/browser';
 import { appearances, commonAppearances, companionAppearances } from '../src/pigeon/appearances';
 import { gesture, movement } from '../src/pigeon/actions';
-import { pigeon } from '../src/pigeon/definition';
-import { prepare, enter, start, land, finishGesture, dueMovement, expectSafePerch, scrollTo, runtime, scare, trackPointerWork, pointerBurst, inspectPecks, perchScene, restrictPerch } from './helpers/pigeons';
+import { pigeon, entranceDelays } from '../src/pigeon/definition';
+import { prepare, enter, start, land, finishGesture, dueMovement, dueFlight, expectSafePerch, scrollTo, runtime, scare, trackPointerWork, pointerBurst, inspectPecks, perchScene, restrictPerch } from './helpers/pigeons';
 
 test.describe('loading and motion preferences', () => {
   test('initial reduced motion can enable the deferred scene exactly once', async ({ page }) => {
@@ -21,14 +21,20 @@ test.describe('loading and motion preferences', () => {
     }).not.toBe('suspended');
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(0);
-    // The companion becomes due while motion is disabled; it must stay hidden.
-    await page.clock.runFor(10000);
+    // Arrival time freezes while motion is disabled.
+    await page.clock.runFor(entranceDelays[1]);
     await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(0);
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await expect.poll(async () => {
       await page.clock.runFor(100);
       return page.locator('.pigeon-visitor').first().getAttribute('data-state');
     }).not.toBe('suspended');
+    await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(1);
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await page.clock.runFor(300000);
+    await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(1);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.clock.runFor(entranceDelays[1]);
     await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(2);
     expect(requests).toHaveLength(1);
   });
@@ -175,7 +181,7 @@ test.describe('actions and transitions', () => {
     await land(page);
     await dueMovement(page);
     await land(page);
-    await dueMovement(page);
+    await dueFlight(page);
     // Inspect and finish in one browser call: slow cross-process assertions must
     // not let WebKit finish the short native animation before we inspect it.
     const flying = await page.locator('.pigeon-visitor:first-child').evaluate((bird) => {
@@ -286,6 +292,8 @@ test.describe('actions and transitions', () => {
       expect(await bird.evaluate(el => getComputedStyle(el).transform)).toBe(endpoint);
       await expectSafePerch(page);
     }
+    await page.clock.runFor(pigeon.flightDelay * .25 - 15000);
+    await finishGesture(page);
     await page.clock.runFor(1);
     await expect(bird).toHaveAttribute('data-state', 'flying');
     expect(await bird.locator('svg').evaluate(el => el.style.transform)).toBe('scaleX(-1)');
@@ -475,14 +483,14 @@ test.describe('actions and transitions', () => {
     expect(await burst(blocked.x - 100)).toEqual({ bounds: 1, sizes: 0, frames: 1, draws: 1 });
     expect(await burst(blocked.x - 10)).toEqual({ bounds: 1, sizes: 0, frames: 1, draws: 1 });
     expect(await burst(blocked.x - 11)).toEqual({ bounds: 1, sizes: 0, frames: 1, draws: 0 });
-    await dueMovement(page, 14000);
+    await dueMovement(page, pigeon.flightDelay * .25 - 1000);
     await page.clock.runFor(1017);
     expect((await work.jsonValue()).bounds).toBe(2);
     expect(await burst(blocked.x - 11)).toEqual({ bounds: 1, sizes: 0, frames: 1, draws: 0 });
     await page.locator('main').evaluate(el => { el.style.backgroundColor = 'transparent'; });
     await page.clock.runFor(200);
     expect((await work.jsonValue()).draws).toBe(1);
-    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await page.evaluate(() => { window.dispatchEvent(new Event('blur')); window.dispatchEvent(new Event('focus')); });
     expect(await burst(blocked.x - 11)).toEqual({ bounds: 1, sizes: 0, frames: 1, draws: 1 });
   });
 
@@ -497,9 +505,8 @@ test.describe('actions and transitions', () => {
       }, index);
       if (index) {
         await page.emulateMedia({ reducedMotion: 'no-preference' });
-        await expect(bird).toHaveAttribute('data-state', 'perched');
-      }
-      await land(page);
+        await expect(bird).not.toHaveAttribute('data-state', 'suspended');
+      } else await land(page);
       await page.clock.runFor(1);
       await expect(bird).toHaveAttribute('data-state', state);
       if (!index) await expect(bird).toHaveAttribute('data-idle', 'look');
@@ -696,7 +703,7 @@ test.describe('actions and transitions', () => {
       await expect(bird).toHaveAttribute('data-idle', action);
       await finishGesture(page);
       await page.clock.runFor(1);
-      await expect(bird).toHaveAttribute('data-state', action === 'stretch' ? 'flying' : 'walking');
+      await expect(bird).toHaveAttribute('data-state', 'walking');
       await land(page);
     }
     // Revisit pecking with the high random draw: a different count and pace.
@@ -854,6 +861,87 @@ test.describe('actions and transitions', () => {
     }
   }
 
+  test('navigation redirects perched, walking, flying and gesturing birds from their rendered position and pose', async ({ page }) => {
+    await page.route('https://gc.zgo.at/count.js', route => route.fulfill({
+      contentType: 'text/javascript',
+      body: 'window.pageviews = []; window.goatcounter = { count() { window.pageviews.push(location.pathname); } };',
+    }));
+    await start(page, { count: 3 });
+    const bird = page.locator('.pigeon-visitor').first();
+    const original = await bird.elementHandle();
+    const requests: string[] = [];
+    page.on('request', request => { if (runtime.test(request.url())) requests.push(request.url()); });
+    const navigate = async () => {
+      const snapshot = await page.evaluateHandle(() => {
+        const saved = { x: 0, y: 0, parts: [] as { selector: string; transform: string }[] };
+        document.addEventListener('astro:before-swap', () => {
+          const bird = document.querySelector('.pigeon-visitor')!;
+          const matrix = new DOMMatrix(getComputedStyle(bird).transform);
+          saved.x = matrix.m41 - scrollX;
+          saved.y = matrix.m42 - scrollY;
+          saved.parts = bird.getAnimations({ subtree: true })
+            .filter(animation => Number.isFinite(animation.effect!.getTiming().iterations))
+            .flatMap(animation => {
+              const target = (animation.effect as KeyframeEffect).target!;
+              return target === bird ? [] : [{ selector: `.${target.classList[0]}`, transform: getComputedStyle(target).transform }];
+            });
+        }, { once: true, capture: true });
+        return saved;
+      });
+      const destination = new URL(page.url()).pathname === '/pigeons/' ? '/' : '/pigeons/';
+      await page.locator(`header a[href="${destination}"]`).first().evaluate((link: HTMLAnchorElement) => link.click());
+      await expect.poll(async () => {
+        await page.clock.runFor(16);
+        return new URL(page.url()).pathname;
+      }).toBe(destination);
+      await expect(page.locator('.pigeon-visitor[data-state="flying"]')).toHaveCount(3);
+      expect(await original!.evaluate(el => el === document.querySelector('.pigeon-visitor'))).toBe(true);
+      const saved = await snapshot.jsonValue();
+      const opening = await bird.evaluate((el, parts) => {
+        const matrix = new DOMMatrix(getComputedStyle(el).transform);
+        return { x: matrix.m41 - scrollX, y: matrix.m42 - scrollY,
+          parts: parts.map(({ selector }) => getComputedStyle(el.querySelector(selector)!).transform) };
+      }, saved.parts);
+      expect(opening.x).toBeCloseTo(saved.x, 2);
+      expect(opening.y).toBeCloseTo(saved.y, 2);
+      expect(opening.parts).toEqual(saved.parts.map(part => part.transform));
+      await land(page);
+      await expectSafePerch(page);
+      expect(requests).toHaveLength(0);
+    };
+    await land(page);
+    await navigate();
+    for (const action of pigeon.actions) {
+      await page.clock.runFor(3001);
+      await expect(bird).toHaveAttribute('data-idle', action);
+      await bird.evaluate(el => el.getAnimations({ subtree: true })
+        .filter(animation => Number.isFinite(animation.effect!.getTiming().iterations))
+        .forEach(animation => { animation.currentTime = Number(animation.effect!.getTiming().duration) * .4; }));
+      await navigate();
+    }
+    await dueMovement(page);
+    await expect(bird).toHaveAttribute('data-state', 'walking');
+    await bird.evaluate(el => el.getAnimations({ subtree: true })
+      .filter(animation => Number.isFinite(animation.effect!.getTiming().iterations))
+      .forEach(animation => { animation.currentTime = Number(animation.effect!.getTiming().duration) * .4; }));
+    await navigate();
+    await scare(page, bird);
+    await bird.evaluate(el => el.getAnimations({ subtree: true })
+      .filter(animation => Number.isFinite(animation.effect!.getTiming().iterations))
+      .forEach(animation => { animation.currentTime = Number(animation.effect!.getTiming().duration) * .4; }));
+    if (new URL(page.url()).pathname === '/pigeons/') await scrollTo(page, 500);
+    await navigate();
+    // Back/forward uses the same retained scene and perches.
+    await page.goBack();
+    await expect(bird).toHaveAttribute('data-state', 'flying');
+    await land(page);
+    await expectSafePerch(page);
+    expect(await original!.evaluate(el => el.isConnected)).toBe(true);
+    expect(await page.evaluate(() => (window as Window & { pageviews?: string[] }).pageviews)).toEqual([
+      '/', '/pigeons/', '/', '/pigeons/', '/', '/pigeons/', '/', '/pigeons/', '/',
+    ]);
+  });
+
   test('scrolling preserves the perch and only flies away once it is off screen', async ({ page }) => {
     await start(page);
     const bird = page.locator('.pigeon-visitor:first-child');
@@ -945,7 +1033,8 @@ test.describe('actions and transitions', () => {
         await land(page);
         await expectSafePerch(page);
         for (let step = 0; step < 3; step++) {
-          await dueMovement(page);
+          if (step === 2) await dueFlight(page);
+          else await dueMovement(page);
           await expect(bird).toHaveAttribute('data-state', step === 2 ? 'flying' : 'walking');
           await land(page);
           await expectSafePerch(page);
@@ -1028,7 +1117,7 @@ test.describe('independent birds and layout', () => {
     await expectSafePerch(page);
     const held = await page.locator('.pigeon-visitor[data-state="walking"]').first().elementHandle();
     await page.locator('.pigeon-visitor').evaluateAll((birds, held) => birds.filter(bird => bird !== held).forEach(bird => bird.getAnimations().forEach(a => a.finish())), held);
-    await page.clock.runFor(10000);
+    await page.clock.runFor(pigeon.flightDelay * .25 - 5000);
     await finishGesture(page);
     await page.clock.runFor(1);
     expect(await held!.getAttribute('data-state')).toBe('walking');
@@ -1042,12 +1131,12 @@ test.describe('independent birds and layout', () => {
     await land(page);
     await expectSafePerch(page);
   });
-  test('five pigeons enter at 100ms, 10s, 40s, 90s and 3 minutes with independent flights', async ({ page }) => {
+  test('three pigeons enter at 100ms, 90s and 3 minutes with independent flights and later replacements', async ({ page }) => {
     test.setTimeout(180000);
-    const count = 5;
-    const selections = (['dark', 'white', 'red', 'checker'] as const).map(name => (companionAppearances.indexOf(name) + .5) / companionAppearances.length);
+    const count = 3;
+    const selections = (['dark', 'white'] as const).map(name => (companionAppearances.indexOf(name) + .5) / companionAppearances.length);
     await start(page, { count, colors: [(commonAppearances.indexOf('pied') + .5) / commonAppearances.length, ...selections], facings: [0, .999, 0, .999, 0] });
-    expect(await page.locator('.pigeon-visitor svg').evaluateAll(birds => birds.map(bird => (bird as SVGElement).style.transform))).toEqual(['', 'scaleX(-1)', '', 'scaleX(-1)', '']);
+    expect(await page.locator('.pigeon-visitor svg').evaluateAll(birds => birds.map(bird => (bird as SVGElement).style.transform))).toEqual(['', 'scaleX(-1)', '']);
     await land(page);
     await expect(page.locator('.pigeon-visitor')).toHaveCount(count);
     await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(count);
@@ -1059,8 +1148,6 @@ test.describe('independent birds and layout', () => {
       { appearance: 'pied', wing: 'rgb(184, 196, 208)' },
       { appearance: 'dark', wing: 'rgb(89, 99, 115)' },
       { appearance: 'white', wing: 'rgb(243, 242, 235)' },
-      { appearance: 'red', wing: 'rgb(203, 183, 171)' },
-      { appearance: 'checker', wing: 'rgb(184, 196, 208)' },
     ]);
     await expectSafePerch(page);
     const nearby = await page.locator('.pigeon-visitor').last().boundingBox();
@@ -1078,7 +1165,7 @@ test.describe('independent birds and layout', () => {
     await expect(page.locator('.pigeon-visitor[data-state="flying"]')).toHaveCount(2);
     await land(page);
     await expectSafePerch(page);
-    for (const lifecycle of ['visibility', 'page', 'motion']) {
+    for (const lifecycle of ['visibility', 'page', 'focus', 'motion']) {
       // Hide during a flight, then restore without an unrelated event.
       await scare(page, page.locator('.pigeon-visitor').last());
       await expect(page.locator('.pigeon-visitor[data-state="flying"]')).toHaveCount(1);
@@ -1089,13 +1176,28 @@ test.describe('independent birds and layout', () => {
         });
       } else if (lifecycle === 'page') {
         await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
+      } else if (lifecycle === 'focus') {
+        await page.evaluate(() => {
+          document.querySelector('.pigeon-visitor[data-state="flying"]')!.getAnimations({ subtree: true })
+            .filter(animation => Number.isFinite(animation.effect!.getTiming().iterations)).forEach(animation => animation.play());
+          window.dispatchEvent(new Event('blur'));
+        });
+        expect(await page.locator('.pigeon-visitor[data-state="flying"]').evaluate(el => el.getAnimations({ subtree: true }).every(a => a.playState === 'paused'))).toBe(true);
       } else {
         await page.emulateMedia({ reducedMotion: 'reduce' });
       }
-      await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(0);
-      expect(await page.locator('.pigeon-visitor').evaluateAll(birds => birds.flatMap(b => b.getAnimations({ subtree: true })).length)).toBe(0);
-      await page.clock.runFor(2000);
-      await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(0);
+      await expect(page.locator('.pigeon-perch')).toHaveAttribute('data-sleeping', '');
+      if (lifecycle === 'motion') {
+        await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(0);
+        expect(await page.locator('.pigeon-visitor').evaluateAll(birds => birds.flatMap(b => b.getAnimations({ subtree: true })).length)).toBe(0);
+      }
+      const poses = await page.locator('.pigeon-visitor').evaluateAll(birds => birds.map(bird => getComputedStyle(bird).transform));
+      await work.evaluate(work => { work.bounds = work.sizes = work.frames = work.draws = 0; });
+      await page.locator('main').evaluate(el => { el.style.outline = 'none'; });
+      await pointerBurst(page, 100, 100);
+      await page.clock.runFor(300000);
+      expect(await work.jsonValue()).toEqual({ bounds: 0, sizes: 0, frames: 0, draws: 0 });
+      expect(await page.locator('.pigeon-visitor').evaluateAll(birds => birds.map(bird => getComputedStyle(bird).transform))).toEqual(poses);
       if (lifecycle === 'visibility') {
         await page.evaluate(() => {
           delete (document as unknown as { hidden?: boolean }).hidden;
@@ -1103,9 +1205,12 @@ test.describe('independent birds and layout', () => {
         });
       } else if (lifecycle === 'page') {
         await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
+      } else if (lifecycle === 'focus') {
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
       } else {
         await page.emulateMedia({ reducedMotion: 'no-preference' });
       }
+      await expect(page.locator('.pigeon-perch')).not.toHaveAttribute('data-sleeping');
       await expect(page.locator('.pigeon-visitor:not([data-state="suspended"])')).toHaveCount(count);
       await land(page);
       await expectSafePerch(page);
@@ -1116,6 +1221,24 @@ test.describe('independent birds and layout', () => {
       appearance: (b as HTMLElement).dataset.appearance,
       wing: getComputedStyle(b.querySelector('.pigeon-wing path')!).fill,
     })))).toEqual(colors);
+    await expectSafePerch(page);
+    // Lifetime expires independently of perch changes; vacated slots return later.
+    await page.clock.runFor(300001);
+    await finishGesture(page);
+    await page.clock.runFor(1);
+    await expect(page.locator('.pigeon-visitor[data-state="flying"]')).toHaveCount(count);
+    const departures = await page.locator('.pigeon-visitor').evaluateAll(birds => birds.map(bird => {
+      const frames = (bird.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
+      return new DOMMatrix(frames.at(-1)!.transform as string).m41;
+    }));
+    expect(departures.every(x => x < 0 || x > 1440)).toBe(true);
+    await land(page);
+    await expect(page.locator('.pigeon-visitor[data-state="suspended"]')).toHaveCount(count);
+    await page.clock.runFor(44999);
+    await expect(page.locator('.pigeon-visitor[data-state="suspended"]')).toHaveCount(count);
+    await page.clock.runFor(1);
+    await expect(page.locator('.pigeon-visitor[data-state="flying"]')).toHaveCount(count);
+    await land(page);
     await expectSafePerch(page);
     // Exercise every catalog entry through real scene selection and both wing poses.
     for (const [index, name] of companionAppearances.entries()) {

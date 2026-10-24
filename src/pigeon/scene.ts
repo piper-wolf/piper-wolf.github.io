@@ -6,54 +6,100 @@ const scenes = new WeakMap<HTMLElement, Scene>();
 class Scene {
   private geometry = new Geometry();
   private birds: Bird[] = [];
+  private arrivals = new Map<HTMLElement, number>();
+  private arrivalTimer?: number;
   private motion = matchMedia('(prefers-reduced-motion: reduce)');
   private debounce?: number;
   private active = true;
+  private focused = document.hasFocus();
+  private sleepingAt?: number;
+  private navigating = false;
   private geometryDirty = true;
   private pointer?: { x: number; y: number };
   private pointerFrame?: number;
-  constructor(overlay: HTMLElement) {
+  constructor(private overlay: HTMLElement) {
     const slots = [...overlay.querySelectorAll<HTMLElement>('.pigeon-visitor')];
     slots.slice(0, entranceDelays.length).forEach((element, index) => {
       const choices = index === 0 ? commonAppearances : companionAppearances;
-      const appearance = choices[Math.floor(Math.random() * choices.length)];
-      applyAppearance(element, appearance);
-      window.setTimeout(() => {
-        this.birds.push(new Bird(element, pigeon, this));
-        this.settle();
-      }, entranceDelays[index]);
+      applyAppearance(element, choices[Math.floor(Math.random() * choices.length)]);
+      this.arrivals.set(element, performance.now() + entranceDelays[index]);
     });
     overlay.style.visibility = 'visible';
     document.addEventListener('pointermove', event => {
-      if (event.pointerType === 'touch') return;
+      if (event.pointerType === 'touch' || !this.awake) return;
       this.pointer = { x: event.clientX, y: event.clientY };
       this.watchPointer();
     });
     document.addEventListener('pointerleave', () => this.forgetPointer());
-    window.addEventListener('blur', () => this.forgetPointer());
+    window.addEventListener('blur', () => { this.focused = false; this.settle(); });
+    window.addEventListener('focus', () => { this.focused = true; this.settle(); });
     const invalidate = () => this.invalidate();
     window.addEventListener('resize', invalidate, { passive: true });
     window.addEventListener('scroll', invalidate, { passive: true });
     document.addEventListener('visibilitychange', () => this.settle());
     this.motion.addEventListener('change', () => this.settle());
-    window.addEventListener('pagehide', () => { this.active = false; this.suspend(); });
+    window.addEventListener('pagehide', () => { this.active = false; this.settle(); });
     window.addEventListener('pageshow', () => { this.active = true; this.geometryDirty = true; this.settle(); });
-    // Container sizes, DOM edits (including position-only changes), late images,
-    // and fonts all invalidate geometry. Ignore our own rendered attributes.
     const resize = new ResizeObserver(invalidate);
-    const observe = () => document.querySelectorAll('header, main, footer, [data-pigeon-landing], main img').forEach(el => resize.observe(el));
+    const mutations = new MutationObserver(records => {
+      if (records.some(record => record.type === 'childList')) observe();
+      invalidate();
+    });
+    // Observe content rather than the decorative SVG tree. Animation writes
+    // must not wake geometry work or repeatedly register the same elements.
+    const observe = () => {
+      resize.disconnect();
+      mutations.disconnect();
+      document.querySelectorAll('header, main, footer, [data-pigeon-landing], main img').forEach(el => resize.observe(el));
+      document.querySelectorAll('header, main, footer').forEach(el => mutations.observe(el, {
+        subtree: true, childList: true, attributes: true, characterData: true,
+      }));
+      mutations.observe(document.body, { childList: true, attributes: true });
+    };
     observe();
-    new MutationObserver(records => {
-      if (records.some(r => !overlay.contains(r.target))) { observe(); invalidate(); }
-    }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
+    document.addEventListener('astro:before-swap', () => {
+      this.navigating = true;
+      this.forgetPointer();
+      clearTimeout(this.debounce);
+      this.debounce = undefined;
+      this.birds.forEach(bird => bird.prepareNavigation());
+    });
+    document.addEventListener('astro:after-swap', () => {
+      observe();
+      this.navigating = false;
+      this.geometryDirty = true;
+      this.settle();
+    });
     document.addEventListener('load', invalidate, true);
     document.addEventListener('error', invalidate, true);
     document.fonts?.ready.then(invalidate);
     document.fonts?.addEventListener('loadingdone', invalidate);
     this.settle();
   }
+  private get awake() {
+    return this.active && this.focused && !document.hidden && !this.motion.matches && !this.navigating;
+  }
+  private scheduleArrivals() {
+    clearTimeout(this.arrivalTimer);
+    if (!this.awake || !this.arrivals.size) return;
+    this.arrivalTimer = window.setTimeout(() => {
+      const now = performance.now();
+      for (const [element, at] of this.arrivals) {
+        if (at > now) continue;
+        this.arrivals.delete(element);
+        this.birds.push(new Bird(element, pigeon, this));
+      }
+      this.settle();
+    }, Math.max(0, Math.min(...this.arrivals.values()) - performance.now()));
+  }
+  departed(bird: Bird) {
+    this.birds = this.birds.filter(other => other !== bird);
+    applyAppearance(bird.element, companionAppearances[Math.floor(Math.random() * companionAppearances.length)]);
+    this.arrivals.set(bird.element, performance.now() + 30000 + Math.random() * 60000);
+    this.scheduleArrivals();
+  }
   watchPointer() {
-    if (!this.pointer || this.pointerFrame !== undefined || !this.active || document.hidden || this.motion.matches ||
+    if (!this.pointer || this.pointerFrame !== undefined || !this.awake ||
       !this.birds.some(bird => bird.state === 'walking' || bird.state === 'perched')) return;
     this.pointerFrame = requestAnimationFrame(() => {
       this.measure();
@@ -71,15 +117,9 @@ class Scene {
     this.pointerFrame = undefined;
     this.birds.forEach(bird => bird.forgetPointer());
   }
-  private suspend() {
-    this.forgetPointer();
-    clearTimeout(this.debounce);
-    this.debounce = undefined;
-    this.birds.forEach(b => b.suspend());
-  }
   private invalidate() {
     this.geometryDirty = true;
-    clearTimeout(this.debounce);
+    if (!this.awake || this.debounce !== undefined) return;
     this.debounce = window.setTimeout(() => { this.debounce = undefined; this.settle(); }, 150);
   }
   private measure() {
@@ -97,9 +137,30 @@ class Scene {
     return bird.position && this.geometry.current(bird.position, bird.definition, this.birds.filter(b => b !== bird && b.reservation).map(b => b.reservation!));
   }
   settle() {
-    if (!this.active || document.hidden || this.motion.matches) { this.suspend(); return; }
+    if (!this.awake) {
+      if (this.sleepingAt === undefined) {
+        this.sleepingAt = performance.now();
+        this.forgetPointer();
+        clearTimeout(this.arrivalTimer);
+        clearTimeout(this.debounce);
+        this.debounce = undefined;
+        this.overlay.dataset.sleeping = '';
+        this.birds.forEach(bird => bird.sleep());
+      }
+      if (this.motion.matches) this.birds.forEach(bird => bird.suspend());
+      return;
+    }
+    if (this.sleepingAt !== undefined) {
+      const elapsed = performance.now() - this.sleepingAt;
+      this.arrivals.forEach((at, element) => this.arrivals.set(element, at + elapsed));
+      this.sleepingAt = undefined;
+      delete this.overlay.dataset.sleeping;
+      this.geometryDirty = true;
+      this.birds.forEach(bird => bird.resume(elapsed));
+    }
     this.measure();
     this.birds.forEach(bird => bird.reconcile());
+    this.scheduleArrivals();
   }
 }
 export function initialize() {

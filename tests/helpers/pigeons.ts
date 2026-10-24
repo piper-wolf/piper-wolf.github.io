@@ -10,7 +10,7 @@ export async function prepare(page: Page, { width = 1440, height = 900, count = 
   await page.clock.install({ time: epoch });
   await page.clock.pauseAt(new Date(epoch.getTime() + 1000));
   await page.addInitScript(({ count, random, colors, facings, separateEdges }) => {
-    // Isolate smaller groups for action/geometry scenarios; production keeps all five.
+    // Isolate smaller groups for action/geometry scenarios; production keeps all three.
     document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.pigeon-visitor').forEach((bird, index) => { if (index >= count) bird.remove(); });
     });
@@ -71,6 +71,15 @@ export async function dueMovement(page: Page, elapsed = 5000) {
   await page.clock.runFor(elapsed);
   await finishGesture(page);
   await page.clock.runFor(1);
+}
+
+export async function dueFlight(page: Page) {
+  for (let step = 0; step < 40; step++) {
+    await dueMovement(page);
+    if (await page.locator('.pigeon-visitor[data-state="flying"]').count()) return;
+    await land(page);
+  }
+  throw new Error('No timed flight within 200 seconds');
 }
 
 export async function expectSafePerch(page: Page) {

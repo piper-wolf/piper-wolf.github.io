@@ -5,7 +5,7 @@ const flecks = (points: number[][], shape: string) => points.map(([x, y]) => `M$
 const handWingOutline = 'M19 19Q11 12 5 1 3-1 1 2 0 7 5 15l-4-3q-2 0-1 4l6 8-3-2q-2 1 1 6l7 6q7-3 14-12Z';
 ---
 <!-- Optional decoration; safe horizontal perches are measured after load + idle. -->
-<div class="pigeon-perch" aria-hidden="true">
+<div class="pigeon-perch" aria-hidden="true" transition:persist="pigeon-visitors" transition:animate="none">
   {Array.from({ length: entranceDelays.length }, () => <span class="pigeon-visitor" data-state="suspended" data-appearance="city" data-pattern="bar" data-breed="rock" style={`--pigeon-size: ${definition.size}px`}>
     <svg viewBox="0 0 64 64" width={definition.size} height={definition.size} focusable="false">
       <!-- Cornell: plump body, small head, short legs, slender bill, paired wing
@@ -187,6 +187,7 @@ const handWingOutline = 'M19 19Q11 12 5 1 3-1 1 2 0 7 5 15l-4-3q-2 0-1 4l6 8-3-2
   .pigeon-visitor:not([data-state="perched"]) .pigeon-breath,
   .pigeon-visitor[data-idle]:not([data-idle="look"]) .pigeon-breath { animation-play-state: paused; }
   .pigeon-visitor:not([data-state="suspended"]) .pigeon-eye { animation: pigeon-blink 7s linear infinite; }
+  .pigeon-perch[data-sleeping] .pigeon-visitor svg * { animation-play-state: paused !important; }
   .pigeon-checks, .pigeon-grizzle, .pigeon-pied, .pigeon-fan, .pigeon-hood, .pigeon-frill, .pigeon-crest,
   .pigeon-muffs, .pigeon-crop, .pigeon-bib, .pigeon-white-cheek, .pigeon-flight-mark { display: none; }
   .pigeon-visitor[data-pattern="plain"] .pigeon-bars,
@@ -226,11 +227,11 @@ const handWingOutline = 'M19 19Q11 12 5 1 3-1 1 2 0 7 5 15l-4-3q-2 0-1 4l6 8-3-2
   let scheduled = false;
   let loaded = false;
   const ready = () => {
-    if (loaded || scheduled || motion.matches || document.hidden || document.readyState !== 'complete') return;
+    if (loaded || scheduled || motion.matches || document.hidden || !document.hasFocus() || document.readyState !== 'complete') return;
     scheduled = true;
     const later = () => setTimeout(async () => {
       scheduled = false;
-      if (motion.matches || document.hidden || loaded) return;
+      if (motion.matches || document.hidden || !document.hasFocus() || loaded) return;
       loaded = true;
       try { await import('../pigeon/scene'); }
       catch { loaded = false; }
@@ -241,6 +242,7 @@ const handWingOutline = 'M19 19Q11 12 5 1 3-1 1 2 0 7 5 15l-4-3q-2 0-1 4l6 8-3-2
   motion.addEventListener('change', ready);
   document.addEventListener('visibilitychange', ready);
   window.addEventListener('pageshow', ready);
+  window.addEventListener('focus', ready);
   window.addEventListener('load', ready, { once: true });
   ready();
 </script>

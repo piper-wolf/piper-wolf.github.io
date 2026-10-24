@@ -17,12 +17,12 @@ export const pigeon = {
   clearance: { left: 10, right: 14, above: 6, below: 3 },
   idleDelay: 12000,
   walkDelay: 20000,
-  flightDelay: 60000,
+  flightDelay: 180000,
   // Screen-space interaction choices, not measured pigeon escape distances.
   escapeRadius: { flight: 14, walk: 320 },
   actions: ['look', 'peck', 'stretch', 'preen', 'ruffle'],
 } as const;
 
-export const entranceDelays = [100, 10000, 40000, 90000, 180000] as const;
+export const entranceDelays = [100, 90000, 180000] as const;
 
 export const perchMargin = 12;
