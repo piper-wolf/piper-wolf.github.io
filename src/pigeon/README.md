@@ -24,7 +24,9 @@ that the scene is absent from preload links.
   reconciliation rather than continually resetting its timer. Bird dimensions refresh with geometry rather
   than on every definition access.
   Invalidation preserves actions and deadlines. Focus loss, hidden documents,
-  and pagehide pause native animations, CSS loops, arrivals, and action timers.
+  and pagehide cancel grounded gestures and walks, preserving the walk's current
+  position, and stop arrivals and action timers. Flights finish landing or departing
+  before the scene sleeps and pauses CSS loops; old actions never resume on focus.
   Resuming shifts deadlines by the time asleep and refreshes geometry once;
   there is no background polling or catch-up burst. Reduced motion cancels and
   hides birds. Count and colors survive either lifecycle; birds act independently.

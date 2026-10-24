@@ -144,10 +144,10 @@ class Scene {
         clearTimeout(this.arrivalTimer);
         clearTimeout(this.debounce);
         this.debounce = undefined;
-        this.overlay.dataset.sleeping = '';
-        this.birds.forEach(bird => bird.sleep());
       }
+      this.birds.forEach(bird => bird.sleep());
       if (this.motion.matches) this.birds.forEach(bird => bird.suspend());
+      if (!this.birds.some(bird => bird.state === 'flying')) this.overlay.dataset.sleeping = '';
       return;
     }
     if (this.sleepingAt !== undefined) {

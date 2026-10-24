@@ -7,6 +7,7 @@ export interface BirdScene {
   current(bird: Bird): Point | undefined;
   watchPointer(): void;
   departed(bird: Bird): void;
+  settle(): void;
 }
 const choose = <T>(items: readonly T[]) => items[Math.floor(Math.random() * items.length)];
 export class Bird {
@@ -18,7 +19,6 @@ export class Bird {
   private offscreenTimer?: number;
   private offscreenAt?: number;
   private sleeping = false;
-  private paused: Animation[] = [];
   private navigationPoint?: { x: number; y: number };
   private opening?: Map<string, string>;
   private leaving = false;
@@ -104,14 +104,23 @@ export class Bird {
     this.sleeping = true;
     clearTimeout(this.timer);
     clearTimeout(this.offscreenTimer);
-    this.paused = this.animations.filter(animation => animation.playState === 'running');
-    this.paused.forEach(animation => animation.pause());
+    if (this.state === 'flying') return;
+    if (this.state === 'walking') {
+      const matrix = new DOMMatrixReadOnly(getComputedStyle(this.element).transform);
+      this.position = { ...this.position!, x: matrix.m41, y: matrix.m42 };
+      this.reservation = { from: this.position, to: this.position, definition: this.definition };
+      this.element.style.transform = transform(this.position);
+      this.render('perched');
+      this.deadlines.walk = this.after(this.baseDefinition.walkDelay);
+    }
+    if (this.animations.length) this.deadlines.idle = this.after(this.baseDefinition.idleDelay);
+    const offscreenAt = this.offscreenAt;
+    this.cancelAction();
+    this.offscreenAt = offscreenAt;
   }
   resume(elapsed: number) {
     this.sleeping = false;
     for (const key of Object.keys(this.deadlines) as (keyof typeof this.deadlines)[]) this.deadlines[key] += elapsed;
-    this.paused.filter(animation => this.animations.includes(animation)).forEach(animation => animation.play());
-    this.paused = [];
     if (this.offscreenAt !== undefined) {
       this.offscreenAt += elapsed;
       this.waitOffscreen();
@@ -313,9 +322,11 @@ export class Bird {
       if (this.leaving) {
         this.suspend();
         this.scene.departed(this);
+        if (this.sleeping) this.scene.settle();
         return;
       }
       this.settle(true);
+      if (this.sleeping) this.scene.settle();
     }
   }
 }
