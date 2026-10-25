@@ -352,7 +352,7 @@ test.describe('actions and transitions', () => {
     await expectSafePerch(page);
   });
 
-  test('walks, scurries and flies with cursor proximity from the visible position', async ({ page }) => {
+  test('proximity sets ground speed independently of the walking or running gait', async ({ page }) => {
     await prepare(page);
     const reset = () => perchScene(page);
     const bird = await reset();
@@ -418,27 +418,36 @@ test.describe('actions and transitions', () => {
       const rates = el.getAnimations({ subtree: true }).filter(a => Number.isFinite(a.effect!.getTiming().iterations)).map(a => a.playbackRate);
       return { from, to, speed: Math.abs(to - from) / (duration / 1000) * animation.playbackRate, rates };
     });
-    const walk = await inspect();
+    const expectSpeed = async (distance: number, size = 40) => {
+      const motion = await inspect();
+      // Measure effective translation, not a gait-specific playback multiplier.
+      expect(motion.speed).toBeCloseTo(size * (.25 + 1.5 * (320 - distance) / 306), 3);
+      expect(motion.rates.every(rate => Math.abs(rate - motion.rates[0]) < .001)).toBe(true);
+      return motion;
+    };
+    const walk = await expectSpeed(310);
     expect(walk.to).toBeLessThan(walk.from);
-    expect(walk.rates.every(rate => Math.abs(rate - (.5 + 1.5 * 10 / 306)) < .001)).toBe(true);
     let lastSpeed = walk.speed;
     for (const distance of [260, 200, 130]) {
       await approach(distance);
       await expect(bird).toHaveAttribute('data-state', 'walking');
-      const faster = await inspect();
+      const faster = await expectSpeed(distance);
       expect(faster.speed).toBeGreaterThan(lastSpeed);
-      expect(faster.rates.every(rate => Math.abs(rate - (.5 + 1.5 * (320 - distance) / 306)) < .001)).toBe(true);
       expect(faster.from).toBe(walk.from);
       expect(faster.to).toBe(walk.to);
       expect(await bird.evaluate((el, a) => el.getAnimations()[0] === a, animationHandle)).toBe(true);
       lastSpeed = faster.speed;
     }
-    // Switch gaits without teleporting or abandoning the reserved corridor.
+    // Crossing the gait threshold keeps the same speed curve and corridor.
+    await approach(117);
+    await expect(bird).toHaveAttribute('data-state', 'walking');
+    const thresholdWalk = await expectSpeed(117);
     const beforeRun = (await bird.boundingBox())!;
     const headBeforeRun = await bird.locator('.pigeon-head').evaluate(el => getComputedStyle(el).transform);
-    await approach(100);
+    await approach(115);
     await expect(bird).toHaveAttribute('data-state', 'running');
-    const run = await inspect();
+    const run = await expectSpeed(115);
+    expect(run.speed - thresholdWalk.speed).toBeLessThan(.5);
     expect(run.from).toBeCloseTo(beforeRun.x, 2);
     expect(run.to).toBe(walk.to);
     expect(run.speed).toBeGreaterThan(lastSpeed);
@@ -446,15 +455,26 @@ test.describe('actions and transitions', () => {
     await expect(bird.locator('.pigeon-wing')).toHaveCSS('display', 'inline');
     await expect(bird.locator('.pigeon-flight-wing').first()).toHaveCSS('display', 'none');
     const runHandle = await bird.evaluateHandle(el => el.getAnimations()[0]);
-    // The boundary has hysteresis, and changing speed does not restart a run.
-    await approach(120);
+    // Hysteresis can select either gait at 130px; travel speed stays identical.
+    await approach(130);
     await expect(bird).toHaveAttribute('data-state', 'running');
-    expect(await bird.evaluate((el, a) => el.getAnimations()[0] === a, runHandle)).toBe(true);
-    await approach(20);
-    expect((await inspect()).speed).toBeGreaterThan(run.speed);
-    expect(await bird.evaluate((el, a) => el.getAnimations()[0] === a, runHandle)).toBe(true);
-    await approach(160);
+    let running = await expectSpeed(130);
+    expect(running.speed).toBeCloseTo(lastSpeed, 3);
+    for (const distance of [100, 60, 20]) {
+      await approach(distance);
+      const faster = await expectSpeed(distance);
+      expect(faster.speed).toBeGreaterThan(running.speed);
+      expect(await bird.evaluate((el, a) => el.getAnimations()[0] === a, runHandle)).toBe(true);
+      running = faster;
+    }
+    // Slowing through the return threshold has no speed jump either.
+    await approach(145);
+    await expect(bird).toHaveAttribute('data-state', 'running');
+    const slowerRun = await expectSpeed(145);
+    await approach(147);
     await expect(bird).toHaveAttribute('data-state', 'walking');
+    const slowerWalk = await expectSpeed(147);
+    expect(slowerRun.speed - slowerWalk.speed).toBeLessThan(.5);
     await expectSafePerch(page);
     // Completing a step must keep escaping from the same stationary cursor.
     await approach(200);
@@ -466,17 +486,17 @@ test.describe('actions and transitions', () => {
     const continued = await inspect();
     expect(continued.from).toBeCloseTo(escaping.to, 2);
     expect(continued.to).toBeLessThan(continued.from);
-    expect(continued.rates[0]).toBeLessThan(escaping.rates[0]);
+    expect(continued.speed).toBeLessThan(escaping.speed);
     expect(continued.rates.every(rate => Math.abs(rate - continued.rates[0]) < .001)).toBe(true);
     expect(await bird.evaluate((el, a) => el.getAnimations()[0] === a, animationHandle)).toBe(false);
     await approach(310);
-    expect((await inspect()).rates[0]).toBeCloseTo(walk.rates[0], 2);
+    expect((await expectSpeed(310)).speed).toBeCloseTo(walk.speed, 3);
     // Geometry reconciliation preserves the gait and its reserved corridor.
     await page.locator('main').evaluate(el => { el.style.backgroundColor = 'transparent'; });
     await page.clock.runFor(200);
     await expect(bird).toHaveAttribute('data-state', 'walking');
     await page.dispatchEvent('html', 'pointerleave');
-    expect((await inspect()).rates.every(rate => rate === 1)).toBe(true);
+    expect((await inspect()).speed).toBeCloseTo(20, 3);
     await approach(100);
     await expect(bird).toHaveAttribute('data-state', 'running');
     const stoppedAt = await bird.evaluate(el => {
@@ -519,6 +539,10 @@ test.describe('actions and transitions', () => {
     await approach(100);
     await expect(bird).toHaveAttribute('data-state', 'running');
     await page.dispatchEvent('html', 'pointerleave');
+    await expect(bird).toHaveAttribute('data-state', 'walking');
+    expect((await inspect()).speed).toBeCloseTo(20, 3);
+    await approach(100);
+    await expect(bird).toHaveAttribute('data-state', 'running');
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect(bird).toHaveAttribute('data-state', 'suspended');
     expect(await bird.evaluate(el => el.getAnimations({ subtree: true }).length)).toBe(0);
@@ -536,6 +560,15 @@ test.describe('actions and transitions', () => {
     await expect(bird).toHaveAttribute('data-state', 'flying');
     await land(page);
     await expectSafePerch(page);
+    await page.setViewportSize({ width: 390, height: 900 });
+    await reset();
+    for (const distance of [200, 100, 20]) {
+      const rect = (await bird.boundingBox())!;
+      await page.mouse.move(rect.x - distance, rect.y + rect.height / 2);
+      await page.clock.runFor(16);
+      await expect(bird).toHaveAttribute('data-state', distance === 200 ? 'walking' : 'running');
+      await expectSpeed(distance, 28);
+    }
 
   });
 

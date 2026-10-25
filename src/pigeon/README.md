@@ -54,13 +54,19 @@ that the scene is absent from preload links.
   0–1 minute). After 4–8 active minutes perched or moving, a bird flies offscreen;
   its slot receives a newly chosen companion 30–90 active seconds later. These
   timings are decorative choices. Birds have no entrance timers of their own.
-  A cursor within 320px triggers walking away, speeding up as it approaches.
-  Within 110px the bird switches to a short grounded scurry: quicker, longer
-  alternating steps, springy body compression, folded wings and reduced head bob.
-  Running continues until the cursor is over 140px away to avoid boundary chatter;
-  within 14px the bird flies. Ground gait changes blend the rendered pose over
-  about 100ms and preserve the reserved endpoint and visible position. Animation
-  and travel share the same playback rate, preserving planted support feet.
+  A cursor within 320px sets a desired ground speed, increasing continuously
+  from 0.25 to 1.75 bird widths/second as it approaches the 14px flight margin.
+  Speed selects the gait: walking below 1.25 widths/second, a short grounded
+  scurry above it, and walking again below 1.1 to avoid boundary chatter.
+  Hysteresis affects only the gait; the same proximity always requests the same
+  travel speed. Running has quicker, longer alternating steps, springy body
+  compression, folded wings and reduced head bob. Within 14px the bird flies.
+  Ground gait changes blend the rendered pose over about 100ms and preserve
+  the reserved endpoint and visible position. Animation and travel share the
+  same playback rate, normalized from each action's
+  distance and native duration to the desired speed. Stride rounding, cadence
+  variation, short corridors and gait changes cannot change that speed.
+  With no cursor, ground movement uses 0.5 bird widths/second and walks.
   Flight interrupts ground movement from its visible position. Ground movement
   uses the scene's last cursor position each animation frame,
   so a stationary cursor also changes gait or speed, or triggers flight.
