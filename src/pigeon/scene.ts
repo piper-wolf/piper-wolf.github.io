@@ -99,14 +99,17 @@ class Scene {
     this.scheduleArrivals();
   }
   watchPointer() {
-    if (!this.pointer || this.pointerFrame !== undefined || !this.awake ||
-      !this.birds.some(bird => bird.movingOnGround || bird.state === 'perched')) return;
+    if (this.pointerFrame !== undefined || !this.awake ||
+      !this.birds.some(bird => bird.movingOnGround || this.pointer && bird.state === 'perched')) return;
     this.pointerFrame = requestAnimationFrame(() => {
       this.measure();
-      const pointer = this.pointer!;
-      const samples = this.birds.filter(bird => bird.movingOnGround || bird.state === 'perched')
+      const pointer = this.pointer;
+      const samples = this.birds.filter(bird => bird.movingOnGround || pointer && bird.state === 'perched')
         .map(bird => ({ bird, rect: bird.element.getBoundingClientRect() }));
-      samples.forEach(({ bird, rect }) => bird.reactToPointer(pointer, rect));
+      samples.forEach(({ bird, rect }) => {
+        if (pointer) bird.reactToPointer(pointer, rect);
+        bird.advanceGround(rect);
+      });
       this.pointerFrame = undefined;
       if (this.birds.some(bird => bird.movingOnGround)) this.watchPointer();
     });
@@ -116,6 +119,7 @@ class Scene {
     cancelAnimationFrame(this.pointerFrame!);
     this.pointerFrame = undefined;
     this.birds.forEach(bird => bird.forgetPointer());
+    this.watchPointer();
   }
   private invalidate() {
     this.geometryDirty = true;

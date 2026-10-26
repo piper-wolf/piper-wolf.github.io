@@ -23,6 +23,8 @@ that the scene is absent from preload links.
   insertions/removals refresh observer targets; invalidations share one scheduled
   reconciliation rather than continually resetting its timer. Bird dimensions refresh with geometry rather
   than on every definition access.
+  Ground movement uses this frame even without a cursor to accelerate and brake;
+  perched birds with no cursor schedule no frames.
   Invalidation preserves actions and deadlines. Focus loss, hidden documents,
   and pagehide cancel grounded gestures and movement, preserving the bird's current
   position, and stop arrivals and action timers. Flights finish landing or departing
@@ -56,17 +58,27 @@ that the scene is absent from preload links.
   timings are decorative choices. Birds have no entrance timers of their own.
   A cursor within 320px sets a desired ground speed, increasing continuously
   from 0.25 to 1.75 bird widths/second as it approaches the 14px flight margin.
-  Speed selects the gait: walking below 1.25 widths/second, a short grounded
+  This is a target speed: ground velocity accelerates at 4 bird widths/s² and
+  brakes at 6 bird widths/s². Short paths brake before their reserved endpoint
+  and may never reach the target. These rates are screen-animation choices,
+  not measured pigeon escape dynamics. Actual speed selects the gait: walking
+  below 1.25 widths/second, a short grounded
   scurry above it, and walking again below 1.1 to avoid boundary chatter.
   Hysteresis affects only the gait; the same proximity always requests the same
-  travel speed. Running has quicker, longer alternating steps, springy body
+  target speed. Running has quicker, longer alternating steps, springy body
   compression, folded wings and reduced head bob. Within 14px the bird flies.
   Ground gait changes blend the rendered pose over about 100ms and preserve
   the reserved endpoint and visible position. Animation and travel share the
   same playback rate, normalized from each action's
-  distance and native duration to the desired speed. Stride rounding, cadence
-  variation, short corridors and gait changes cannot change that speed.
-  With no cursor, ground movement uses 0.5 bird widths/second and walks.
+  distance and native duration to the current velocity. Stride rounding, cadence
+  variation and gait changes preserve that velocity; endpoint braking limits
+  travel on short corridors.
+  A cursor on the opposite side requests a reversal: the bird keeps moving and
+  facing its original direction while braking, replans a safe path from its
+  rendered position at zero velocity, then flips and accelerates away. A blocked
+  reversal stops and follows the usual retry deadline. The old corridor remains
+  reserved throughout braking.
+  With no cursor, ground movement approaches 0.5 bird widths/second and walks.
   Flight interrupts ground movement from its visible position. Ground movement
   uses the scene's last cursor position each animation frame,
   so a stationary cursor also changes gait or speed, or triggers flight.
@@ -124,8 +136,8 @@ that the scene is absent from preload links.
   gesture angles and durations are illustration choices. Interrupted gestures
   recover every animated part on the movement timeline, including parts that
   the next movement would otherwise leave untouched. The manager
-  starts each action on one native timeline origin. No animation library or
-  frame loop is required to animate movement. Flights follow a logarithmic vertical progression
+  starts each action on one native timeline origin. Native keyframes animate
+  travel and poses; the shared scene frame controls ground speed. Flights follow a logarithmic vertical progression
   that flattens into a horizontal approach; level flights use a symmetric lift
   arc capped at a quarter of the travel distance, so tiny hops stay shallow
   instead of reversing vertically at peak speed.

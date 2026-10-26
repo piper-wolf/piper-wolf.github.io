@@ -28,7 +28,16 @@ export async function prepare(page: Page, { width = 1440, height = 900, count = 
     const animate = Element.prototype.animate;
     Element.prototype.animate = function (...args) {
       const animation = animate.apply(this, args);
-      if (this.closest('.pigeon-visitor')) animation.pause();
+      if (this.closest('.pigeon-visitor')) {
+        animation.pause();
+        // Tests explicitly complete held actions, including zero-speed starts
+        // and reversals. Native finish() requires a nonzero playback rate.
+        const finish = animation.finish.bind(animation);
+        animation.finish = () => {
+          if (animation.playbackRate === 0) animation.playbackRate = 1;
+          finish();
+        };
+      }
       return animation;
     };
   }, { count, random, colors, facings, separateEdges });

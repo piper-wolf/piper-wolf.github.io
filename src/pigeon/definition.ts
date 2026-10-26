@@ -9,8 +9,8 @@ export interface BirdDefinition {
   walkDelay: number;
   flightDelay: number;
   escapeRadius: { flight: number; walk: number };
-  // Ground speeds in rendered bird widths/second, independent of the gait.
-  groundSpeed: { min: number; normal: number; max: number; run: number; walk: number };
+  // Ground speeds in widths/second; acceleration and braking in widths/second².
+  groundSpeed: { min: number; normal: number; max: number; run: number; walk: number; acceleration: number; deceleration: number };
   actions: readonly Gesture[];
 }
 export const pigeon = {
@@ -22,7 +22,7 @@ export const pigeon = {
   flightDelay: 180000,
   // Screen-space interaction choices, not measured pigeon escape distances.
   escapeRadius: { flight: 14, walk: 320 },
-  groundSpeed: { min: .25, normal: .5, max: 1.75, run: 1.25, walk: 1.1 },
+  groundSpeed: { min: .25, normal: .5, max: 1.75, run: 1.25, walk: 1.1, acceleration: 4, deceleration: 6 },
   actions: ['look', 'peck', 'stretch', 'preen', 'ruffle'],
 } as const;
 
