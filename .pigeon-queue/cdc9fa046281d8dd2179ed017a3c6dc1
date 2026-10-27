@@ -1,0 +1,14 @@
+{
+  "queueId": "cdc9fa046281d8dd2179ed017a3c6dc1",
+  "permanentUrl": "https://piper-wolf.com/pigeons/062/",
+  "publicationDate": "2026-10-27",
+  "snapshot": {
+    "queueId": "cdc9fa046281d8dd2179ed017a3c6dc1",
+    "number": "062",
+    "dateTime": "2026-10-27",
+    "caption": "Technically not a pigeon, but I can't resist a fluffy bird.",
+    "alt": "A dark gray pigeon stands on a concrete ledge with its feathers ruffled and head tucked out of sight against a blurred blue background.",
+    "asset": "src/assets/2026-10-27.jpg",
+    "imageSha256": "35dd6f22455394e62e1d364cce7cefce3d3e32dca319606cb210e29057681582"
+  }
+}
