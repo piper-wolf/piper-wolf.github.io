@@ -1,0 +1,14 @@
+{
+  "queueId": "4c890b8f6c4a4ef7e430667c4cd5441d",
+  "permanentUrl": "https://piper-wolf.com/pigeons/064/",
+  "publicationDate": "2026-10-29",
+  "snapshot": {
+    "queueId": "4c890b8f6c4a4ef7e430667c4cd5441d",
+    "number": "064",
+    "dateTime": "2026-10-29",
+    "caption": "Update: frodo is on the move",
+    "alt": "A gray pigeon walks across sunlit cobblestone pavement with a blurred street scene behind it.",
+    "asset": "src/assets/2026-10-29.jpg",
+    "imageSha256": "f2baddaed7def8383c2dbcf400b085a56a555b8a9d621aff08a7af4fd95f92f0"
+  }
+}
