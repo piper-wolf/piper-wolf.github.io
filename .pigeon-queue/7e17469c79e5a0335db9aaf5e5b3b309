@@ -1,0 +1,14 @@
+{
+  "queueId": "7e17469c79e5a0335db9aaf5e5b3b309",
+  "permanentUrl": "https://piper-wolf.com/pigeons/065/",
+  "publicationDate": "2026-10-30",
+  "snapshot": {
+    "queueId": "7e17469c79e5a0335db9aaf5e5b3b309",
+    "number": "065",
+    "dateTime": "2026-10-30",
+    "caption": "Another seagull in Seattle longingly wishing it were a pigeon.",
+    "alt": "A gray gull stands on a wooden picnic table beside a red bag, with a boat and water in the background.",
+    "asset": "src/assets/2026-10-30.jpg",
+    "imageSha256": "9a29d401d7087914c25bcee04c697ea20dac8e79e335edcd1640019649a861fb"
+  }
+}
