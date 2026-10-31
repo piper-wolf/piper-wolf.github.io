@@ -1,0 +1,14 @@
+{
+  "queueId": "81fa00c632ccbea3bb297a75b599b031",
+  "permanentUrl": "https://piper-wolf.com/pigeons/066/",
+  "publicationDate": "2026-10-31",
+  "snapshot": {
+    "queueId": "81fa00c632ccbea3bb297a75b599b031",
+    "number": "066",
+    "dateTime": "2026-10-31",
+    "caption": "Can you guess where this photo was taken? I can't and I've forgotten.",
+    "alt": "A gray pigeon with patterned wings, an iridescent neck, and an orange eye stands facing right against a blurred red background.",
+    "asset": "src/assets/2026-10-31.jpg",
+    "imageSha256": "b7ca850f0651b30434c5caded8a57a36cd3a9c8151ae20437f95e4dc08b070f1"
+  }
+}
