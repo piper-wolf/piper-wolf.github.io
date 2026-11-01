@@ -1,0 +1,14 @@
+{
+  "queueId": "54fe4e9e4db0379b67e81836a4d1248e",
+  "permanentUrl": "https://piper-wolf.com/pigeons/067/",
+  "publicationDate": "2026-11-01",
+  "snapshot": {
+    "queueId": "54fe4e9e4db0379b67e81836a4d1248e",
+    "number": "067",
+    "dateTime": "2026-11-01",
+    "caption": "Romeo and Juliet but they're pigeons.",
+    "alt": "A gray pigeon and a white pigeon perch apart on a stone ledge against a weathered block wall.",
+    "asset": "src/assets/2026-11-01.jpg",
+    "imageSha256": "3768897fdb1ebea1e74906499147c82add0c52ecea36c1909a4084eb4c592838"
+  }
+}
