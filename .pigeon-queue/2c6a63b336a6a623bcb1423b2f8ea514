@@ -1,0 +1,14 @@
+{
+  "queueId": "2c6a63b336a6a623bcb1423b2f8ea514",
+  "permanentUrl": "https://piper-wolf.com/pigeons/070/",
+  "publicationDate": "2026-11-04",
+  "snapshot": {
+    "queueId": "2c6a63b336a6a623bcb1423b2f8ea514",
+    "number": "070",
+    "dateTime": "2026-11-04",
+    "caption": "Loooooong neck!",
+    "alt": "A gray pigeon with iridescent neck feathers stands on pavement, facing right against a blurred urban background.",
+    "asset": "src/assets/2026-11-04.jpg",
+    "imageSha256": "652c0ff1ccca832365c551bafa6df6bf71f6a1efe984224e07754ae8efdef809"
+  }
+}
