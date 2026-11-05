@@ -1,0 +1,14 @@
+{
+  "queueId": "4416093ef2f030edc97648eaf7e3a7a6",
+  "permanentUrl": "https://piper-wolf.com/pigeons/071/",
+  "publicationDate": "2026-11-05",
+  "snapshot": {
+    "queueId": "4416093ef2f030edc97648eaf7e3a7a6",
+    "number": "071",
+    "dateTime": "2026-11-05",
+    "caption": "Don't worry, he didn't fly into that building.",
+    "alt": "Two pigeons perch on a dark ledge while a third flies nearby with wings spread, against a glass building.",
+    "asset": "src/assets/2026-11-05.jpg",
+    "imageSha256": "5076c32029b30a8989abd45e5ed75a5a35727e0bba4cbcfcc8948a20116a12dd"
+  }
+}
