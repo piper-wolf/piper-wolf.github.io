@@ -1,0 +1,14 @@
+{
+  "queueId": "8a34e25d36c70e5d0d4af9ff1cee3ba8",
+  "permanentUrl": "https://piper-wolf.com/pigeons/075/",
+  "publicationDate": "2026-11-09",
+  "snapshot": {
+    "queueId": "8a34e25d36c70e5d0d4af9ff1cee3ba8",
+    "number": "075",
+    "dateTime": "2026-11-09",
+    "caption": "Its Monday and the pigeon pit is livelier than ever!",
+    "alt": "A tightly packed flock of gray pigeons crowds around scattered seeds, with several birds spreading their wings over the others.",
+    "asset": "src/assets/2026-11-09.jpg",
+    "imageSha256": "88b893e7af3a40533dc0956dc6bcb57a67e9856b7be32ba722dcf85d7877485f"
+  }
+}
