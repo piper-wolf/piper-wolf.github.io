@@ -1,0 +1,14 @@
+{
+  "queueId": "e12081fc8d1547809b6107fe08ca5dbb",
+  "permanentUrl": "https://piper-wolf.com/pigeons/076/",
+  "publicationDate": "2026-11-10",
+  "snapshot": {
+    "queueId": "e12081fc8d1547809b6107fe08ca5dbb",
+    "number": "076",
+    "dateTime": "2026-11-10",
+    "caption": "I know that pigeons always walk on two legs but I feel like this guy REALLY walks on two legs.",
+    "alt": "A gray and white pigeon stands facing the camera with its head tilted, surrounded by other pigeons against a blurred urban background.",
+    "asset": "src/assets/2026-11-10.jpg",
+    "imageSha256": "9c5e997e3834770dd17e93ff27c3778ff70f3031c11ca34d12b3f150855764dd"
+  }
+}
