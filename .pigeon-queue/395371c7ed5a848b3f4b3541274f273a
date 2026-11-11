@@ -1,0 +1,14 @@
+{
+  "queueId": "395371c7ed5a848b3f4b3541274f273a",
+  "permanentUrl": "https://piper-wolf.com/pigeons/077/",
+  "publicationDate": "2026-11-11",
+  "snapshot": {
+    "queueId": "395371c7ed5a848b3f4b3541274f273a",
+    "number": "077",
+    "dateTime": "2026-11-11",
+    "caption": "I'm gonna name this one snowball.",
+    "alt": "A gray and white speckled pigeon with an orange eye faces left against a blurred bright blue background.",
+    "asset": "src/assets/2026-11-11.jpg",
+    "imageSha256": "f752da5f135b11a2dce65d4d0a813787df7f0af9216d4e5f4bc9560e8ec2d3d0"
+  }
+}
