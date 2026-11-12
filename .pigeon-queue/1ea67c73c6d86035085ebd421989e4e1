@@ -1,0 +1,14 @@
+{
+  "queueId": "1ea67c73c6d86035085ebd421989e4e1",
+  "permanentUrl": "https://piper-wolf.com/pigeons/078/",
+  "publicationDate": "2026-11-12",
+  "snapshot": {
+    "queueId": "1ea67c73c6d86035085ebd421989e4e1",
+    "number": "078",
+    "dateTime": "2026-11-12",
+    "caption": "The gull is back from his vacation!",
+    "alt": "A gray and white gull with a yellow beak and pink legs stands on a sidewalk in front of a shop window.",
+    "asset": "src/assets/2026-11-12.jpg",
+    "imageSha256": "909737f66983da1bde61d50e4917e746a0e290059ef43a7e3f5fa2dc5acdfb27"
+  }
+}
