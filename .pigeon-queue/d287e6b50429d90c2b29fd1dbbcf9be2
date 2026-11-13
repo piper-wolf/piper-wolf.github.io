@@ -1,0 +1,14 @@
+{
+  "queueId": "d287e6b50429d90c2b29fd1dbbcf9be2",
+  "permanentUrl": "https://piper-wolf.com/pigeons/079/",
+  "publicationDate": "2026-11-13",
+  "snapshot": {
+    "queueId": "d287e6b50429d90c2b29fd1dbbcf9be2",
+    "number": "079",
+    "dateTime": "2026-11-13",
+    "caption": "Snowball is looking at me.",
+    "alt": "A gray-and-white pigeon faces the camera against a softly blurred outdoor background.",
+    "asset": "src/assets/2026-11-13.jpg",
+    "imageSha256": "c42f8028fc85ccb164d8e7ce09d23f1f431129090f8e3df1a6257836e1241952"
+  }
+}
