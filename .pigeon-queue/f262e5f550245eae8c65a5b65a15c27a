@@ -1,0 +1,14 @@
+{
+  "queueId": "f262e5f550245eae8c65a5b65a15c27a",
+  "permanentUrl": "https://piper-wolf.com/pigeons/081/",
+  "publicationDate": "2026-11-15",
+  "snapshot": {
+    "queueId": "f262e5f550245eae8c65a5b65a15c27a",
+    "number": "081",
+    "dateTime": "2026-11-15",
+    "caption": "Another dapper gentleman.",
+    "alt": "A gray pigeon with an iridescent purple and green neck stands among other pigeons in front of a blurred turquoise sign with colorful lettering.",
+    "asset": "src/assets/2026-11-15.jpg",
+    "imageSha256": "a4c26dd0af83601238c35f0e7fc6ce0ae843a140cf653141557003857421d77b"
+  }
+}
