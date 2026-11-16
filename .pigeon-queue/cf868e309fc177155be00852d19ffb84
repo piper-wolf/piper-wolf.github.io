@@ -1,0 +1,14 @@
+{
+  "queueId": "cf868e309fc177155be00852d19ffb84",
+  "permanentUrl": "https://piper-wolf.com/pigeons/082/",
+  "publicationDate": "2026-11-16",
+  "snapshot": {
+    "queueId": "cf868e309fc177155be00852d19ffb84",
+    "number": "082",
+    "dateTime": "2026-11-16",
+    "caption": "Snowball says \"peekaboo\"",
+    "alt": "A gray and white pigeon with an orange eye faces left against a blurred dark background with green and blue patches.",
+    "asset": "src/assets/2026-11-16.jpg",
+    "imageSha256": "6ee7a5d6ac4285cadf633dd19dc2453096a8c9bf1395a50cc4a7dfd2c57dce65"
+  }
+}
