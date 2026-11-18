@@ -1,0 +1,14 @@
+{
+  "queueId": "290f4eefbd050f63eb0e8a03c6437b53",
+  "permanentUrl": "https://piper-wolf.com/pigeons/084/",
+  "publicationDate": "2026-11-18",
+  "snapshot": {
+    "queueId": "290f4eefbd050f63eb0e8a03c6437b53",
+    "number": "084",
+    "dateTime": "2026-11-18",
+    "caption": "Skrunkly lil birb.",
+    "alt": "A gray pigeon with purple and green neck feathers lifts one red foot while standing on pavement against a blurred background.",
+    "asset": "src/assets/2026-11-18.jpg",
+    "imageSha256": "f801353916d6093dab5abc7034cfc1cde38ae1da9449da905d1faf22d11a2ca6"
+  }
+}
