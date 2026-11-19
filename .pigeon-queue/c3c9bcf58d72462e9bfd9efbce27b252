@@ -1,0 +1,14 @@
+{
+  "queueId": "c3c9bcf58d72462e9bfd9efbce27b252",
+  "permanentUrl": "https://piper-wolf.com/pigeons/085/",
+  "publicationDate": "2026-11-19",
+  "snapshot": {
+    "queueId": "c3c9bcf58d72462e9bfd9efbce27b252",
+    "number": "085",
+    "dateTime": "2026-11-19",
+    "caption": "Oh no he heard me.",
+    "alt": "A dark gray pigeon with iridescent green and purple neck feathers fills the left foreground, with another pigeon blurred in the background.",
+    "asset": "src/assets/2026-11-19.jpg",
+    "imageSha256": "347fe1ef30295d8e862a017723d5591aab9778db48ee9e329633e2c577008ac4"
+  }
+}
