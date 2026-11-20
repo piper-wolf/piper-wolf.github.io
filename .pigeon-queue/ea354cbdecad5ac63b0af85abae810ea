@@ -1,0 +1,14 @@
+{
+  "queueId": "ea354cbdecad5ac63b0af85abae810ea",
+  "permanentUrl": "https://piper-wolf.com/pigeons/086/",
+  "publicationDate": "2026-11-20",
+  "snapshot": {
+    "queueId": "ea354cbdecad5ac63b0af85abae810ea",
+    "number": "086",
+    "dateTime": "2026-11-20",
+    "caption": "Is this pigeon plotting my murder? Send help",
+    "alt": "A close-up pigeon faces the camera on a paved surface, with blurred pigeons in the background.",
+    "asset": "src/assets/2026-11-20.jpg",
+    "imageSha256": "437403e1ce794cfa234592f8d462dce0405bf40ea6dfdf7a8625de0acb6ced97"
+  }
+}
