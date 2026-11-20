@@ -3,20 +3,45 @@ import sharp from "sharp";
 
 const pages = ["/", "/pigeons", "/pigeons/016", "/pigeons/001"];
 
-test("playground stays isolated and loads a visible graph only on demand", async ({ page }) => {
-  await page.goto("/playground/synology");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Synology network");
+test("playground contains only a full-screen graph and lazily loads its renderer", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => {
+    const testWindow = window as Window & { pendingGraphIdle?: IdleRequestCallback };
+    Object.defineProperty(window, "requestIdleCallback", {
+      configurable: true,
+      value: (callback: IdleRequestCallback) => {
+        testWindow.pendingGraphIdle = callback;
+        return 1;
+      },
+    });
+  });
+  await page.goto("/playground/synology", { waitUntil: "domcontentloaded" });
   await expect(page.locator("[data-pigeon-landing], .pigeon-visitor, script[src*=goatcounter]")).toHaveCount(0);
-
+  const visibleCopy = await page.evaluate(() => document.querySelectorAll("h1, h2, header, footer, button, p, details").length);
+  expect(visibleCopy).toBe(0);
+  const preloadedGraphModules = await page.locator('link[rel="modulepreload"]').evaluateAll(links =>
+    links.map(link => link.getAttribute("href")).filter(href => href && /sigma|graphology/i.test(href)),
+  );
+  expect(preloadedGraphModules).toEqual([]);
   const graphResources = () => page.evaluate(() =>
     performance.getEntriesByType("resource").map(({ name }) => name).filter((name) => /sigma|graphology/i.test(name)),
   );
   expect(await graphResources()).toEqual([]);
 
-  await page.getByRole("button", { name: "Load graph" }).click();
-  await expect(page.getByRole("status")).toHaveText("The interactive network graph is ready.");
+  const graph = page.locator("#synology-graph");
+  const bounds = await graph.evaluate(element => {
+    const { x, y, width, height } = element.getBoundingClientRect();
+    return { x, y, width, height, busy: element.getAttribute("aria-busy") };
+  });
+  expect(bounds).toMatchObject({ x: 0, y: 0, width: 1440, height: 900 });
+
+  await page.evaluate(() => {
+    const testWindow = window as Window & { pendingGraphIdle?: IdleRequestCallback };
+    testWindow.pendingGraphIdle?.({ didTimeout: false, timeRemaining: () => 50 });
+  });
   const canvas = page.locator("#synology-graph canvas");
   await expect(canvas).toBeVisible();
+  await expect(graph).toHaveAttribute("aria-busy", "false");
   const screenshot = await canvas.screenshot();
   const { data, info } = await sharp(screenshot).resize(64, 32).removeAlpha().raw().toBuffer({ resolveWithObject: true });
   const colors = new Set<string>();

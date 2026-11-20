@@ -20,6 +20,9 @@ test("sitemap pages, internal links, fragments, images, and metadata are valid",
   expect(sitemap.ok()).toBeTruthy();
   const urls = [...(await sitemap.text()).matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => new URL(match[1]));
   expect(urls.length).toBeGreaterThan(2);
+  for (const path of ["/pigeons/", "/playground/synology/"]) {
+    expect((await request.get(path)).status(), path).toBe(200);
+  }
   const robots = await request.get("/robots.txt");
   expect(await robots.text()).toContain("Sitemap: https://piper-wolf.com/sitemap.xml");
   const pages = new Map<string, string[]>();
@@ -45,7 +48,7 @@ test("sitemap pages, internal links, fragments, images, and metadata are valid",
         missingAlt: doc.querySelectorAll('img:not([alt]), img[alt=""]').length,
       };
     }, await response.text());
-    expect(result.headings).toBe(1);
+    expect(result.headings, url.pathname).toBe(url.pathname === "/playground/synology" ? 0 : 1);
     if (url.pathname === "/") {
       expect(result.title).toBe("Seattle Pigeon Photography — Piper Wolf");
     } else if (/^\/pigeons\/\d+$/.test(url.pathname)) {
