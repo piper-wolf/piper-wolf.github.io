@@ -16,7 +16,7 @@ const structuredData = {
   <div
     id="synology-graph"
     role="img"
-    aria-label="Synology network graph: a router connects to a Synology NAS, MacBook, and phone. The NAS connects to a backup drive and Synology Photos."
+    aria-label="Synology network graph. Drag nodes to explore: a router connects to a Synology NAS, MacBook, and phone. The NAS connects to a backup drive and Synology Photos."
     aria-busy="true"
   ></div>
 </PlaygroundLayout>
@@ -35,13 +35,21 @@ const structuredData = {
 <script>
   const container = document.querySelector<HTMLDivElement>("#synology-graph");
   let renderer: import("sigma").Sigma | undefined;
+  let layout: import("graphology-layout-force/worker").default | undefined;
+  let layoutStopTimer = 0;
+
+  function stopLayoutSoon() {
+    window.clearTimeout(layoutStopTimer);
+    layoutStopTimer = window.setTimeout(() => layout?.stop(), 1500);
+  }
 
   async function renderGraph() {
     if (!container) return;
     try {
-      const [{ default: Sigma }, { default: Graph }] = await Promise.all([
+      const [{ default: Sigma, DEFAULT_STYLES }, { default: Graph }, { default: ForceSupervisor }] = await Promise.all([
         import("sigma"),
         import("graphology"),
+        import("graphology-layout-force/worker"),
       ]);
       const graph = new Graph();
       const narrow = container.clientWidth < 600;
@@ -76,11 +84,32 @@ const structuredData = {
 
       renderer = new Sigma(graph, container, {
         settings: {
+          enableNodeDrag: true,
           renderEdgeLabels: !narrow,
           itemSizesReference: "screen",
           stagePadding: Math.min(150, Math.max(32, container.clientWidth * 0.15)),
         },
+        styles: {
+          nodes: [
+            DEFAULT_STYLES.nodes,
+            { cursor: "grab" },
+            { whenState: "isDragged", then: { cursor: "grabbing" } },
+          ],
+          stage: [{ whenState: "isDragging", then: { cursor: "grabbing" } }],
+        },
       });
+
+      layout = new ForceSupervisor(graph, {
+        settings: { repulsion: 0.2, attraction: 0.0002 },
+        isNodeFixed: (node) => renderer?.getNodeState(node).isDragged ?? false,
+      });
+      renderer.on("nodeDragStart", () => {
+        window.clearTimeout(layoutStopTimer);
+        layout?.start();
+      });
+      renderer.on("nodeDragEnd", stopLayoutSoon);
+      layout.start();
+      stopLayoutSoon();
     } catch (error) {
       console.error("Could not load the Synology graph", error);
     } finally {
@@ -94,5 +123,9 @@ const structuredData = {
     setTimeout(() => void renderGraph(), 0);
   }
 
-  window.addEventListener("pagehide", () => renderer?.kill(), { once: true });
+  window.addEventListener("pagehide", () => {
+    window.clearTimeout(layoutStopTimer);
+    layout?.kill();
+    renderer?.kill();
+  }, { once: true });
 </script>

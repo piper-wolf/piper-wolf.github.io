@@ -42,6 +42,7 @@ test("playground contains only a full-screen graph and lazily loads its renderer
   const canvas = page.locator("#synology-graph canvas");
   await expect(canvas).toBeVisible();
   await expect(graph).toHaveAttribute("aria-busy", "false");
+  await page.waitForTimeout(1600);
   const screenshot = await canvas.screenshot();
   const { data, info } = await sharp(screenshot).resize(64, 32).removeAlpha().raw().toBuffer({ resolveWithObject: true });
   const colors = new Set<string>();
@@ -49,7 +50,47 @@ test("playground contains only a full-screen graph and lazily loads its renderer
     colors.add(`${data[offset]},${data[offset + 1]},${data[offset + 2]}`);
   }
   expect(colors.size).toBeGreaterThan(10);
-  expect(await graphResources()).toEqual(expect.arrayContaining([expect.stringMatching(/sigma/i), expect.stringMatching(/graphology/i)]));
+
+  const routerCenter = async () => {
+    const { data: pixels, info: image } = await sharp(await canvas.screenshot()).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const bounds = await canvas.boundingBox();
+    expect(bounds).not.toBeNull();
+    let count = 0;
+    let xTotal = 0;
+    let yTotal = 0;
+    for (let y = 0; y < image.height; y++) {
+      for (let x = 0; x < image.width; x++) {
+        const offset = (y * image.width + x) * image.channels;
+        const [red, green, blue] = pixels.subarray(offset, offset + 3);
+        if (red > 125 && red < 190 && green > 40 && green < 100 && blue > 15 && blue < 70) {
+          count++;
+          xTotal += x;
+          yTotal += y;
+        }
+      }
+    }
+    expect(count).toBeGreaterThan(0);
+    return {
+      x: bounds!.x + (xTotal / count) * bounds!.width / image.width,
+      y: bounds!.y + (yTotal / count) * bounds!.height / image.height,
+    };
+  };
+
+  const router = await routerCenter();
+  const mouseLayer = graph.locator(".sigma-mouse");
+  await page.mouse.move(router.x, router.y);
+  await expect(mouseLayer).toHaveCSS("cursor", "grab");
+  await page.mouse.down();
+  await page.mouse.move(router.x + 100, router.y + 60, { steps: 8 });
+  await expect(mouseLayer).toHaveCSS("cursor", "grabbing");
+  const draggedRouter = await routerCenter();
+  expect(Math.hypot(draggedRouter.x - router.x, draggedRouter.y - router.y)).toBeGreaterThan(20);
+  await page.mouse.up();
+
+  expect(await graphResources()).toEqual(expect.arrayContaining([
+    expect.stringMatching(/sigma/i),
+    expect.stringMatching(/graphology/i),
+  ]));
 });
 
 for (const width of [320, 390, 768, 769, 1024, 1440]) {
