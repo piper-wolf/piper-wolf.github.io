@@ -1,6 +1,31 @@
 import { expect, test, blockExternalRequests } from "./helpers/browser";
+import sharp from "sharp";
 
-const pages = ["/", "/pigeons/", "/pigeons/016/", "/pigeons/001/"];
+const pages = ["/", "/pigeons", "/pigeons/016", "/pigeons/001"];
+
+test("playground stays isolated and loads a visible graph only on demand", async ({ page }) => {
+  await page.goto("/playground/synology");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Synology network");
+  await expect(page.locator("[data-pigeon-landing], .pigeon-visitor, script[src*=goatcounter]")).toHaveCount(0);
+
+  const graphResources = () => page.evaluate(() =>
+    performance.getEntriesByType("resource").map(({ name }) => name).filter((name) => /sigma|graphology/i.test(name)),
+  );
+  expect(await graphResources()).toEqual([]);
+
+  await page.getByRole("button", { name: "Load graph" }).click();
+  await expect(page.getByRole("status")).toHaveText("The interactive network graph is ready.");
+  const canvas = page.locator("#synology-graph canvas");
+  await expect(canvas).toBeVisible();
+  const screenshot = await canvas.screenshot();
+  const { data, info } = await sharp(screenshot).resize(64, 32).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const colors = new Set<string>();
+  for (let offset = 0; offset < data.length; offset += info.channels) {
+    colors.add(`${data[offset]},${data[offset + 1]},${data[offset + 2]}`);
+  }
+  expect(colors.size).toBeGreaterThan(10);
+  expect(await graphResources()).toEqual(expect.arrayContaining([expect.stringMatching(/sigma/i), expect.stringMatching(/graphology/i)]));
+});
 
 for (const width of [320, 390, 768, 769, 1024, 1440]) {
   for (const path of pages) {
@@ -103,7 +128,7 @@ test("a touch phone uses its device width at high pixel density", async ({ brows
   try {
     await blockExternalRequests(context, baseURL!);
     const page = await context.newPage();
-    await page.goto("/pigeons/");
+    await page.goto("/pigeons");
     expect(await page.evaluate(() => document.documentElement.clientWidth)).toBe(390);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
     await page.getByRole("link", { name: /^View pigeon no\./ }).first().tap();

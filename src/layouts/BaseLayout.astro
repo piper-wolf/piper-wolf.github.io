@@ -31,7 +31,7 @@ const {
 } = Astro.props;
 const siteUrl = Astro.site ?? Astro.url;
 const currentPath = Astro.url.pathname;
-const canonicalPath = currentPath === "/" || currentPath.endsWith("/") || currentPath.endsWith(".html") ? currentPath : `${currentPath}/`;
+const canonicalPath = currentPath === "/" || currentPath.endsWith(".html") ? currentPath : currentPath.replace(/\/+$/, "");
 const canonicalUrl = new URL(canonicalPath, siteUrl);
 const pageTitle = `${title} — Piper Wolf`;
 const serializedStructuredData = structuredData
@@ -77,7 +77,7 @@ const serializedStructuredData = structuredData
       <a class={styles.brand} href="/">Piper Wolf</a>
       <nav class={styles.nav} aria-label="Main navigation">
         <a class={styles.navLink} href="/" aria-current={currentPath === "/" ? "page" : undefined}><Icon name="home" /><span>Home</span></a>
-        <a class={styles.navLink} href="/pigeons/" aria-current={currentPath === "/pigeons/" ? "page" : currentPath.startsWith("/pigeons/") ? "location" : undefined}><Icon name="dove" /><span>Seattle pigeons</span></a>
+        <a class={styles.navLink} href="/pigeons" aria-current={currentPath === "/pigeons" ? "page" : currentPath.startsWith("/pigeons/") ? "location" : undefined}><Icon name="dove" /><span>Seattle pigeons</span></a>
       </nav>
     </header>
     <main id="main-content" class={styles.main} tabindex="-1">
@@ -88,7 +88,7 @@ const serializedStructuredData = structuredData
       <div class={styles.footerDetails}>
         <div class={styles.footerItem}><Icon name="mail" /><span>Contact me at <a href="mailto:me@piper-wolf.com">me@piper-wolf.com</a></span></div>
         <a class={styles.footerItem} href="https://bsky.app/profile/piper-wolf.com" rel="me"><Icon name="bluesky" /><span>Follow me on Bluesky</span></a>
-        <span class={styles.copyright}><a class={styles.copyrightLink} href="/copyright/">© {new Date().getFullYear()} Piper Wolf</a></span>
+        <span class={styles.copyright}><a class={styles.copyrightLink} href="/copyright">© {new Date().getFullYear()} Piper Wolf</a></span>
       </div>
     </footer>
     <PigeonVisitor />

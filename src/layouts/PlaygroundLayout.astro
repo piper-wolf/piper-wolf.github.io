@@ -1,0 +1,43 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  structuredData?: Record<string, unknown>;
+}
+
+const { title, description, structuredData } = Astro.props;
+const currentPath = Astro.url.pathname;
+const canonicalPath = currentPath === "/" ? "/" : currentPath.replace(/\/+$/, "");
+const canonicalUrl = new URL(canonicalPath, Astro.site ?? Astro.url);
+const serializedStructuredData = structuredData
+  ? JSON.stringify(structuredData).replace(/</g, "\\u003c")
+  : undefined;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
+    {serializedStructuredData && <script is:inline type="application/ld+json" set:html={serializedStructuredData} />}
+    <title>{title}</title>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { min-width: 320px; min-height: 100%; background: #f0eee7; }
+  body {
+    min-height: 100vh;
+    margin: 0;
+    color: #1d2826;
+    font-family: Arial, Helvetica, sans-serif;
+    line-height: 1.5;
+  }
+  button, summary { font: inherit; }
+</style>

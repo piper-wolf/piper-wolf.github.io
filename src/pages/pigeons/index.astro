@@ -14,7 +14,7 @@ const socialImage = {
   height: Number(optimizedSocialImage.attributes.height),
 };
 const siteUrl = Astro.site ?? Astro.url;
-const collectionUrl = new URL("/pigeons/", siteUrl).href;
+const collectionUrl = new URL("/pigeons", siteUrl).href;
 const structuredData = {
   "@context": "https://schema.org",
   "@type": "CollectionPage",
@@ -31,7 +31,7 @@ const structuredData = {
       "@type": "ListItem",
       position: index + 1,
       name: `Seattle pigeon photo no. ${post.number}`,
-      url: new URL(`/pigeons/${post.number}/`, siteUrl).href,
+      url: new URL(`/pigeons/${post.number}`, siteUrl).href,
     })),
   },
 };
@@ -59,7 +59,7 @@ const structuredData = {
     {pigeonPosts.map((post, index) => (
       <article id={post.number} class={styles.post} data-pigeon-queue-id={post.queueId}>
         <div class={styles.postPhoto}>
-          <a class={styles.imageButton} href={`/pigeons/${post.number}/`} aria-label={`View pigeon no. ${post.number}`}>
+          <a class={styles.imageButton} href={`/pigeons/${post.number}`} aria-label={`View pigeon no. ${post.number}`}>
             <PigeonImage
               src={post.image}
               alt={post.alt}
@@ -71,7 +71,7 @@ const structuredData = {
         <div class={styles.postDetails}>
           <div class={styles.postMeta}>
             <h2 class={styles.postTitle}>
-              <a class={styles.postTitleLink} href={`/pigeons/${post.number}/`}>Pigeon no. {post.number}</a>
+              <a class={styles.postTitleLink} href={`/pigeons/${post.number}`}>Pigeon no. {post.number}</a>
             </h2>
             <time datetime={post.dateTime}>{post.date}</time>
           </div>
