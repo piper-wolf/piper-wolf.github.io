@@ -1,17 +1,104 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Icon from "../components/Icon.astro";
+import { pigeon } from "../pigeon/definition";
 import * as styles from "../styles/site.css";
+
+const pigeonSize = pigeon.size * 3;
+const pigeonActions = pigeon.actions.join(" ");
 ---
 
-<BaseLayout title="Page not found" description="This page could not be found. Explore Piper Wolf’s Seattle pigeon photographs." noindex>
-  <header class={styles.detailHeader}>
-    <p class={styles.eyebrow}>404</p>
-    <h1 class={styles.pageTitle}>Page not found</h1>
-    <p class={styles.intro}>The page you’re looking for isn’t here. You can head home or browse the pigeon photos.</p>
-  </header>
-  <nav class={styles.nav} aria-label="Page recovery">
-    <a class={styles.navLink} href="/"><Icon name="home" /><span>Go home</span></a>
-    <a class={styles.navLink} href="/pigeons/"><span>Browse pigeon photos</span><Icon name="arrowRight" /></a>
-  </nav>
+<BaseLayout title="Page not found" description="This page could not be found. Explore Piper Wolf’s Seattle pigeon photographs." noindex showPigeonVisitors={false}>
+  <section class={styles.notFound} aria-labelledby="not-found-title">
+    <div class={styles.notFoundArt}>
+      <p class={styles.notFoundCode} aria-hidden="true">404</p>
+      <svg class={styles.notFoundPigeon} data-not-found-pigeon data-idle-delay={pigeon.idleDelay} data-idle-actions={pigeonActions} width={pigeonSize} height={pigeonSize} viewBox="0 0 160 160" aria-hidden="true" focusable="false">
+        <g class="pigeon-tail">
+          <path d="M48 91 12 108l39 4Z" fill="#535e70" stroke="#465260" stroke-width="2" stroke-linejoin="round" />
+        </g>
+        <g class="pigeon-breath">
+          <g class="pigeon-body">
+            <path d="M43 89c8-20 32-27 60-20 23 6 35 24 29 42-4 14-22 21-46 18l-35-8c-13-7-15-19-8-32Z" fill="#99a3af" stroke="#657385" stroke-width="2" />
+            <g class="pigeon-wing">
+              <path d="M46 88c14-17 37-21 58-8 9 6 15 12 20 21-18 18-49 25-84 14-4-8-2-19 6-27Z" fill="#b8c4d0" stroke="#657385" stroke-width="2" />
+              <path d="m64 79 9-2-10 25-9 1Zm20-3 9 2-11 23-9 2Z" fill="#535e70" />
+            </g>
+            <g class="pigeon-neck">
+              <path d="M101 74c10-10 9-23 16-31l17 7c-5 13-1 22 4 32-10 9-27 9-37-8Z" fill="#55887f" stroke="#465d5a" stroke-width="2" />
+              <path d="M109 57c7 4 15 4 23 0l3 7c-9 5-19 4-27-1Z" fill="#887398" />
+            </g>
+            <g class="pigeon-head">
+              <path d="M115 49c-1-12 6-20 17-20 12 0 19 8 18 19-1 11-10 18-20 17-9-1-14-7-15-16Z" fill="#6e7d90" stroke="#536173" stroke-width="2" />
+              <path d="M144 44c7 1 12 4 16 8l-4 3-12-2Z" fill="#404956" />
+              <g class="pigeon-eye">
+                <g class="pigeon-blink">
+                  <circle cx="139" cy="43" r="5.2" fill="#e7a452" />
+                  <circle cx="140" cy="43" r="2.8" fill="#222d38" />
+                  <circle cx="141" cy="42" r="1" fill="#fff" />
+                </g>
+              </g>
+            </g>
+          </g>
+          <g class="pigeon-feet" fill="none" stroke="#c17a83" stroke-width="3" stroke-linecap="round">
+            <g class="pigeon-foot-back"><path d="M76 115v14m0-4-10 6m10-6 8 6" /></g>
+            <g class="pigeon-foot-front"><path d="M104 113v16m0-6-9 6m9-6 9 6" /></g>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <header class={styles.notFoundHeader}>
+      <p class={styles.eyebrow}>Lost in the flock</p>
+      <h1 id="not-found-title" class={styles.notFoundTitle}>Page not found</h1>
+      <p class={styles.notFoundIntro}>The page you’re looking for isn’t here. Head home or browse the pigeon photos.</p>
+    </header>
+    <nav class={styles.notFoundActions} aria-label="Page recovery">
+      <a class={styles.navLink} href="/"><Icon name="home" /><span>Go home</span></a>
+      <a class={styles.navLink} href="/pigeons/"><span>Browse pigeon photos</span><Icon name="arrowRight" /></a>
+    </nav>
+  </section>
 </BaseLayout>
+
+<script>
+  const motion = matchMedia("(prefers-reduced-motion: reduce)");
+  let timer: number | undefined;
+  const getPigeon = () => document.querySelector<SVGSVGElement>("[data-not-found-pigeon]");
+  const canAnimate = () => Boolean(getPigeon()) && !motion.matches && !document.hidden && document.hasFocus();
+  const idleDelay = () => Number(getPigeon()?.dataset.idleDelay ?? 12000);
+  const duration: Record<string, number> = { look: 1600, peck: 1900, stretch: 2000, preen: 2500, ruffle: 1300 };
+
+  const stop = () => {
+    clearTimeout(timer);
+    timer = undefined;
+    delete getPigeon()?.dataset.idle;
+  };
+
+  const schedule = (delay = Math.random() * idleDelay()) => {
+    clearTimeout(timer);
+    if (canAnimate()) timer = window.setTimeout(() => void animateIdle(), delay);
+  };
+
+  const animateIdle = () => {
+    const svg = getPigeon();
+    if (!svg || !canAnimate()) return;
+    const actions = (svg.dataset.idleActions ?? "").split(" ").filter(Boolean);
+    if (!actions.length) return;
+    const action = actions[Math.floor(Math.random() * actions.length)];
+    svg.dataset.idle = action;
+    timer = window.setTimeout(() => {
+      if (svg.isConnected) delete svg.dataset.idle;
+      schedule();
+    }, duration[action] ?? 1800);
+  };
+
+  const pageLoaded = () => {
+    if (getPigeon()) schedule(1600);
+    else stop();
+  };
+  document.addEventListener("astro:page-load", pageLoaded);
+  document.addEventListener("astro:before-swap", stop);
+  document.addEventListener("visibilitychange", () => document.hidden ? stop() : pageLoaded());
+  window.addEventListener("focus", pageLoaded);
+  window.addEventListener("blur", stop);
+  motion.addEventListener("change", () => motion.matches ? stop() : pageLoaded());
+  pageLoaded();
+</script>
