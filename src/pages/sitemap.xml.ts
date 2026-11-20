@@ -15,6 +15,7 @@ export const GET: APIRoute = ({ site }) => {
     { path: "/", lastmod: latestDate },
     { path: "/pigeons/", lastmod: latestDate },
     { path: "/copyright/", lastmod: "2026-10-11" },
+    { path: "/playground/synology/", lastmod: "2026-11-20" },
     ...pigeonPosts.map((post) => ({ path: `/pigeons/${post.number}/`, lastmod: post.dateTime })),
   ];
   const urls = pages

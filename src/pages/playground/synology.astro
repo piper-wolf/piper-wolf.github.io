@@ -1,0 +1,153 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import * as styles from "../../styles/site.css";
+
+const description = "An interactive sample Synology network graph, rendered with Sigma.js.";
+const pageUrl = new URL("/playground/synology/", Astro.site ?? Astro.url).href;
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  url: pageUrl,
+  name: "Synology graph playground",
+  description,
+  isPartOf: { "@id": `${new URL("/", Astro.site ?? Astro.url).href}#website` },
+};
+---
+
+<BaseLayout title="Synology graph playground" description={description} structuredData={structuredData}>
+  <article class="playground">
+    <header class="playground-header">
+      <p class={styles.eyebrow}>Playground</p>
+      <h1 class={styles.pageTitle}>Synology network</h1>
+      <p class={styles.intro}>A small interactive graph of a home network. Load the graph to explore the connections.</p>
+    </header>
+
+    <section class="graph-card" aria-labelledby="graph-heading">
+      <div class="graph-card-header">
+        <div>
+          <p class={styles.eyebrow}>Interactive demo</p>
+          <h2 id="graph-heading">Devices and services</h2>
+        </div>
+        <button class="load-button" id="load-graph" type="button">Load graph</button>
+      </div>
+      <div class="graph-frame">
+        <div id="synology-graph" role="img" aria-label="Network graph showing a router connected to a Synology NAS, MacBook, and phone. The NAS connects to a backup drive and Synology Photos." aria-busy="false"></div>
+      </div>
+      <p class="graph-status" id="graph-status" role="status" aria-live="polite">The interactive graph is not loaded yet.</p>
+      <details class="graph-details">
+        <summary>Read the graph connections</summary>
+        <ul>
+          <li>The router connects to the Synology NAS, MacBook, and phone.</li>
+          <li>The NAS backs up to an external drive and serves Synology Photos to the phone.</li>
+        </ul>
+      </details>
+    </section>
+  </article>
+</BaseLayout>
+
+<style>
+  .playground { max-width: 58rem; margin-inline: auto; }
+  .playground-header { margin-bottom: clamp(1.5rem, 3vw, 2.5rem); }
+  .graph-card {
+    overflow: hidden;
+    border: 1px solid #cfd2c8;
+    border-radius: 1rem;
+    background: #fffefa;
+    box-shadow: 0 1rem 2.5rem rgb(29 40 38 / 8%);
+  }
+  .graph-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #e1e2da;
+  }
+  .graph-card-header .eyebrow { margin-bottom: 0; }
+  h2 { margin: 0.15rem 0 0; font-size: 1.35rem; font-weight: 400; }
+  .load-button {
+    min-height: 2.75rem;
+    padding: 0.55rem 1rem;
+    border: 0;
+    border-radius: 0.45rem;
+    background: #a64128;
+    color: white;
+    font: 700 0.9rem Arial, Helvetica, sans-serif;
+    cursor: pointer;
+  }
+  .load-button:hover { background: #81321f; }
+  .load-button:focus-visible, summary:focus-visible { outline: 3px solid #246b65; outline-offset: 3px; }
+  .load-button:disabled { cursor: wait; opacity: 0.75; }
+  .graph-frame { min-height: 24rem; background: #f0eee7; }
+  #synology-graph { width: 100%; height: 24rem; }
+  .graph-status, .graph-details { margin: 0; padding: 0.85rem 1.5rem; color: #53635d; font: 0.9rem/1.5 Arial, Helvetica, sans-serif; }
+  .graph-status { border-top: 1px solid #e1e2da; }
+  .graph-details { padding-top: 0; }
+  .graph-details summary { width: fit-content; color: #a64128; cursor: pointer; font-weight: 700; }
+  .graph-details ul { margin-bottom: 0; padding-left: 1.25rem; }
+  @media (max-width: 36rem) {
+    .graph-frame, #synology-graph { min-height: 21rem; height: 21rem; }
+    .graph-card-header { align-items: flex-start; }
+  }
+</style>
+
+<script>
+  function setupGraphLoader() {
+    const button = document.querySelector<HTMLButtonElement>("#load-graph");
+    const container = document.querySelector<HTMLDivElement>("#synology-graph");
+    const status = document.querySelector<HTMLParagraphElement>("#graph-status");
+    if (!button || !container || !status || button.dataset.ready === "true") return;
+    button.dataset.ready = "true";
+
+    let renderer: import("sigma").Sigma | undefined;
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      button.textContent = "Loading…";
+      status.textContent = "Loading Sigma.js and the graph data…";
+      container.setAttribute("aria-busy", "true");
+
+      try {
+        const [{ default: Sigma }, { default: Graph }] = await Promise.all([
+          import("sigma"),
+          import("graphology"),
+        ]);
+        const graph = new Graph();
+        graph.addNode("router", { x: 0, y: 0, size: 18, label: "Router", color: "#a64128" });
+        graph.addNode("nas", { x: 1.2, y: 0.2, size: 23, label: "Synology NAS", color: "#246b65" });
+        graph.addNode("macbook", { x: -0.8, y: 1.1, size: 15, label: "MacBook", color: "#60777a" });
+        graph.addNode("phone", { x: -0.9, y: -1, size: 15, label: "Phone", color: "#60777a" });
+        graph.addNode("backup", { x: 2.4, y: 1, size: 15, label: "Backup drive", color: "#b28a45" });
+        graph.addNode("photos", { x: 2.5, y: -0.8, size: 15, label: "Synology Photos", color: "#b28a45" });
+        graph.addEdge("router", "nas", { label: "LAN", size: 2 });
+        graph.addEdge("router", "macbook", { label: "Wi-Fi", size: 2 });
+        graph.addEdge("router", "phone", { label: "Wi-Fi", size: 2 });
+        graph.addEdge("nas", "backup", { label: "Hyper Backup", size: 2 });
+        graph.addEdge("nas", "photos", { label: "serves", size: 2 });
+
+        renderer?.kill();
+        renderer = new Sigma(graph, container, {
+          settings: { renderEdgeLabels: true },
+          styles: {
+            nodes: { labelColor: "#1d2826", labelFont: "Arial, Helvetica, sans-serif", labelSize: 13 },
+            edges: { labelColor: "#53635d", labelFont: "Arial, Helvetica, sans-serif", labelSize: 10 },
+          },
+        });
+        button.textContent = "Graph loaded";
+        status.textContent = "The interactive network graph is ready.";
+      } catch (error) {
+        console.error("Could not load the Synology graph", error);
+        button.disabled = false;
+        button.textContent = "Try again";
+        status.textContent = "The graph could not be loaded. Check your connection and try again.";
+      } finally {
+        container.setAttribute("aria-busy", "false");
+      }
+    }, { once: true });
+
+    document.addEventListener("astro:before-swap", () => renderer?.kill(), { once: true });
+  }
+
+  setupGraphLoader();
+  document.addEventListener("astro:page-load", setupGraphLoader);
+</script>
