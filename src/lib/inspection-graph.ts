@@ -1,3 +1,8 @@
+import {
+  buildInspectionProfile, inspectionTopics, isScoredViolation, otherTopic, PROFILE_YEARS, yearsBefore,
+  type InspectionFeature, type InspectionProfile,
+} from "./inspection-features";
+
 export type RiskCategory = "1" | "2" | "3" | "Unknown";
 
 export interface InspectionCsvRow {
@@ -48,18 +53,14 @@ export interface GraphNode extends Restaurant {
   id: string;
   x: number;
   y: number;
-}
-
-export interface SharedViolation extends Violation {
-  sourceDates: number;
-  targetDates: number;
+  profile: InspectionProfile;
+  topic: string;
 }
 
 export interface SimilarityEdge {
   source: string;
   target: string;
   score: number;
-  sharedViolations: SharedViolation[];
 }
 
 export interface SimilarityStats {
@@ -69,9 +70,9 @@ export interface SimilarityStats {
   maximumDegree: number;
 }
 
-export const DEFAULT_SIMILARITY_THRESHOLD = 0.35;
-export const STRONG_SIMILARITY_THRESHOLD = 0.55;
-const DEFAULT_NEIGHBOR_LIMIT = 5;
+export const DEFAULT_SIMILARITY_THRESHOLD = 0.40;
+export const STRONG_SIMILARITY_THRESHOLD = 0.65;
+const DEFAULT_NEIGHBOR_LIMIT = 4;
 
 interface ParsedDate {
   key: string;
@@ -308,36 +309,52 @@ export class InspectionAggregator {
   }
 }
 
-function assignDeterministicPositions(primaryCodes: string[]): Array<{ x: number; y: number }> {
-  const groups = new Map<string, number[]>();
-  primaryCodes.forEach((primaryCode, index) => {
-    const group = groups.get(primaryCode) ?? [];
-    group.push(index);
-    groups.set(primaryCode, group);
-  });
+function assignDeterministicPositions(profiles: InspectionProfile[], topics: string[], edges: SimilarityEdge[]) {
+  const neighbors = profiles.map(() => [] as number[]);
+  for (const { source, target } of edges) {
+    const a = Number(source);
+    const b = Number(target);
+    if (topics[a] === topics[b]) {
+      neighbors[a].push(b);
+      neighbors[b].push(a);
+    }
+  }
 
-  const groupKeys = [...groups.keys()].sort(compareStrings);
-  const columns = Math.ceil(Math.sqrt(groupKeys.length));
-  const rows = Math.ceil(groupKeys.length / columns);
-  const cellSpacing = 110;
-  const positions = new Array<{ x: number; y: number }>(primaryCodes.length);
+  const groups = Map.groupBy(profiles.keys(), index => topics[index]);
+  const groupKeys = [...inspectionTopics, otherTopic].map(({ id }) => id).filter(id => groups.has(id));
+  const columns = Math.min(3, groupKeys.length);
+  const spacing = Math.sqrt(Math.max(0, ...[...groups.values()].map(group => group.length))) * 2.55;
+  const positions = new Array<{ x: number; y: number }>(profiles.length);
+  const visited = new Set<number>();
 
   groupKeys.forEach((groupKey, groupIndex) => {
     const members = groups.get(groupKey)!;
-    const centerX = (groupIndex % columns - (columns - 1) / 2) * cellSpacing;
-    const centerY = (Math.floor(groupIndex / columns) - (rows - 1) / 2) * cellSpacing;
-    const radius = Math.max(10, Math.sqrt(members.length) * 1.7);
+    const centerX = (groupIndex % columns) * spacing;
+    const centerY = -Math.floor(groupIndex / columns) * spacing;
+    const ordered: number[] = [];
 
-    members.forEach((restaurantIndex, memberIndex) => {
-      const angle = memberIndex * GOLDEN_ANGLE;
-      const distance = radius * Math.sqrt((memberIndex + 0.5) / members.length);
-      positions[restaurantIndex] = {
-        x: centerX + Math.cos(angle) * distance,
-        y: centerY + Math.sin(angle) * distance,
+    for (const root of [...members].sort((a, b) => neighbors[b].length - neighbors[a].length)) {
+      if (visited.has(root)) continue;
+      visited.add(root);
+      const start = ordered.length;
+      ordered.push(root);
+      for (let i = start; i < ordered.length; i++) {
+        for (const neighbor of neighbors[ordered[i]]) {
+          if (visited.has(neighbor)) continue;
+          visited.add(neighbor);
+          ordered.push(neighbor);
+        }
+      }
+    }
+
+    ordered.forEach((index, rank) => {
+      const distance = Math.sqrt(rank + 0.5);
+      positions[index] = {
+        x: centerX + Math.cos(rank * GOLDEN_ANGLE) * distance,
+        y: centerY + Math.sin(rank * GOLDEN_ANGLE) * distance,
       };
     });
   });
-
   return positions;
 }
 
@@ -352,18 +369,11 @@ export function latestDataDate(restaurants: Restaurant[]): string {
   }, "");
 }
 
-function yearsBefore(date: string, years: number): string {
-  if (!date) return "";
-  const cutoff = new Date(date);
-  cutoff.setUTCFullYear(cutoff.getUTCFullYear() - years);
-  return cutoff.toISOString().slice(0, 10);
-}
-
 export function selectRelevantRestaurants(restaurants: Restaurant[], limit = 1800): Restaurant[] {
   const snapshot = latestDataDate(restaurants);
   if (!snapshot) return [];
   const activeCutoff = yearsBefore(snapshot, 1);
-  const evidenceCutoff = yearsBefore(snapshot, 3);
+  const evidenceCutoff = yearsBefore(snapshot, PROFILE_YEARS);
 
   const ranked = restaurants
     .map((restaurant) => ({ restaurant, latest: latestInspectionDate(restaurant) }))
@@ -394,49 +404,27 @@ export function selectRelevantRestaurants(restaurants: Restaurant[], limit = 180
   return selected.sort((a, b) => compareStrings(a.businessId, b.businessId));
 }
 
-interface ProfileIssue {
-  violation: Violation;
-  dates: number;
-  weight: number;
-}
+type FeatureKind = "topics" | "findings";
 
-type Profile = Map<string, ProfileIssue>;
-
-function isScoredViolation({ violation_code: code }: Violation): boolean {
-  return code !== "None" && code !== "5000" && code !== "5100";
-}
-
-function comparisonFinding(violation: Violation): Violation {
-  // The county export splits these two handling problems into temperature bands.
-  const code = violation.violation_code;
-  if (code === "1710" || code === "1720") {
-    return { ...violation, violation_code: "1710 / 1720", description: "Food held hot below the required temperature" };
-  }
-  if (code === "2110" || code === "2120") {
-    return { ...violation, violation_code: "2110 / 2120", description: "Food held cold above the required temperature" };
-  }
-  return violation;
-}
-
-function recentProfiles(restaurants: Restaurant[], referenceDate: string): Profile[] {
-  const cutoff = yearsBefore(referenceDate, 3);
-  return restaurants.map(({ inspections }) => {
-    const profile: Profile = new Map();
-    for (const { date, violations } of inspections) {
-      if (date === "Unknown" || date < cutoff) continue;
-      const codesOnDate = new Set<string>();
-      for (const raw of violations) {
-        if (!isScoredViolation(raw)) continue;
-        const violation = comparisonFinding(raw);
-        const code = violation.violation_code;
-        if (codesOnDate.has(code)) continue;
-        codesOnDate.add(code);
-        const previous = profile.get(code);
-        profile.set(code, { violation, dates: (previous?.dates ?? 0) + 1, weight: 0 });
-      }
+function indexFeatures(profiles: InspectionProfile[], kind: FeatureKind) {
+  const index = new Map<string, Array<{ node: number; feature: InspectionFeature; weight: number }>>();
+  profiles.forEach((profile, node) => {
+    for (const feature of profile[kind]) {
+      const bucket = index.get(feature.id) ?? [];
+      const weight = (feature.dates + feature.criticalDates * 0.5) / profile.dateCount;
+      bucket.push({ node, feature, weight });
+      index.set(feature.id, bucket);
     }
-    return profile;
   });
+  const totals = new Float64Array(profiles.length);
+  for (const bucket of index.values()) {
+    const prevalenceWeight = kind === "findings" ? 1 + Math.log((profiles.length + 1) / (bucket.length + 1)) : 1;
+    for (const entry of bucket) {
+      entry.weight *= prevalenceWeight;
+      totals[entry.node] += entry.weight;
+    }
+  }
+  return { index, totals };
 }
 
 export function buildSimilarityGraph(
@@ -445,64 +433,52 @@ export function buildSimilarityGraph(
     referenceDate = latestDataDate(restaurants), onProgress }:
     { threshold?: number; neighborLimit?: number; referenceDate?: string; onProgress?: (pairs: number) => void } = {},
 ): { nodes: GraphNode[]; edges: SimilarityEdge[]; stats: SimilarityStats } {
-  const profiles = recentProfiles(restaurants, referenceDate);
-  const buckets = new Map<string, number[]>();
-  profiles.forEach((profile, index) => {
-    for (const code of profile.keys()) {
-      const bucket = buckets.get(code) ?? [];
-      bucket.push(index);
-      buckets.set(code, bucket);
-    }
-  });
-  const totals = profiles.map((profile) => {
-    let total = 0;
-    for (const [code, issue] of profile) {
-      const prevalenceWeight = 1 + Math.log((restaurants.length + 1) / (buckets.get(code)!.length + 1));
-      issue.weight = prevalenceWeight * (1 + Math.log(issue.dates)) * (issue.violation.type === "RED" ? 1.5 : 1);
-      total += issue.weight;
-    }
-    return total;
-  });
+  const profiles = restaurants.map(restaurant => buildInspectionProfile(restaurant, referenceDate));
+  const topics = indexFeatures(profiles, "topics");
+  const findings = indexFeatures(profiles, "findings");
   const topNeighbors = profiles.map(() => [] as Array<{ neighbor: number; score: number }>);
   let candidatePairsScored = 0;
   let thresholdQualifiedPairs = 0;
 
   function keepTopNeighbor(node: number, neighbor: number, score: number) {
     const list = topNeighbors[node];
-    const insertAt = list.findIndex((candidate) => score > candidate.score ||
+    const insertAt = list.findIndex(candidate => score > candidate.score ||
       (score === candidate.score && neighbor < candidate.neighbor));
+    if (insertAt < 0 && list.length >= neighborLimit) return;
     list.splice(insertAt < 0 ? list.length : insertAt, 0, { neighbor, score });
     if (list.length > neighborLimit) list.pop();
   }
 
-  // Accumulate the weighted intersection along the code's index, one source at a time.
-  const overlap = new Float64Array(profiles.length);
-  const sharedCounts = new Uint16Array(profiles.length);
-  const repeatedCritical = new Uint8Array(profiles.length);
+  const topicOverlap = new Float64Array(profiles.length);
+  const findingOverlap = new Float64Array(profiles.length);
+  const recurringTopic = new Uint8Array(profiles.length);
+
   for (const [source, profile] of profiles.entries()) {
-    const candidates: number[] = [];
-    for (const [code, issue] of profile) {
-      for (const target of buckets.get(code)!) {
-        if (target <= source) continue;
-        const other = profiles[target].get(code)!;
-        if (!sharedCounts[target]++) candidates.push(target);
-        overlap[target] += Math.min(issue.weight, other.weight);
-        if (issue.violation.type === "RED" && other.violation.type === "RED" && issue.dates > 1 && other.dates > 1) {
-          repeatedCritical[target] = 1;
+    for (const kind of ["topics", "findings"] as const) {
+      const { index } = kind === "topics" ? topics : findings;
+      const overlap = kind === "topics" ? topicOverlap : findingOverlap;
+      for (const feature of profile[kind]) {
+        const bucket = index.get(feature.id)!;
+        const weight = bucket.find(entry => entry.node === source)!.weight;
+        for (const other of bucket) {
+          if (other.node <= source) continue;
+          overlap[other.node] += Math.min(weight, other.weight);
+          if (kind === "topics" && feature.dates > 1 && other.feature.dates > 1) recurringTopic[other.node] = 1;
         }
       }
     }
-    for (const target of candidates) {
-      const count = sharedCounts[target];
-      const qualifies = count > 1 || repeatedCritical[target];
-      const sharedWeight = overlap[target];
-      sharedCounts[target] = overlap[target] = repeatedCritical[target] = 0;
+    for (let target = source + 1; target < profiles.length; target++) {
+      const sharedTopics = topicOverlap[target];
+      const sharedFindings = findingOverlap[target];
+      const qualifies = recurringTopic[target] || sharedFindings > 0;
+      topicOverlap[target] = findingOverlap[target] = recurringTopic[target] = 0;
       if (!qualifies) continue;
       candidatePairsScored++;
       if (candidatePairsScored % 100_000 === 0) onProgress?.(candidatePairsScored);
 
-      const unionWeight = totals[source] + totals[target] - sharedWeight;
-      const score = Math.min(1, sharedWeight / unionWeight) * (count === 1 ? 0.75 : 1);
+      const topicScore = sharedTopics ? sharedTopics / (topics.totals[source] + topics.totals[target] - sharedTopics) : 0;
+      const findingScore = sharedFindings ? sharedFindings / (findings.totals[source] + findings.totals[target] - sharedFindings) : 0;
+      const score = Math.min(1, 0.65 * topicScore + 0.35 * findingScore);
       if (score < threshold) continue;
       thresholdQualifiedPairs++;
       keepTopNeighbor(source, target, score);
@@ -512,30 +488,20 @@ export function buildSimilarityGraph(
 
   const edges: SimilarityEdge[] = [];
   const degrees = new Uint8Array(restaurants.length);
-  const strongestLinks = profiles.map(() => ({ score: 0, code: "" }));
   for (const [source, neighbors] of topNeighbors.entries()) {
     for (const { neighbor: target, score } of neighbors) {
       if (source >= target || !topNeighbors[target].some(({ neighbor }) => neighbor === source)) continue;
-      const sharedViolations = [...profiles[source].values()]
-        .filter(({ violation }) => profiles[target].has(violation.violation_code))
-        .map(({ violation, dates, weight }) => {
-          const other = profiles[target].get(violation.violation_code)!;
-          return { evidence: { ...violation, sourceDates: dates, targetDates: other.dates }, weight: Math.min(weight, other.weight) };
-        })
-        .sort((a, b) => b.weight - a.weight || compareStrings(a.evidence.violation_code, b.evidence.violation_code))
-        .map(({ evidence }) => evidence);
-      edges.push({ source: String(source), target: String(target), score, sharedViolations });
-      for (const node of [source, target]) {
-        degrees[node]++;
-        if (score > strongestLinks[node].score) strongestLinks[node] = { score, code: sharedViolations[0].violation_code };
-      }
+      edges.push({ source: String(source), target: String(target), score });
+      degrees[source]++;
+      degrees[target]++;
     }
   }
 
-  const positions = assignDeterministicPositions(profiles.map((profile, index) =>
-    strongestLinks[index].code ||
-    [...profile.values()].sort((a, b) => b.weight - a.weight)[0]?.violation.violation_code || "None"));
-  const nodes = restaurants.map((restaurant, index) => ({ ...restaurant, id: String(index), ...positions[index] }));
+  const primaryTopics = profiles.map(profile => profile.topics[0]?.id ?? otherTopic.id);
+  const positions = assignDeterministicPositions(profiles, primaryTopics, edges);
+  const nodes = restaurants.map((restaurant, index) => ({
+    ...restaurant, id: String(index), ...positions[index], topic: primaryTopics[index], profile: profiles[index],
+  }));
 
   return {
     nodes,

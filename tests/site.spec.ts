@@ -1,5 +1,6 @@
 import { expect, test, blockExternalRequests } from "./helpers/browser";
 import sharp from "sharp";
+import { inspectionTopics } from "../src/lib/inspection-features";
 
 const pages = ["/", "/pigeons", "/pigeons/016", "/pigeons/001"];
 
@@ -36,7 +37,7 @@ test("playground lazily loads the inspection data and renders an interactive res
   expect(preloadedGraphModules).toEqual([]);
   expect(csvRequests).toEqual([]);
   const graphResources = () => page.evaluate(() =>
-    performance.getEntriesByType("resource").map(({ name }) => name).filter((name) => /sigma|graphology|inspection-layout|inspection-data\.csv/i.test(name)),
+    performance.getEntriesByType("resource").map(({ name }) => name).filter((name) => /sigma|graphology|inspection-data\.csv/i.test(name)),
   );
   expect(await graphResources()).toEqual([]);
 
@@ -63,7 +64,8 @@ test("playground lazily loads the inspection data and renders an interactive res
   await expect(graph).toHaveAttribute("data-first-render-ms", /\d+/);
   await expect(page.locator("#synology-graph-status")).toBeHidden();
   expect(csvRequests.length).toBeGreaterThan(0);
-  await expect(graph).toHaveAttribute("data-layout-steps", "45", { timeout: 30_000 });
+  await expect(page.locator("#inspection-topics span")).toHaveCount(inspectionTopics.length);
+  await expect(page.locator("#inspection-topics span", { hasText: "Cleaning & sanitizing" })).toBeVisible();
 
   const screenshot = await canvas.screenshot();
   const { data, info } = await sharp(screenshot).resize(64, 32).removeAlpha().raw().toBuffer({ resolveWithObject: true });
@@ -81,21 +83,35 @@ test("playground lazily loads the inspection data and renders an interactive res
     const theme = getComputedStyle(element);
     return names.map(name => {
       const hex = theme.getPropertyValue(`--graph-${name}`).trim();
-      return [1, 3, 5].map(offset => Number.parseInt(hex.slice(offset, offset + 2), 16));
+      const base = theme.getPropertyValue("--graph-background").trim();
+      const opacity = name === "edge-strong" ? 0.73 : 0.55;
+      return [1, 3, 5].map(offset =>
+        Math.round(Number.parseInt(hex.slice(offset, offset + 2), 16) * opacity +
+          Number.parseInt(base.slice(offset, offset + 2), 16) * (1 - opacity)),
+      );
     });
   }, names);
-  async function findGraphPoint(palette: number[][], cursor: string) {
+  const rgb = (hex: string) => [1, 3, 5].map(offset => Number.parseInt(hex.slice(offset, offset + 2), 16));
+  const nodeColors = inspectionTopics.map(({ color }) => rgb(color));
+  const outlineColors = inspectionTopics.map(({ outline }) => rgb(outline));
+  const pixelMatches = ([red, green, blue]: Uint8Array, colors: number[][]) =>
+    colors.some(([r, g, b]) => Math.abs(red - r) + Math.abs(green - g) + Math.abs(blue - b) < 20);
+  expect(pixels.some((_, offset) => offset % image.channels === 0 && pixelMatches(pixels.subarray(offset, offset + 3), outlineColors))).toBe(true);
+
+  async function findGraphPoint(
+    palette: number[][], cursor: string, excluded: Array<{ x: number; y: number }> = [],
+  ) {
     const candidates: Array<{ x: number; y: number }> = [];
     for (let y = 0; y < image.height; y += 2) {
       for (let x = 0; x < image.width; x += 2) {
         const offset = (y * image.width + x) * image.channels;
-        const [red, green, blue] = pixels.subarray(offset, offset + 3);
-        if (palette.some(([r, g, b]) => Math.abs(red - r) + Math.abs(green - g) + Math.abs(blue - b) < 20)) {
-          candidates.push({
-            x: canvasBounds!.x + x * canvasBounds!.width / image.width,
-            y: canvasBounds!.y + y * canvasBounds!.height / image.height,
-          });
-        }
+        if (!pixelMatches(pixels.subarray(offset, offset + 3), palette)) continue;
+        const point = {
+          x: canvasBounds!.x + x * canvasBounds!.width / image.width,
+          y: canvasBounds!.y + y * canvasBounds!.height / image.height,
+        };
+        if (excluded.some(other => Math.hypot(point.x - other.x, point.y - other.y) < 24)) continue;
+        candidates.push(point);
       }
     }
     const stride = Math.max(1, Math.floor(candidates.length / 35));
@@ -109,13 +125,29 @@ test("playground lazily loads the inspection data and renders an interactive res
   }
 
   await expect(legend).toContainText("1,800 businesses");
-  const point = await findGraphPoint(await palette(["risk-1", "risk-2", "risk-3", "risk-unknown"]), "grab");
+  const point = await findGraphPoint(nodeColors, "grab");
   await page.mouse.click(point.x, point.y);
   const details = page.locator("#inspection-details");
   await expect(details).toBeVisible();
   await expect(details.getByRole("heading", { level: 3 })).toHaveCount(1);
   await expect(details).toContainText("Latest inspection date");
   await expect(details.getByRole("link", { name: "County permit guide" })).toBeVisible();
+  await expect(details).toContainText("Recent inspection profile");
+
+  const second = await findGraphPoint(nodeColors, "grab", [point]);
+  await page.mouse.click(second.x, second.y);
+  await expect(details.getByRole("heading", { name: "What these businesses share" })).toBeVisible();
+  await expect(details.getByRole("heading", { name: "2 businesses selected" })).toBeVisible();
+  await expect(details.getByRole("heading", { name: "Shared topics" })).toBeVisible();
+  await expect(details.getByRole("heading", { name: "Shared specific findings" })).toBeVisible();
+
+  const third = await findGraphPoint(nodeColors, "grab", [point, second]);
+  await page.mouse.click(third.x, third.y);
+  await expect(details.getByRole("heading", { name: "3 businesses selected" })).toBeVisible();
+  await page.mouse.click(third.x, third.y);
+  await expect(details.getByRole("heading", { name: "2 businesses selected" })).toBeVisible();
+  await details.getByRole("button", { name: /^Remove / }).last().click();
+  await expect(details.getByRole("heading", { name: "Business details" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(details).toBeHidden();
 

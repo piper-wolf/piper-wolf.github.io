@@ -2,8 +2,9 @@
 import PlaygroundLayout from "../../layouts/PlaygroundLayout.astro";
 import InspectionDetails from "../../components/playground/InspectionDetails.astro";
 import { DEFAULT_SIMILARITY_THRESHOLD, STRONG_SIMILARITY_THRESHOLD } from "../../lib/inspection-graph";
+import { PROFILE_YEARS } from "../../lib/inspection-features";
 
-const description = "Explore recurring and shared food safety violations across King County food businesses.";
+const description = "Compare inspection patterns across King County food businesses.";
 const pageUrl = new URL("/playground/synology", Astro.site ?? Astro.url).href;
 const structuredData = {
   "@context": "https://schema.org",
@@ -23,33 +24,24 @@ const structuredData = {
     <div
       id="synology-graph"
       role="img"
-      aria-label="King County food inspection graph. Each node represents one county business ID. The graph shows up to 1,800 recently inspected businesses with a violation in the last three years, sampled in proportion to the eligible businesses in each preparation category. Links connect businesses with similar recent violations. Node color shows food preparation complexity."
+      aria-label="King County food inspection graph. Each node represents one business. Position and color show its most frequent finding topic. Links show similar inspection profiles. Select businesses to compare what they share."
       data-strong-threshold={STRONG_SIMILARITY_THRESHOLD}
       aria-busy="true"
     ></div>
+    <div id="inspection-topics" aria-hidden="true"></div>
     <aside id="inspection-legend" class="graph-legend" aria-label="Graph key" hidden>
       <strong>Inspection graph</strong>
       <span id="inspection-legend-count" class="legend-count"></span>
-      <div class="legend-groups">
-        <div>
-          <span class="legend-label">Food preparation</span>
-          <ul>
-            <li><i class="risk-1"></i> Limited prep</li>
-            <li><i class="risk-2"></i> Basic prep</li>
-            <li><i class="risk-3"></i> Complex prep</li>
-            <li><i class="risk-unknown"></i> Unknown</li>
-          </ul>
-        </div>
-        <div>
-          <span class="legend-label">Violation similarity</span>
-          <ul>
-            <li><i class="edge-regular"></i> {Math.round(DEFAULT_SIMILARITY_THRESHOLD * 100)}% to &lt;{Math.round(STRONG_SIMILARITY_THRESHOLD * 100)}%</li>
-            <li><i class="edge-strong"></i> {Math.round(STRONG_SIMILARITY_THRESHOLD * 100)}% to 100%</li>
-            <li><i class="edge-selected"></i> Selected</li>
-          </ul>
-        </div>
-      </div>
-      <span class="legend-count">Links use the last 3 years of violations.</span>
+      <details open>
+        <summary>How to read the graph</summary>
+        <p>Color and position show each business’s most frequent topic in the last {PROFILE_YEARS} years of the export.</p>
+        <ul>
+          <li><i class="edge-regular"></i> Similar profiles · {Math.round(DEFAULT_SIMILARITY_THRESHOLD * 100)}% to &lt;{Math.round(STRONG_SIMILARITY_THRESHOLD * 100)}%</li>
+          <li><i class="edge-strong"></i> Stronger matches · {Math.round(STRONG_SIMILARITY_THRESHOLD * 100)}% and up</li>
+          <li><i class="edge-selected"></i> Selected links</li>
+        </ul>
+      </details>
+      <p class="legend-instructions">Select businesses to compare them. Select again to remove.</p>
     </aside>
     <InspectionDetails />
     <div id="synology-graph-status" role="status" aria-live="polite">Preparing restaurant inspection data…</div>
@@ -68,8 +60,9 @@ const structuredData = {
     --graph-risk-2: #2d6875;
     --graph-risk-3: #153e52;
     --graph-risk-unknown: #777674;
-    --graph-edge-regular: #908173;
-    --graph-edge-strong: #625348;
+    --graph-edge-regular: #988e83;
+    --graph-edge-strong: #5c5148;
+    --graph-edge-cross-topic: #c3b9ad;
     --graph-font: system-ui, sans-serif;
     color: var(--graph-text);
     font-family: var(--graph-font);
@@ -86,40 +79,58 @@ const structuredData = {
     background-size: 20px 20px;
   }
 
+  #inspection-topics {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  #inspection-topics :global(span) {
+    position: absolute;
+    max-width: min(11rem, 26vw);
+    padding: 0.2rem 0.45rem;
+    border-radius: 0.35rem;
+    background: var(--graph-surface);
+    box-shadow: inset 0 -2px var(--topic-color);
+    color: var(--graph-text);
+    font-size: 0.8125rem;
+    font-weight: 650;
+    text-align: center;
+    transform: translate(-50%, -100%);
+  }
+
   .graph-legend {
     position: fixed;
     z-index: 1;
-    top: 16px;
-    left: 16px;
-    padding: 12px 15px;
+    top: 1rem;
+    left: 1rem;
+    width: min(16rem, calc(100vw - 2rem));
+    padding: 0.75rem;
     border: 1px solid var(--graph-border);
-    border-radius: 12px;
+    border-radius: 0.75rem;
     background: var(--graph-surface);
     box-shadow: 0 4px 20px #242c2a0d;
-    font-size: 13px;
+    font-size: 0.875rem;
+    line-height: 1.4;
   }
 
-  .graph-legend strong { display: block; font-size: 15px; }
-  .legend-count { display: block; margin-top: 2px; color: var(--graph-muted); font-size: 12px; }
-  .legend-groups { display: flex; gap: 20px; margin-top: 10px; }
-  .legend-label { font-size: 12px; font-weight: 650; }
-  .graph-legend ul { display: grid; gap: 4px; list-style: none; margin: 5px 0 0; padding: 0; }
-  .graph-legend li { display: flex; align-items: center; gap: 7px; }
-  .graph-legend i { flex: none; width: 8px; height: 8px; border-radius: 50%; }
-  .graph-legend .risk-1 { background: var(--graph-risk-1); }
-  .graph-legend .risk-2 { background: var(--graph-risk-2); }
-  .graph-legend .risk-3 { background: var(--graph-risk-3); }
-  .graph-legend .risk-unknown { background: var(--graph-risk-unknown); }
-  .graph-legend .edge-regular,
-  .graph-legend .edge-strong,
-  .graph-legend .edge-selected { width: 14px; height: 3px; border-radius: 2px; }
+  .graph-legend strong { display: block; font-size: 1rem; }
+  .legend-count { display: block; color: var(--graph-muted); }
+  .graph-legend details { margin-top: 0.55rem; }
+  .graph-legend summary { font-weight: 650; cursor: pointer; }
+  .graph-legend p { margin: 0.35rem 0 0; }
+  .graph-legend ul { display: grid; gap: 0.2rem; list-style: none; margin: 0.35rem 0 0; padding: 0; }
+  .graph-legend li { display: flex; align-items: center; gap: 0.45rem; }
+  .graph-legend i { flex: none; width: 0.95rem; height: 3px; border-radius: 2px; }
   .graph-legend .edge-regular { background: var(--graph-edge-regular); }
   .graph-legend .edge-strong { background: var(--graph-edge-strong); }
   .graph-legend .edge-selected { background: var(--graph-accent); }
+  .graph-legend .legend-instructions { color: var(--graph-muted); }
 
-  @media (max-width: 600px) {
-    .graph-legend { top: 8px; left: 8px; padding: 8px 10px; font-size: 11px; }
-    .legend-groups { gap: 12px; margin-top: 6px; }
+  @media (max-width: 760px) {
+    .graph-legend { top: 0.5rem; left: 0.5rem; padding: 0.5rem 0.65rem; }
+    #inspection-topics :global(span) { font-size: 0.7rem; }
   }
 
   #synology-graph-status {
@@ -147,17 +158,19 @@ const structuredData = {
 
 <script>
   import type { GraphNode, SimilarityEdge, SimilarityStats, AggregationStats } from "../../lib/inspection-graph";
-  import type { LayoutRequest } from "../../workers/inspection-layout.worker";
+  import { inspectionTopics, otherTopic } from "../../lib/inspection-features";
+  import type { FragmentLayer } from "sigma/rendering";
+  import type { SigmaEventPayload } from "sigma/types";
   import { renderInspectionDetails } from "../../lib/inspection-details";
 
   const container = document.querySelector<HTMLDivElement>("#synology-graph");
   const status = document.querySelector<HTMLDivElement>("#synology-graph-status");
   const legend = document.querySelector<HTMLElement>("#inspection-legend");
   const legendCount = document.querySelector<HTMLElement>("#inspection-legend-count");
+  const topicLabels = document.querySelector<HTMLElement>("#inspection-topics");
   const initializationStartedAt = performance.now();
   let renderer: import("sigma").Sigma | undefined;
   let dataWorker: Worker | undefined;
-  let stopLayout: (() => void) | undefined;
   let leaving = false;
   let initialized = false;
 
@@ -206,39 +219,49 @@ const structuredData = {
       ]);
       if (leaving) return;
       const graph = new Graph();
-      const degree = new Uint8Array(message.nodes.length);
-      for (const edge of message.edges) {
-        degree[Number(edge.source)]++;
-        degree[Number(edge.target)]++;
-      }
-
+      const nodeOutline: FragmentLayer = {
+        name: "outlinedNode",
+        uniforms: [],
+        attributes: [
+          { name: "fill", size: 4, type: WebGL2RenderingContext.UNSIGNED_BYTE, normalized: true, source: "color" },
+          { name: "outline", size: 4, type: WebGL2RenderingContext.UNSIGNED_BYTE, normalized: true, source: "outlineColor" },
+          { name: "outlineWidth", size: 1, type: WebGL2RenderingContext.FLOAT, source: "outlineWidth" },
+        ],
+        glsl: `
+          vec4 layer_outlinedNode(vec4 fill, vec4 outline, float outlineWidth) {
+            float innerEdge = -outlineWidth * context.pixelToUV;
+            float blend = smoothstep(innerEdge - context.aaWidth, innerEdge, context.sdf);
+            return mix(fill, outline, blend);
+          }
+        `,
+      };
       const theme = getComputedStyle(container);
       const color = (name: string) => theme.getPropertyValue(`--graph-${name}`).trim();
-      const riskColors = { "1": color("risk-1"), "2": color("risk-2"), "3": color("risk-3"), Unknown: color("risk-unknown") };
-      const regularEdge = color("edge-regular");
-      const strongEdge = color("edge-strong");
+      const topics = new Map<string, (typeof inspectionTopics)[number] | typeof otherTopic>(
+        [...inspectionTopics, otherTopic].map(topic => [topic.id, topic]),
+      );
       const strongThreshold = Number(container.dataset.strongThreshold);
       const nameCounts = new Map<string, number>();
       for (const { name } of message.nodes) nameCounts.set(name, (nameCounts.get(name) ?? 0) + 1);
       for (const node of message.nodes) {
+        const topic = topics.get(node.topic)!;
         graph.addNode(node.id, {
           label: nameCounts.get(node.name)! > 1 ? `${node.name} · ${[node.address, node.city].filter(Boolean).join(", ") || node.businessId}` : node.name,
           x: node.x,
           y: node.y,
-          size: 2.1 + Math.min(1.2, degree[Number(node.id)] * 0.2),
-          color: riskColors[node.riskCategory],
-          riskCategory: node.riskCategory,
-          inspections: node.inspections,
-          lifetimeViolationCodes: node.lifetimeViolationCodes,
-          realViolationCodes: node.realViolationCodes,
+          size: container.clientWidth < 600 ? 2.5 : 3.5,
+          color: topic.color,
+          outlineColor: topic.outline,
         });
       }
       for (const edge of message.edges) {
+        const sameTopic = message.nodes[Number(edge.source)].topic === message.nodes[Number(edge.target)].topic;
+        const edgeColor = edge.score >= strongThreshold ? "edge-strong" : "edge-regular";
         graph.addUndirectedEdge(edge.source, edge.target, {
-          size: 0.8 + edge.score * 0.6,
-          color: edge.score >= strongThreshold ? strongEdge : regularEdge,
+          size: 1.15 + edge.score * 0.65,
+          color: color(sameTopic ? edgeColor : "edge-cross-topic"),
+          opacity: sameTopic ? (edge.score >= strongThreshold ? 0.73 : 0.55) : 0.25,
           score: edge.score,
-          sharedViolations: edge.sharedViolations,
         });
       }
 
@@ -250,86 +273,146 @@ const structuredData = {
           enableEdgeEvents: true,
           edgePickingPadding: 3,
           nodePickingPadding: 3,
-          autoRescale: true,
+          autoRescale: "once",
           itemSizesReference: "screen",
           renderEdgeLabels: false,
-          labelDensity: 0.09,
-          labelGridCellSize: 100,
-          labelRenderedSizeThreshold: 3,
-          stagePadding: Math.min(110, Math.max(48, container.clientWidth * 0.08)),
+          stagePadding: Math.min(100, Math.max(36, container.clientWidth * 0.07)),
+        },
+        primitives: {
+          nodes: {
+            variables: {
+              outlineColor: { type: "color", default: color("text") },
+              outlineWidth: { type: "number", default: 1 },
+            },
+            layers: [nodeOutline],
+          },
         },
         styles: {
           nodes: [
             DEFAULT_STYLES.nodes,
-            { cursor: "grab", labelColor: color("text"), backdropColor: color("surface"), backdropShadowColor: "#242c2a25" },
-            { whenState: "isHovered", then: { size: 5, backdropPadding: 5 } },
+            {
+              cursor: "grab",
+              outlineColor: { attribute: "outlineColor" },
+              outlineWidth: 1,
+              labelColor: color("text"),
+              labelVisibility: "hidden",
+              backdropColor: color("surface"),
+              backdropShadowColor: "#242c2a25",
+            },
+            { whenState: "isHovered", then: {
+              size: 5.5, outlineColor: color("text"), outlineWidth: 1.5,
+              labelVisibility: "visible", backdropPadding: 5,
+            } },
             { whenState: "isHighlighted", then: {
-              size: 6, depth: "topNodes", labelVisibility: "visible", backdropVisibility: "visible",
-              backdropColor: color("surface"), backdropBorderColor: color("accent"), backdropBorderWidth: 1,
+              size: 6.5, depth: "topNodes", outlineColor: color("accent"), outlineWidth: 2.5,
             } },
             { whenState: "isDragged", then: { cursor: "grabbing" } },
           ],
           edges: [
             DEFAULT_STYLES.edges,
-            { cursor: "pointer" },
-            { whenState: "isHovered", then: { color: color("text"), size: 2 } },
-            { whenState: "isHighlighted", then: { color: color("accent"), size: 3 } },
+            { cursor: "pointer", opacity: { attribute: "opacity" } },
+            { whenState: "isHovered", then: { color: color("text"), size: 2.5, opacity: 1 } },
+            { whenState: "isHighlighted", then: { color: color("accent"), size: 3.3, opacity: 1 } },
           ],
           stage: [{ whenState: "isDragging", then: { cursor: "grabbing" } }],
         },
       });
       renderer = sigma;
-      let selectedNodes: string[] = [];
-      let selectedEdge: string | undefined;
-      function clearHighlights() {
-        sigma.setNodesState(selectedNodes, { isHighlighted: false });
-        if (selectedEdge !== undefined) sigma.setEdgeState(selectedEdge, { isHighlighted: false });
-        selectedNodes = [];
-        selectedEdge = undefined;
+      const headings = [...Map.groupBy(message.nodes, ({ topic }) => topic)].map(([id, nodes]) => {
+        const topic = topics.get(id)!;
+        const label = document.createElement("span");
+        label.textContent = topic.label;
+        label.style.setProperty("--topic-color", topic.color);
+        topicLabels?.append(label);
+        const xs = nodes.map(({ x }) => x);
+        return { label, x: (Math.min(...xs) + Math.max(...xs)) / 2, y: Math.max(...nodes.map(({ y }) => y)) };
+      });
+      function positionHeadings() {
+        for (const { label, x, y } of headings) {
+          const point = sigma.graphToViewport({ x, y });
+          label.hidden = sigma.getCamera().ratio < 0.55;
+          label.style.left = `${Math.round(point.x)}px`;
+          label.style.top = `${Math.round(point.y - 9)}px`;
+        }
+      }
+      sigma.on("afterRender", positionHeadings);
+      positionHeadings();
+
+      let selectedNodes = new Set<string>();
+      let highlightedEdges = new Set<string>();
+      function updateSelection(nodes: Set<string>, edge?: string) {
+        const [firstNode] = nodes;
+        let edges: string[] = [];
+        if (edge !== undefined) edges = [edge];
+        else if (nodes.size === 1) edges = graph.edges(firstNode);
+        else if (nodes.size > 1) {
+          edges = graph.edges().filter(id => graph.extremities(id).every(node => nodes.has(node)));
+        }
+        const nextEdges = new Set(edges);
+        sigma.setNodesState([...selectedNodes].filter(id => !nodes.has(id)), { isHighlighted: false });
+        sigma.setNodesState([...nodes].filter(id => !selectedNodes.has(id)), { isHighlighted: true });
+        sigma.setEdgesState([...highlightedEdges].filter(id => !nextEdges.has(id)), { isHighlighted: false });
+        sigma.setEdgesState([...nextEdges].filter(id => !highlightedEdges.has(id)), { isHighlighted: true });
+        selectedNodes = nodes;
+        highlightedEdges = nextEdges;
+
+        const restaurants = [...nodes].map(id => message.nodes[Number(id)]);
+        if (edge !== undefined) {
+          renderInspectionDetails({
+            type: "edge", restaurants: [restaurants[0], restaurants[1]], score: graph.getEdgeAttribute(edge, "score"),
+          });
+        } else if (restaurants.length > 1) {
+          renderInspectionDetails({ type: "group", restaurants, remove: toggleNode });
+        } else {
+          renderInspectionDetails(restaurants.length ? { type: "node", restaurant: restaurants[0] } : null);
+        }
       }
       function clearSelection() {
-        clearHighlights();
-        renderInspectionDetails(null);
+        updateSelection(new Set());
       }
-      function selectNode({ node }: { node: string }) {
-        clearHighlights();
-        selectedNodes = [node];
-        sigma.setNodeState(node, { isHighlighted: true });
-        renderInspectionDetails({ type: "node", restaurant: message.nodes[Number(node)] });
+      function toggleNode(node: string) {
+        const nodes = new Set(selectedNodes);
+        if (nodes.has(node)) nodes.delete(node);
+        else nodes.add(node);
+        updateSelection(nodes);
       }
       function selectEdge({ edge }: { edge: string }) {
-        clearHighlights();
-        selectedEdge = edge;
-        const [source, target] = graph.extremities(edge);
-        selectedNodes = [source, target];
-        sigma.setNodesState(selectedNodes, { isHighlighted: true });
-        sigma.setEdgeState(edge, { isHighlighted: true });
-        renderInspectionDetails({
-          type: "edge",
-          source: message.nodes[Number(source)],
-          target: message.nodes[Number(target)],
-          score: graph.getEdgeAttribute(edge, "score"),
-          sharedViolations: graph.getEdgeAttribute(edge, "sharedViolations"),
-        });
+        updateSelection(new Set(graph.extremities(edge)), edge);
       }
-      sigma.on("clickNode", selectNode);
-      sigma.on("clickEdge", selectEdge);
-      // Sigma can classify successive clicks on different items as a double click.
-      sigma.on("doubleClickNode", (event) => {
+      let dragRelease: Event | undefined;
+      sigma.on("nodeDragEnd", ({ event }) => { dragRelease = event.original; });
+      function wasDrag({ event }: SigmaEventPayload) {
+        return event.original === dragRelease;
+      }
+      function handleNodeClick(event: SigmaEventPayload & { node: string }) {
+        if (!wasDrag(event)) toggleNode(event.node);
+      }
+      function handleEdgeClick(event: SigmaEventPayload & { edge: string }) {
+        if (!wasDrag(event)) selectEdge(event);
+      }
+      sigma.on("clickNode", handleNodeClick);
+      sigma.on("clickEdge", handleEdgeClick);
+      sigma.on("doubleClickNode", event => {
         event.preventSigmaDefault();
-        selectNode(event);
+        handleNodeClick(event);
       });
-      sigma.on("doubleClickEdge", (event) => {
+      sigma.on("doubleClickEdge", event => {
         event.preventSigmaDefault();
-        selectEdge(event);
+        handleEdgeClick(event);
       });
-      sigma.on("clickStage", clearSelection);
+      sigma.on("clickStage", event => {
+        if (!wasDrag(event)) clearSelection();
+      });
+      sigma.on("doubleClickStage", event => {
+        if (wasDrag(event)) event.preventSigmaDefault();
+      });
       document.querySelector("#inspection-details-close")?.addEventListener("click", clearSelection);
-      window.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && selectedNodes.length) clearSelection();
+      window.addEventListener("keydown", event => {
+        if (event.key === "Escape" && selectedNodes.size) clearSelection();
       });
       if (legend && legendCount) {
         legendCount.textContent = `${graph.order.toLocaleString()} businesses · ${graph.size.toLocaleString()} links`;
+        if (window.matchMedia("(max-width: 760px)").matches) legend.querySelector("details")?.removeAttribute("open");
         legend.hidden = false;
       }
       const timeToFirstRenderMs = Math.round(performance.now() - initializationStartedAt);
@@ -346,46 +429,6 @@ const structuredData = {
         timeToFirstRenderMs,
       });
 
-      if (graph.order < 2) {
-        container.dataset.layoutSteps = "0";
-        return;
-      }
-      const layout = new Worker(new URL("../../workers/inspection-layout.worker.ts", import.meta.url), { type: "module" });
-      const requestLayout = (request: LayoutRequest) => layout.postMessage(request);
-      const layoutStartedAt = performance.now();
-      let steps = 0;
-      const finishLayout = () => {
-        layout.terminate();
-        container.removeEventListener("pointerdown", finishLayout, true);
-        container.removeEventListener("wheel", finishLayout, true);
-        stopLayout = undefined;
-        if (leaving) return;
-        renderer?.setSetting("autoRescale", "once");
-        container.dataset.layoutSteps = String(steps);
-        container.dataset.layoutMs = String(Math.round(performance.now() - layoutStartedAt));
-      };
-      layout.onmessage = ({ data }: MessageEvent<Float32Array>) => {
-        graph.updateEachNodeAttributes((id, attributes) => {
-          attributes.x = data[Number(id) * 2];
-          attributes.y = data[Number(id) * 2 + 1];
-          return attributes;
-        }, { attributes: ["x", "y"] });
-        steps += 5;
-        if (steps === 45) finishLayout();
-        else requestLayout({ type: "step" });
-      };
-      layout.onerror = (event) => {
-        console.warn("Restaurant graph layout stopped", event.message);
-        finishLayout();
-      };
-      stopLayout = finishLayout;
-      container.addEventListener("pointerdown", finishLayout, { capture: true });
-      container.addEventListener("wheel", finishLayout, { capture: true, passive: true });
-      requestLayout({
-        type: "start",
-        nodes: message.nodes.map(({ id, x, y }) => ({ id, x, y })),
-        edges: message.edges,
-      });
     } catch (error) {
       showError(error instanceof Error ? error.message : "Graph rendering failed.");
     }
@@ -428,7 +471,6 @@ const structuredData = {
 
   window.addEventListener("pagehide", () => {
     leaving = true;
-    stopLayout?.();
     dataWorker?.terminate();
     renderer?.kill();
   }, { once: true });

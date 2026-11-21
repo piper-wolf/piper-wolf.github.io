@@ -1,4 +1,5 @@
 import { expect, test } from "./helpers/browser";
+import { sharedInspectionFeatures } from "../src/lib/inspection-features";
 import { buildSimilarityGraph, InspectionAggregator, parseViolationDescription, type Restaurant } from "../src/lib/inspection-graph";
 
 test("inspection transforms keep separate businesses and preserve their most recent details", async () => {
@@ -43,13 +44,16 @@ test("inspection transforms keep separate businesses and preserve their most rec
   expect(result.stats.perfectInspectionCount).toBe(2);
 });
 
-test("similarity uses recent shared violations and requires meaningful evidence", async () => {
+test("similarity connects recurring topics and the comparison intersects every profile", async () => {
   const issue = (code: string, type: "RED" | "BLUE") => ({
     violation_code: code, description: `Issue ${code}`, type,
   });
   const cold = issue("2110", "RED");
   const otherColdBand = issue("2120", "RED");
   const cleaning = issue("3400", "BLUE");
+  const hands = issue("0400", "RED");
+  const sinks = issue("0600", "RED");
+  const gloves = issue("0500", "RED");
   const posting = issue("5100", "BLUE");
   const none = { violation_code: "None", description: "" };
   const restaurant = (name: string, riskCategory: Restaurant["riskCategory"], inspections: Restaurant["inspections"]): Restaurant => ({
@@ -62,21 +66,34 @@ test("similarity uses recent shared violations and requires meaningful evidence"
     restaurant("B", "3", [day("2025-07-01", otherColdBand), day("2026-07-01", otherColdBand, cleaning, posting)]),
     restaurant("C", "3", [day("2025-07-01", cold), day("2026-07-01", cold)]),
     restaurant("D", "1", [day("2022-07-01", cold), day("2026-07-01", cleaning, posting)]),
+    restaurant("E", "2", [day("2025-07-01", hands), day("2026-07-01", hands)]),
+    restaurant("F", "2", [day("2025-07-01", sinks), day("2026-07-01", sinks)]),
+    restaurant("G", "2", [day("2026-07-01", gloves)]),
   ];
 
   const { nodes, edges } = buildSimilarityGraph(restaurants);
-  expect(nodes).toHaveLength(4);
-  expect(edges.map(({ source, target }) => [source, target])).toEqual([["0", "1"], ["0", "2"], ["1", "2"]]);
+  expect(nodes.map(({ topic }) => topic)).toEqual(["cold", "cold", "cold", "sanitation", "hygiene", "hygiene", "hygiene"]);
+  expect(nodes[0].profile).toMatchObject({
+    dateCount: 2,
+    topics: [{ id: "cold", dates: 2, criticalDates: 2 }, { id: "sanitation", dates: 1, criticalDates: 0 }],
+  });
+  expect(nodes[3].profile.findings.map(({ id }) => id)).toEqual(["3400"]);
+  expect(edges.map(({ source, target }) => [source, target])).toEqual([["0", "1"], ["0", "2"], ["1", "2"], ["4", "5"]]);
   expect(edges[0].score).toBeCloseTo(1);
-  const sharedCold = {
-    ...cold, violation_code: "2110 / 2120", description: "Food held cold above the required temperature",
-    sourceDates: 2, targetDates: 2,
-  };
-  expect(edges[0].sharedViolations).toEqual([
-    sharedCold,
-    { ...cleaning, sourceDates: 1, targetDates: 1 },
+  expect(edges[1].score).toBeLessThan(1);
+
+  const profiles = nodes.map(({ profile }) => profile);
+  expect(sharedInspectionFeatures(profiles.slice(0, 2), "findings").map(({ id, dates }) => ({ id, dates }))).toEqual([
+    { id: "2110 / 2120", dates: [2, 2] },
+    { id: "3400", dates: [1, 1] },
   ]);
-  expect(edges[1].score).toBeLessThan(0.75);
-  expect(edges[1].sharedViolations).toEqual([sharedCold]);
-  expect(buildSimilarityGraph(restaurants, { neighborLimit: 1 }).edges).toHaveLength(1);
+  expect(sharedInspectionFeatures(profiles.slice(0, 3), "findings")).toEqual([
+    { id: "2110 / 2120", label: "Food held cold above the required temperature", dates: [2, 2, 2] },
+  ]);
+  expect(sharedInspectionFeatures(profiles.slice(0, 4), "topics")).toEqual([]);
+  expect(sharedInspectionFeatures(profiles.slice(4, 6), "findings")).toEqual([]);
+  expect(sharedInspectionFeatures(profiles.slice(4, 6), "topics")).toEqual([
+    { id: "hygiene", label: "Handwashing & hygiene", dates: [2, 2] },
+  ]);
+  expect(buildSimilarityGraph(restaurants, { neighborLimit: 1 }).edges).toHaveLength(2);
 });
