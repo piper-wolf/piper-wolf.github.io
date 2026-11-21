@@ -1,24 +1,29 @@
 ---
 import PlaygroundLayout from "../../layouts/PlaygroundLayout.astro";
 
-const description = "An interactive sample Synology network graph, rendered with Sigma.js.";
+const description = "A full-screen graph of Seattle food establishments connected by similar inspection histories.";
 const pageUrl = new URL("/playground/synology", Astro.site ?? Astro.url).href;
 const structuredData = {
   "@context": "https://schema.org",
   "@type": "WebPage",
   url: pageUrl,
-  name: "Synology network graph",
+  name: "Seattle Restaurant Inspection Similarity Graph",
   description,
 };
 ---
 
-<PlaygroundLayout title="Synology network graph" description={description} structuredData={structuredData}>
+<PlaygroundLayout
+  title="Seattle Restaurant Inspection Similarity Graph"
+  description={description}
+  structuredData={structuredData}
+>
   <div
     id="synology-graph"
     role="img"
-    aria-label="Synology network graph. Drag nodes to explore: a router connects to a Synology NAS, MacBook, and phone. The NAS connects to a backup drive and Synology Photos."
+    aria-label="Restaurant inspection similarity graph. Each node is one exact source name, combining locations that share a name. Edges connect restaurants with similar lifetime violation codes, weighted by their latest nonblank risk category. Perfect inspections are retained in history but excluded from similarity. Node color shows risk category: 1, 2, 3, or unknown."
     aria-busy="true"
   ></div>
+  <div id="synology-graph-status" role="status" aria-live="polite">Preparing restaurant inspection data…</div>
 </PlaygroundLayout>
 
 <style>
@@ -30,64 +35,130 @@ const structuredData = {
     height: 100dvh;
     background: #f0eee7;
   }
+
+  #synology-graph-status {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    color: #1d2826;
+    background: #f0eee7;
+    font: 500 15px/1.5 Arial, Helvetica, sans-serif;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  #synology-graph-status[data-error="true"] {
+    color: #8f3427;
+  }
+
+  #synology-graph-status[hidden] {
+    display: none;
+  }
 </style>
 
 <script>
-  const container = document.querySelector<HTMLDivElement>("#synology-graph");
-  let renderer: import("sigma").Sigma | undefined;
-  let layout: import("graphology-layout-force/worker").default | undefined;
-  let layoutStopTimer = 0;
+  import type { GraphNode, SimilarityEdge, SimilarityStats, AggregationStats } from "../../lib/inspection-graph";
 
-  function stopLayoutSoon() {
-    window.clearTimeout(layoutStopTimer);
-    layoutStopTimer = window.setTimeout(() => layout?.stop(), 1500);
+  const container = document.querySelector<HTMLDivElement>("#synology-graph");
+  const status = document.querySelector<HTMLDivElement>("#synology-graph-status");
+  const initializationStartedAt = performance.now();
+  let renderer: import("sigma").Sigma | undefined;
+  let dataWorker: Worker | undefined;
+  let initialized = false;
+
+  type WorkerResponse =
+    | { type: "progress"; phase: "reading" | "scoring"; rowCount: number; restaurantCount?: number; candidatePairsScored?: number }
+    | {
+        type: "ready";
+        nodes: GraphNode[];
+        edges: SimilarityEdge[];
+        aggregationStats: AggregationStats;
+        similarityStats: SimilarityStats;
+        parseErrorCount: number;
+        compressedBytes: number;
+        processingMs: number;
+        scoringMs: number;
+      }
+    | { type: "error"; message: string };
+
+  function showError(message: string) {
+    if (!container || !status) return;
+    console.error("Could not load restaurant inspection graph", message);
+    container.setAttribute("aria-busy", "false");
+    status.setAttribute("role", "alert");
+    status.dataset.error = "true";
+    status.textContent = "Restaurant inspection data could not be loaded. Reload the page to try again.";
   }
 
-  async function renderGraph() {
-    if (!container) return;
+  function updateProgress(message: Extract<WorkerResponse, { type: "progress" }>) {
+    if (!status) return;
+    if (message.phase === "reading") {
+      status.textContent = `Reading inspection records: ${message.rowCount.toLocaleString()}…`;
+      return;
+    }
+    const candidates = message.candidatePairsScored
+      ? ` ${message.candidatePairsScored.toLocaleString()} candidate pairs scored…`
+      : "";
+    status.textContent = `Scoring similarities for ${(message.restaurantCount ?? 0).toLocaleString()} restaurants…${candidates}`;
+  }
+
+  async function createGraph(message: Extract<WorkerResponse, { type: "ready" }>) {
+    if (!container || !status) return;
     try {
-      const [{ default: Sigma, DEFAULT_STYLES }, { default: Graph }, { default: ForceSupervisor }] = await Promise.all([
+      const [{ default: Sigma, DEFAULT_STYLES }, { default: Graph }] = await Promise.all([
         import("sigma"),
         import("graphology"),
-        import("graphology-layout-force/worker"),
       ]);
       const graph = new Graph();
-      const narrow = container.clientWidth < 600;
-      const positions: Record<string, { x: number; y: number }> = narrow
-        ? {
-            router: { x: 0, y: 0 },
-            nas: { x: 0.1, y: -1 },
-            macbook: { x: -0.1, y: 2 },
-            phone: { x: 0.1, y: 3.3 },
-            backup: { x: -0.1, y: -2.2 },
-            photos: { x: 0.1, y: -3.4 },
-          }
-        : {
-            router: { x: 0, y: 0 },
-            nas: { x: 1.2, y: 0.2 },
-            macbook: { x: -0.8, y: 1.1 },
-            phone: { x: -0.9, y: -1 },
-            backup: { x: 2.4, y: 1 },
-            photos: { x: 2.5, y: -0.8 },
-          };
-      graph.addNode("router", { ...positions.router, size: 18, label: "Router", color: "#a64128" });
-      graph.addNode("nas", { ...positions.nas, size: 23, label: "Synology NAS", color: "#246b65" });
-      graph.addNode("macbook", { ...positions.macbook, size: 15, label: "MacBook", color: "#60777a" });
-      graph.addNode("phone", { ...positions.phone, size: 15, label: "Phone", color: "#60777a" });
-      graph.addNode("backup", { ...positions.backup, size: 15, label: "Backup drive", color: "#b28a45" });
-      graph.addNode("photos", { ...positions.photos, size: 15, label: "Synology Photos", color: "#b28a45" });
-      graph.addEdge("router", "nas", { label: "LAN", size: 2 });
-      graph.addEdge("router", "macbook", { label: "Wi-Fi", size: 2 });
-      graph.addEdge("router", "phone", { label: "Wi-Fi", size: 2 });
-      graph.addEdge("nas", "backup", { label: "Hyper Backup", size: 2 });
-      graph.addEdge("nas", "photos", { label: "serves", size: 2 });
+      const degree = new Uint8Array(message.nodes.length);
+      for (const edge of message.edges) {
+        degree[Number(edge.source)]++;
+        degree[Number(edge.target)]++;
+      }
 
+      const riskColors: Record<GraphNode["riskCategory"], string> = {
+        "1": "#a64128",
+        "2": "#b28a45",
+        "3": "#246b65",
+        Unknown: "#829096",
+      };
+      for (const node of message.nodes) {
+        graph.addNode(node.id, {
+          label: node.name,
+          x: node.x,
+          y: node.y,
+          size: 2.1 + Math.min(1.2, degree[Number(node.id)] * 0.2),
+          color: riskColors[node.riskCategory],
+          riskCategory: node.riskCategory,
+          businessIdCount: node.businessIdCount,
+          inspections: node.inspections,
+          lifetimeViolationCodes: node.lifetimeViolationCodes,
+          realViolationCodes: node.realViolationCodes,
+        });
+      }
+      for (const edge of message.edges) {
+        graph.addUndirectedEdge(edge.source, edge.target, {
+          size: 0.6 + edge.score * 0.5,
+          color: "#929b96",
+          opacity: 0.32,
+          score: edge.score,
+        });
+      }
+
+      container.dataset.nodeCount = String(graph.order);
+      container.dataset.edgeCount = String(graph.size);
       renderer = new Sigma(graph, container, {
         settings: {
           enableNodeDrag: true,
-          renderEdgeLabels: !narrow,
+          autoRescale: "once",
           itemSizesReference: "screen",
-          stagePadding: Math.min(150, Math.max(32, container.clientWidth * 0.15)),
+          renderEdgeLabels: false,
+          labelDensity: 0.12,
+          labelGridCellSize: 100,
+          labelRenderedSizeThreshold: 2,
+          stagePadding: Math.min(110, Math.max(48, container.clientWidth * 0.08)),
         },
         styles: {
           nodes: [
@@ -98,34 +169,61 @@ const structuredData = {
           stage: [{ whenState: "isDragging", then: { cursor: "grabbing" } }],
         },
       });
-
-      layout = new ForceSupervisor(graph, {
-        settings: { repulsion: 0.2, attraction: 0.0002 },
-        isNodeFixed: (node) => renderer?.getNodeState(node).isDragged ?? false,
-      });
-      renderer.on("nodeDragStart", () => {
-        window.clearTimeout(layoutStopTimer);
-        layout?.start();
-      });
-      renderer.on("nodeDragEnd", stopLayoutSoon);
-      layout.start();
-      stopLayoutSoon();
-    } catch (error) {
-      console.error("Could not load the Synology graph", error);
-    } finally {
+      const timeToFirstRenderMs = Math.round(performance.now() - initializationStartedAt);
       container.setAttribute("aria-busy", "false");
+      container.dataset.firstRenderMs = String(timeToFirstRenderMs);
+      status.hidden = true;
+      console.info("Restaurant inspection graph rendered", {
+        ...message.aggregationStats,
+        ...message.similarityStats,
+        parseErrorCount: message.parseErrorCount,
+        compressedBytes: message.compressedBytes,
+        processingMs: message.processingMs,
+        scoringMs: message.scoringMs,
+        timeToFirstRenderMs,
+      });
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "Graph rendering failed.");
+    }
+  }
+
+  function loadRestaurantGraph() {
+    if (!container || !status || initialized) return;
+    initialized = true;
+    status.textContent = "Loading restaurant inspection data…";
+
+    try {
+      dataWorker = new Worker(new URL("../../workers/inspection-graph.worker.ts", import.meta.url), { type: "module" });
+      dataWorker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+        const message = event.data;
+        if (message.type === "progress") {
+          updateProgress(message);
+          return;
+        }
+        if (message.type === "error") {
+          showError(message.message);
+          return;
+        }
+        void createGraph(message);
+        dataWorker?.terminate();
+        dataWorker = undefined;
+      };
+      dataWorker.onerror = (event) => showError(event.message);
+      const csvUrl = new URL("/playground/synology/inspection-data.csv.gz", window.location.href).href;
+      dataWorker.postMessage({ csvUrl });
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "The graph worker could not start.");
     }
   }
 
   if ("requestIdleCallback" in window) {
-    window.requestIdleCallback(() => void renderGraph(), { timeout: 1000 });
+    window.requestIdleCallback(loadRestaurantGraph, { timeout: 1000 });
   } else {
-    setTimeout(() => void renderGraph(), 0);
+    setTimeout(loadRestaurantGraph, 0);
   }
 
   window.addEventListener("pagehide", () => {
-    window.clearTimeout(layoutStopTimer);
-    layout?.kill();
+    dataWorker?.terminate();
     renderer?.kill();
   }, { once: true });
 </script>

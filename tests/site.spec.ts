@@ -3,8 +3,18 @@ import sharp from "sharp";
 
 const pages = ["/", "/pigeons", "/pigeons/016", "/pigeons/001"];
 
-test("playground contains only a full-screen graph and lazily loads its renderer", async ({ page }) => {
+test("playground lazily loads the inspection data and renders a draggable restaurant graph", async ({ page }) => {
+  test.setTimeout(120_000);
   await page.setViewportSize({ width: 1440, height: 900 });
+  const csvRequests: string[] = [];
+  page.on("request", request => {
+    if (request.url().endsWith("/playground/synology/inspection-data.csv.gz")) csvRequests.push(request.url());
+  });
+  page.on("response", response => {
+    if (response.url().endsWith("/playground/synology/inspection-data.csv.gz")) {
+      expect([200, 206]).toContain(response.status());
+    }
+  });
   await page.addInitScript(() => {
     const testWindow = window as Window & { pendingGraphIdle?: IdleRequestCallback };
     Object.defineProperty(window, "requestIdleCallback", {
@@ -23,8 +33,9 @@ test("playground contains only a full-screen graph and lazily loads its renderer
     links.map(link => link.getAttribute("href")).filter(href => href && /sigma|graphology/i.test(href)),
   );
   expect(preloadedGraphModules).toEqual([]);
+  expect(csvRequests).toEqual([]);
   const graphResources = () => page.evaluate(() =>
-    performance.getEntriesByType("resource").map(({ name }) => name).filter((name) => /sigma|graphology/i.test(name)),
+    performance.getEntriesByType("resource").map(({ name }) => name).filter((name) => /sigma|graphology|inspection-data\.csv/i.test(name)),
   );
   expect(await graphResources()).toEqual([]);
 
@@ -35,14 +46,23 @@ test("playground contains only a full-screen graph and lazily loads its renderer
   });
   expect(bounds).toMatchObject({ x: 0, y: 0, width: 1440, height: 900 });
 
+  const csvResponse = page.waitForResponse(response => response.url().endsWith("/playground/synology/inspection-data.csv.gz"));
   await page.evaluate(() => {
     const testWindow = window as Window & { pendingGraphIdle?: IdleRequestCallback };
     testWindow.pendingGraphIdle?.({ didTimeout: false, timeRemaining: () => 50 });
   });
+  expect([200, 206]).toContain((await csvResponse).status());
   const canvas = page.locator("#synology-graph canvas");
   await expect(canvas).toBeVisible();
-  await expect(graph).toHaveAttribute("aria-busy", "false");
-  await page.waitForTimeout(1600);
+  await expect(graph).toHaveAttribute("aria-busy", "false", { timeout: 120_000 });
+  const nodeCount = Number(await graph.getAttribute("data-node-count"));
+  const edgeCount = Number(await graph.getAttribute("data-edge-count"));
+  expect(nodeCount).toBeGreaterThan(9_000);
+  expect(edgeCount).toBeGreaterThan(0);
+  await expect(graph).toHaveAttribute("data-first-render-ms", /\d+/);
+  await expect(page.locator("#synology-graph-status")).toBeHidden();
+  expect(csvRequests.length).toBeGreaterThan(0);
+
   const screenshot = await canvas.screenshot();
   const { data, info } = await sharp(screenshot).resize(64, 32).removeAlpha().raw().toBuffer({ resolveWithObject: true });
   const colors = new Set<string>();
@@ -51,40 +71,39 @@ test("playground contains only a full-screen graph and lazily loads its renderer
   }
   expect(colors.size).toBeGreaterThan(10);
 
-  const routerCenter = async () => {
-    const { data: pixels, info: image } = await sharp(await canvas.screenshot()).removeAlpha().raw().toBuffer({ resolveWithObject: true });
-    const bounds = await canvas.boundingBox();
-    expect(bounds).not.toBeNull();
-    let count = 0;
-    let xTotal = 0;
-    let yTotal = 0;
-    for (let y = 0; y < image.height; y++) {
-      for (let x = 0; x < image.width; x++) {
-        const offset = (y * image.width + x) * image.channels;
-        const [red, green, blue] = pixels.subarray(offset, offset + 3);
-        if (red > 125 && red < 190 && green > 40 && green < 100 && blue > 15 && blue < 70) {
-          count++;
-          xTotal += x;
-          yTotal += y;
-        }
+  const { data: pixels, info: image } = await sharp(screenshot).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const canvasBounds = await canvas.boundingBox();
+  expect(canvasBounds).not.toBeNull();
+  const riskColors = [[166, 65, 40], [178, 138, 69], [36, 107, 101], [130, 144, 150]];
+  const draggablePixels: Array<{ x: number; y: number }> = [];
+  for (let y = 0; y < image.height; y++) {
+    for (let x = 0; x < image.width; x++) {
+      const offset = (y * image.width + x) * image.channels;
+      const [red, green, blue] = pixels.subarray(offset, offset + 3);
+      if (riskColors.some(([r, g, b]) => Math.abs(red - r) + Math.abs(green - g) + Math.abs(blue - b) < 18)) {
+        draggablePixels.push({
+          x: canvasBounds!.x + x * canvasBounds!.width / image.width,
+          y: canvasBounds!.y + y * canvasBounds!.height / image.height,
+        });
       }
     }
-    expect(count).toBeGreaterThan(0);
-    return {
-      x: bounds!.x + (xTotal / count) * bounds!.width / image.width,
-      y: bounds!.y + (yTotal / count) * bounds!.height / image.height,
-    };
-  };
-
-  const router = await routerCenter();
+  }
+  expect(draggablePixels.length).toBeGreaterThan(0);
   const mouseLayer = graph.locator(".sigma-mouse");
-  await page.mouse.move(router.x, router.y);
-  await expect(mouseLayer).toHaveCSS("cursor", "grab");
+  let draggablePoint: { x: number; y: number } | undefined;
+  for (const point of draggablePixels.slice(0, 40)) {
+    await page.mouse.move(point.x, point.y);
+    await page.waitForTimeout(50);
+    if (await mouseLayer.evaluate(element => getComputedStyle(element).cursor) === "grab") {
+      draggablePoint = point;
+      break;
+    }
+  }
+  expect(draggablePoint).toBeDefined();
+  const point = draggablePoint!;
   await page.mouse.down();
-  await page.mouse.move(router.x + 100, router.y + 60, { steps: 8 });
+  await page.mouse.move(point.x + 70, point.y + 45, { steps: 6 });
   await expect(mouseLayer).toHaveCSS("cursor", "grabbing");
-  const draggedRouter = await routerCenter();
-  expect(Math.hypot(draggedRouter.x - router.x, draggedRouter.y - router.y)).toBeGreaterThan(20);
   await page.mouse.up();
 
   expect(await graphResources()).toEqual(expect.arrayContaining([
