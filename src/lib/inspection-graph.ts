@@ -1,5 +1,5 @@
 import {
-  buildInspectionProfile, isScoredViolation, otherTopic, PROFILE_YEARS, yearsBefore,
+  buildInspectionProfile, otherTopic, PROFILE_YEARS, yearsBefore,
   type InspectionFeature, type InspectionProfile,
 } from "./inspection-features";
 
@@ -317,39 +317,46 @@ export function latestDataDate(restaurants: Restaurant[]): string {
   }, "");
 }
 
-export function selectRelevantRestaurants(restaurants: Restaurant[], limit = 1800): Restaurant[] {
-  const snapshot = latestDataDate(restaurants);
-  if (!snapshot) return [];
-  const activeCutoff = yearsBefore(snapshot, 1);
-  const evidenceCutoff = yearsBefore(snapshot, PROFILE_YEARS);
+export const INSPECTION_NODE_LIMIT = 2_000;
 
-  const ranked = restaurants
-    .map((restaurant) => ({ restaurant, latest: latestInspectionDate(restaurant) }))
-    .filter(({ latest }) => latest >= activeCutoff)
-    .map((entry) => {
-      const recent = entry.restaurant.inspections.filter(({ date }) => date !== "Unknown" && date >= evidenceCutoff);
-      return {
-        ...entry,
-        dates: recent.length,
-        datesWithViolations: recent.filter(({ violations }) =>
-          violations.some(isScoredViolation)).length,
-      };
+export function profileBusinesses(restaurants: Restaurant[], referenceDate = latestDataDate(restaurants)): GraphNode[] {
+  if (!referenceDate) return [];
+  const cutoff = yearsBefore(referenceDate, PROFILE_YEARS);
+  return restaurants
+    .filter(restaurant => latestInspectionDate(restaurant) >= cutoff)
+    .map(restaurant => {
+      const profile = buildInspectionProfile(restaurant, referenceDate);
+      return { ...restaurant, id: restaurant.businessId, profile, topic: profile.topics[0]?.id ?? otherTopic.id };
     })
-    .filter(({ datesWithViolations }) => datesWithViolations > 0)
-    .sort((a, b) => b.dates - a.dates || compareStrings(b.latest, a.latest) ||
-      compareStrings(a.restaurant.businessId, b.restaurant.businessId));
+    .filter(({ profile }) => profile.findings.length > 0);
+}
 
-  const byPreparation = Map.groupBy(ranked, ({ restaurant }) => restaurant.riskCategory);
-  const target = Math.min(limit, ranked.length);
-  const selected: Restaurant[] = [];
-  let includedInQuota = 0;
-  // Round cumulative quotas so the groups add up to the cap.
-  for (const group of byPreparation.values()) {
-    includedInQuota += group.length;
-    const count = Math.round(includedInQuota * target / ranked.length) - selected.length;
-    selected.push(...group.slice(0, count).map(({ restaurant }) => restaurant));
+export function selectRelevantRestaurants(
+  matchingBusinesses: GraphNode[],
+  referenceDate: string,
+  limit = INSPECTION_NODE_LIMIT,
+): GraphNode[] {
+  if (matchingBusinesses.length <= limit) return matchingBusinesses;
+  const activeCutoff = yearsBefore(referenceDate, 1);
+  const ranked = matchingBusinesses.map(restaurant => ({ restaurant, latest: latestInspectionDate(restaurant) }))
+    .sort((a, b) => b.restaurant.profile.dateCount - a.restaurant.profile.dateCount ||
+      compareStrings(b.latest, a.latest) || compareStrings(a.restaurant.id, b.restaurant.id));
+  const byRecency = Map.groupBy(ranked, ({ latest }) => latest >= activeCutoff);
+  const selected: GraphNode[] = [];
+
+  for (const active of [true, false]) {
+    const cohort = byRecency.get(active) ?? [];
+    const seats = Math.min(cohort.length, limit - selected.length);
+    if (!seats) continue;
+    const initialCount = selected.length;
+    let included = 0;
+    for (const group of Map.groupBy(cohort, ({ restaurant }) => restaurant.riskCategory).values()) {
+      included += group.length;
+      const count = Math.round(included * seats / cohort.length) - (selected.length - initialCount);
+      selected.push(...group.slice(0, count).map(({ restaurant }) => restaurant));
+    }
   }
-  return selected.sort((a, b) => compareStrings(a.businessId, b.businessId));
+  return selected.sort((a, b) => compareStrings(a.id, b.id));
 }
 
 type FeatureKind = "topics" | "findings";
@@ -388,7 +395,10 @@ export function createInspectionPairScorer(nodes: GraphNode[]) {
   const topics = indexFeatures(profiles, "topics");
   const findings = indexFeatures(profiles, "findings");
 
-  return (source: number, target: number) => {
+  const indices = new Map(nodes.map(({ id }, index) => [id, index]));
+  return (sourceId: string, targetId: string) => {
+    const source = indices.get(sourceId)!;
+    const target = indices.get(targetId)!;
     function score(kind: FeatureKind) {
       const { index, totals } = kind === "topics" ? topics : findings;
       let shared = 0;
@@ -404,12 +414,11 @@ export function createInspectionPairScorer(nodes: GraphNode[]) {
 }
 
 export function buildSimilarityGraph(
-  restaurants: Restaurant[],
-  { threshold = DEFAULT_SIMILARITY_THRESHOLD, neighborLimit = DEFAULT_NEIGHBOR_LIMIT,
-    referenceDate = latestDataDate(restaurants), onProgress }:
-    { threshold?: number; neighborLimit?: number; referenceDate?: string; onProgress?: (pairs: number) => void } = {},
-): { nodes: GraphNode[]; edges: SimilarityEdge[]; stats: SimilarityStats } {
-  const profiles = restaurants.map(restaurant => buildInspectionProfile(restaurant, referenceDate));
+  nodes: GraphNode[],
+  { threshold = DEFAULT_SIMILARITY_THRESHOLD, neighborLimit = DEFAULT_NEIGHBOR_LIMIT, onProgress }:
+    { threshold?: number; neighborLimit?: number; onProgress?: (pairs: number) => void } = {},
+): { edges: SimilarityEdge[]; stats: SimilarityStats } {
+  const profiles = nodes.map(({ profile }) => profile);
   const topics = indexFeatures(profiles, "topics");
   const findings = indexFeatures(profiles, "findings");
   const topNeighbors = profiles.map(() => [] as Array<{ neighbor: number; score: number }>);
@@ -464,23 +473,17 @@ export function buildSimilarityGraph(
   }
 
   const edges: SimilarityEdge[] = [];
-  const degrees = new Uint8Array(restaurants.length);
+  const degrees = new Uint8Array(nodes.length);
   for (const [source, neighbors] of topNeighbors.entries()) {
     for (const { neighbor: target, score } of neighbors) {
       if (source >= target || !topNeighbors[target].some(({ neighbor }) => neighbor === source)) continue;
-      edges.push({ source: String(source), target: String(target), score });
+      edges.push({ source: nodes[source].id, target: nodes[target].id, score });
       degrees[source]++;
       degrees[target]++;
     }
   }
 
-  const primaryTopics = profiles.map(profile => profile.topics[0]?.id ?? otherTopic.id);
-  const nodes = restaurants.map((restaurant, index) => ({
-    ...restaurant, id: String(index), topic: primaryTopics[index], profile: profiles[index],
-  }));
-
   return {
-    nodes,
     edges,
     stats: {
       candidatePairsScored,

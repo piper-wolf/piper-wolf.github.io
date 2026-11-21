@@ -1,6 +1,6 @@
 ---
 import { inspectionTopics } from "../../lib/inspection-features";
-import { findingPatterns, preparationCategories } from "../../lib/inspection-view";
+import { DEFAULT_INSPECTION_CITY, findingPatterns, preparationCategories } from "../../lib/inspection-view";
 ---
 
 <dialog id="inspection-settings" aria-labelledby="inspection-settings-title">
@@ -30,6 +30,7 @@ import { findingPatterns, preparationCategories } from "../../lib/inspection-vie
         City
         <select name="city">
           <option value="">All cities</option>
+          <option value={DEFAULT_INSPECTION_CITY} selected>Seattle</option>
         </select>
       </label>
       <label>

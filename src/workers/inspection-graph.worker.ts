@@ -1,9 +1,21 @@
 import Papa from "papaparse";
-import { buildSimilarityGraph, InspectionAggregator, latestDataDate, selectRelevantRestaurants, type InspectionCsvRow } from "../lib/inspection-graph";
-
+import {
+  buildSimilarityGraph, InspectionAggregator, latestDataDate, profileBusinesses, selectRelevantRestaurants,
+  type GraphNode, type InspectionCsvRow, type SimilarityEdge,
+} from "../lib/inspection-graph";
 import { layoutBySimilarity } from "../lib/inspection-layout";
+import { defaultInspectionFilters, filterBusinesses, type GraphPosition, type InspectionFilters } from "../lib/inspection-view";
 
-type WorkerRequest = { csvUrl: string };
+export type WorkerRequest =
+  | { type: "load"; csvUrl: string }
+  | { type: "filter"; requestId: number; filters: InspectionFilters };
+
+interface InspectionView {
+  nodes: GraphNode[];
+  edges: SimilarityEdge[];
+  matchingCount: number;
+}
+
 type WorkerProgress = {
   type: "progress";
   phase: "reading" | "scoring" | "layout";
@@ -11,23 +23,19 @@ type WorkerProgress = {
   restaurantCount?: number;
   candidatePairsScored?: number;
 };
-export type WorkerResult = WorkerProgress | {
-  type: "ready";
-  nodes: ReturnType<typeof buildSimilarityGraph>["nodes"];
-  edges: ReturnType<typeof buildSimilarityGraph>["edges"];
-  positions: ReturnType<typeof layoutBySimilarity>;
-  aggregationStats: ReturnType<InspectionAggregator["finish"]>["stats"];
-  similarityStats: ReturnType<typeof buildSimilarityGraph>["stats"];
-  parseErrorCount: number;
-  compressedBytes: number;
-  processingMs: number;
-  scoringMs: number;
-} | { type: "error"; message: string };
+
+export type WorkerResult = WorkerProgress
+  | (InspectionView & { type: "ready"; cities: string[]; positions: Map<string, GraphPosition> })
+  | (InspectionView & { type: "filtered"; requestId: number })
+  | { type: "error"; message: string; requestId?: number };
 
 const workerScope = self as unknown as {
   onmessage: ((event: MessageEvent<WorkerRequest>) => void) | null;
   postMessage: (message: WorkerResult) => void;
 };
+
+let eligibleBusinesses: GraphNode[] = [];
+let referenceDate = "";
 
 async function readCsvResponse(response: Response): Promise<string> {
   if (!response.body) throw new Error("Inspection data response has no body.");
@@ -35,7 +43,7 @@ async function readCsvResponse(response: Response): Promise<string> {
   const reader = response.body.getReader();
   const firstChunk = await reader.read();
   const firstBytes = firstChunk.value ?? new Uint8Array(0);
-  const isGzip = firstBytes?.[0] === 0x1f && firstBytes[1] === 0x8b;
+  const isGzip = firstBytes[0] === 0x1f && firstBytes[1] === 0x8b;
   const source = new ReadableStream<Uint8Array>({
     start(controller) {
       if (firstChunk.done) controller.close();
@@ -54,91 +62,59 @@ async function readCsvResponse(response: Response): Promise<string> {
   // Fetch transparently decodes Content-Encoding: gzip. Some static hosts serve
   // the .gz asset as a file instead, so inspect its first bytes before decoding.
   const gzipTransform = new DecompressionStream("gzip") as unknown as TransformStream<Uint8Array, Uint8Array>;
-  const decoded = isGzip ? source.pipeThrough(gzipTransform) : source;
-  return new Response(decoded).text();
+  return new Response(isGzip ? source.pipeThrough(gzipTransform) : source).text();
 }
 
-async function loadInspectionData(data: WorkerRequest) {
-  const startedAt = performance.now();
-  const aggregator = new InspectionAggregator();
-  let parseErrorCount = 0;
-  let rowCount = 0;
+function buildView(filters: InspectionFilters, rowCount?: number): InspectionView {
+  const matches = filterBusinesses(eligibleBusinesses, filters);
+  const nodes = selectRelevantRestaurants(matches, referenceDate);
 
+  if (rowCount !== undefined) {
+    workerScope.postMessage({ type: "progress", phase: "scoring", rowCount, restaurantCount: nodes.length });
+  }
+  const { edges } = buildSimilarityGraph(nodes, {
+    onProgress(candidatePairsScored) {
+      if (rowCount !== undefined) workerScope.postMessage({
+        type: "progress", phase: "scoring", rowCount, restaurantCount: nodes.length, candidatePairsScored,
+      });
+    },
+  });
+  return { nodes, edges, matchingCount: matches.length };
+}
+
+async function loadInspectionData(csvUrl: string) {
   try {
-    const response = await fetch(data.csvUrl);
+    const response = await fetch(csvUrl);
     if (!response.ok) throw new Error(`Inspection data request failed (${response.status}).`);
-    const compressedBytes = Number(response.headers.get("content-length")) || 0;
     const csvText = await readCsvResponse(response);
+    const aggregator = new InspectionAggregator();
+    let rowCount = 0;
 
-    Papa.parse<InspectionCsvRow>(csvText, {
-      chunkSize: 5 * 1024 * 1024,
-    header: true,
-    skipEmptyLines: "greedy",
-    chunk(results: Papa.ParseResult<InspectionCsvRow>) {
-      parseErrorCount += results.errors.length;
-      for (const row of results.data) {
-        aggregator.addRow(row);
-        rowCount++;
-      }
-      workerScope.postMessage({
-        type: "progress",
-        phase: "reading",
-        rowCount,
+    await new Promise<void>((resolve, reject) => {
+      Papa.parse<InspectionCsvRow>(csvText, {
+        chunkSize: 5 * 1024 * 1024,
+        header: true,
+        skipEmptyLines: "greedy",
+        chunk(results: Papa.ParseResult<InspectionCsvRow>) {
+          for (const row of results.data) {
+            aggregator.addRow(row);
+            rowCount++;
+          }
+          workerScope.postMessage({ type: "progress", phase: "reading", rowCount });
+        },
+        complete: () => resolve(),
+        error: reject,
       });
-    },
-    complete() {
-      try {
-        const processed = aggregator.finish();
-        const restaurants = selectRelevantRestaurants(processed.restaurants);
-        const processingMs = performance.now() - startedAt;
-        const scoringStartedAt = performance.now();
-        workerScope.postMessage({
-          type: "progress",
-          phase: "scoring",
-          rowCount: processed.stats.rowCount,
-          restaurantCount: restaurants.length,
-        });
-        const graph = buildSimilarityGraph(restaurants, {
-          referenceDate: latestDataDate(processed.restaurants),
-          onProgress(candidatePairsScored) {
-            workerScope.postMessage({
-              type: "progress",
-              phase: "scoring",
-              rowCount: processed.stats.rowCount,
-              restaurantCount: restaurants.length,
-              candidatePairsScored,
-            });
-          },
-        });
-        const scoringMs = Math.round(performance.now() - scoringStartedAt);
-        workerScope.postMessage({ type: "progress", phase: "layout", rowCount });
-        const positions = layoutBySimilarity(graph.nodes, graph.edges);
-        workerScope.postMessage({
-          type: "ready",
-          nodes: graph.nodes,
-          edges: graph.edges,
-          positions,
-          aggregationStats: processed.stats,
-          similarityStats: graph.stats,
-          parseErrorCount,
-          compressedBytes,
-          processingMs: Math.round(processingMs),
-          scoringMs,
-        });
-      } catch (error) {
-        workerScope.postMessage({
-          type: "error",
-          message: error instanceof Error ? error.message : "Could not build the restaurant graph.",
-        });
-      }
-    },
-    error(error: Error) {
-      workerScope.postMessage({
-        type: "error",
-        message: error.message || "Could not load the inspection CSV.",
-      });
-    },
     });
+
+    const { restaurants } = aggregator.finish();
+    referenceDate = latestDataDate(restaurants);
+    eligibleBusinesses = profileBusinesses(restaurants, referenceDate);
+    const cities = [...new Set(eligibleBusinesses.map(({ city }) => city.toUpperCase()).filter(Boolean))];
+    const view = buildView(defaultInspectionFilters, rowCount);
+    workerScope.postMessage({ type: "progress", phase: "layout", rowCount });
+    const positions = layoutBySimilarity(view.nodes, view.edges);
+    workerScope.postMessage({ type: "ready", ...view, cities, positions });
   } catch (error) {
     workerScope.postMessage({
       type: "error",
@@ -147,4 +123,17 @@ async function loadInspectionData(data: WorkerRequest) {
   }
 }
 
-workerScope.onmessage = ({ data }) => void loadInspectionData(data);
+workerScope.onmessage = ({ data }) => {
+  if (data.type === "load") {
+    void loadInspectionData(data.csvUrl);
+    return;
+  }
+  try {
+    workerScope.postMessage({ type: "filtered", requestId: data.requestId, ...buildView(data.filters) });
+  } catch (error) {
+    workerScope.postMessage({
+      type: "error", requestId: data.requestId,
+      message: error instanceof Error ? error.message : "Could not filter the inspection data.",
+    });
+  }
+};

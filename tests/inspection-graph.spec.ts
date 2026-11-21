@@ -2,7 +2,7 @@ import { expect, test } from "./helpers/browser";
 import { sharedInspectionFeatures } from "../src/lib/inspection-features";
 import { filterBusinesses } from "../src/lib/inspection-view";
 import { layoutFilteredBusinesses } from "../src/lib/inspection-layout";
-import { buildSimilarityGraph, createInspectionPairScorer, InspectionAggregator, parseViolationDescription, type Restaurant } from "../src/lib/inspection-graph";
+import { buildSimilarityGraph, createInspectionPairScorer, InspectionAggregator, parseViolationDescription, profileBusinesses, selectRelevantRestaurants, type Restaurant } from "../src/lib/inspection-graph";
 
 test("inspection transforms keep separate businesses and preserve their most recent details", async () => {
   expect(parseViolationDescription("0600 - Cold holding - food prep area")).toEqual({
@@ -73,14 +73,15 @@ test("similarity connects recurring topics and the comparison intersects every p
     restaurant("G", "2", [day("2026-07-01", gloves)]),
   ];
 
-  const { nodes, edges } = buildSimilarityGraph(restaurants);
+  const nodes = profileBusinesses(restaurants);
+  const { edges } = buildSimilarityGraph(nodes);
   expect(nodes.map(({ topic }) => topic)).toEqual(["cold", "cold", "cold", "sanitation", "hygiene", "hygiene", "hygiene"]);
   expect(nodes[0].profile).toMatchObject({
     dateCount: 2,
     topics: [{ id: "cold", dates: 2, criticalDates: 2 }, { id: "sanitation", dates: 1, criticalDates: 0 }],
   });
   expect(nodes[3].profile.findings.map(({ id }) => id)).toEqual(["3400"]);
-  expect(edges.map(({ source, target }) => [source, target])).toEqual([["0", "1"], ["0", "2"], ["1", "2"], ["4", "5"]]);
+  expect(edges.map(({ source, target }) => [source, target])).toEqual([["A", "B"], ["A", "C"], ["B", "C"], ["E", "F"]]);
   expect(edges[0].score).toBeCloseTo(1);
   expect(edges[1].score).toBeLessThan(1);
 
@@ -98,9 +99,9 @@ test("similarity connects recurring topics and the comparison intersects every p
     { id: "hygiene", label: "Handwashing & hygiene", dates: [2, 2] },
   ]);
   const scorePair = createInspectionPairScorer(nodes);
-  expect(scorePair(0, 2)).toBeCloseTo(edges[1].score);
-  expect(scorePair(0, 3)).toBeGreaterThan(0);
-  expect(scorePair(0, 4)).toBe(0);
+  expect(scorePair("A", "C")).toBeCloseTo(edges[1].score);
+  expect(scorePair("A", "D")).toBeGreaterThan(0);
+  expect(scorePair("A", "E")).toBe(0);
 
   const filters = { query: "", city: "", preparation: "", topic: "", pattern: "" };
   expect(filterBusinesses(nodes, { ...filters, topic: "sanitation" }).map(({ name }) => name)).toEqual(["A", "B", "D"]);
@@ -108,17 +109,30 @@ test("similarity connects recurring topics and the comparison intersects every p
   expect(filterBusinesses(nodes, { ...filters, preparation: "2", topic: "hygiene", pattern: "repeated-critical" })
     .map(({ name }) => name)).toEqual(["E", "F"]);
   const positions = layoutFilteredBusinesses([{
-    nodes: [{ id: "0", x: -90, y: 0 }, { id: "1", x: 90, y: 0 }, { id: "3", x: -88, y: 3 }],
+    nodes: [{ id: "A", x: -90, y: 0 }, { id: "B", x: 90, y: 0 }, { id: "D", x: -88, y: 3 }],
     edges: [edges[0]],
     frame: { x: 300, y: -10, radius: 40 },
   }]);
-  const a = positions.get("0")!;
-  const b = positions.get("1")!;
-  const isolated = positions.get("3")!;
+  const a = positions.get("A")!;
+  const b = positions.get("B")!;
+  const isolated = positions.get("D")!;
   expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeLessThan(Math.hypot(a.x - isolated.x, a.y - isolated.y));
   for (const { x, y } of positions.values()) {
     expect(Math.abs(x - 300)).toBeLessThanOrEqual(40);
     expect(Math.abs(y + 10)).toBeLessThanOrEqual(40);
   }
-  expect(buildSimilarityGraph(restaurants, { neighborLimit: 1 }).edges).toHaveLength(2);
+  expect(buildSimilarityGraph(nodes, { neighborLimit: 1 }).edges).toHaveLength(2);
+
+  const snapshot = "2026-07-01";
+  const eligible = profileBusinesses([
+    restaurants[0],
+    restaurant("Older", "1", [day("2024-04-01", cold), day("2024-05-01", cold), day("2024-06-01", cold)]),
+    restaurant("Older with less evidence", "1", [day("2024-07-01", cold)]),
+    restaurant("Stale", "1", [day("2022-06-01", cold)]),
+    restaurant("Undated", "1", [day("Unknown", cold)]),
+    restaurant("No substantive findings", "1", [day("2026-07-01", none, posting)]),
+  ], snapshot);
+  expect(eligible.map(({ id }) => id)).toEqual(["A", "Older", "Older with less evidence"]);
+  expect(selectRelevantRestaurants(eligible, snapshot, 1).map(({ id }) => id)).toEqual(["A"]);
+  expect(selectRelevantRestaurants(eligible, snapshot, 2).map(({ id }) => id)).toEqual(["A", "Older"]);
 });

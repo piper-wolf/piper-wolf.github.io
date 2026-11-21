@@ -59,11 +59,13 @@ test("playground lazily loads the inspection data and renders an interactive res
   await expect(graph).toHaveAttribute("aria-busy", "false", { timeout: 120_000 });
   const nodeCount = Number(await graph.getAttribute("data-node-count"));
   const edgeCount = Number(await graph.getAttribute("data-edge-count"));
-  expect(nodeCount).toBe(1_800);
+  expect(nodeCount).toBe(2_000);
+  expect(Number(await graph.getAttribute("data-matching-node-count"))).toBeGreaterThan(nodeCount);
   expect(edgeCount).toBeGreaterThan(0);
   await expect(graph).toHaveAttribute("data-first-render-ms", /\d+/);
   await expect(page.locator("#synology-graph-status")).toBeHidden();
   expect(csvRequests.length).toBeGreaterThan(0);
+  const initialCsvRequests = csvRequests.length;
   const groupLabels = page.locator("#inspection-groups span");
   await expect(groupLabels).toHaveCount(0);
 
@@ -125,7 +127,7 @@ test("playground lazily loads the inspection data and renders an interactive res
     throw new Error(`Could not find a graph item with cursor ${cursor}`);
   }
 
-  await expect(legend).toContainText("1,800 businesses");
+  await expect(legend).toContainText("2,000 businesses");
   const point = await findGraphPoint(nodeColors, "grab");
   await page.mouse.click(point.x, point.y);
   const details = page.locator("#inspection-details");
@@ -178,20 +180,25 @@ test("playground lazily loads the inspection data and renders an interactive res
   await expect(settings).toBeVisible();
   await expect(details).toBeHidden();
   await expect(grouping).toHaveValue("");
-  await city.selectOption("SEATTLE");
-  const cityMatches = Number(await graph.getAttribute("data-visible-node-count"));
-  expect(cityMatches).toBeGreaterThan(0);
-  expect(cityMatches).toBeLessThan(nodeCount);
+  await expect(city).toHaveValue("SEATTLE");
+  await city.selectOption("BELLEVUE");
   await expect(graph).toHaveAttribute("aria-busy", "true");
   await expect(graph).toHaveAttribute("aria-busy", "false");
+  const cityMatches = Number(await graph.getAttribute("data-visible-node-count"));
+  expect(cityMatches).toBeGreaterThan(200);
+  expect(cityMatches).toBeLessThan(nodeCount);
+  await expect(graph).toHaveAttribute("data-matching-node-count", String(cityMatches));
+  const cityEdges = Number(await graph.getAttribute("data-visible-edge-count"));
   await topic.selectOption("hygiene");
   await pattern.selectOption("repeated-critical");
+  await expect(graph).toHaveAttribute("aria-busy", "false");
   const patternMatches = Number(await graph.getAttribute("data-visible-node-count"));
   expect(patternMatches).toBeGreaterThan(0);
   expect(patternMatches).toBeLessThan(cityMatches);
-  expect(Number(await graph.getAttribute("data-visible-edge-count"))).toBeLessThan(edgeCount);
+  expect(Number(await graph.getAttribute("data-visible-edge-count"))).toBeLessThan(cityEdges);
 
   await reset.click();
+  await expect(city).toHaveValue("SEATTLE");
   await query.fill("zzzzzz no matching business zzzzzz");
   await expect(graph).toHaveAttribute("data-visible-node-count", "0");
   await expect(graph).toHaveAttribute("data-visible-edge-count", "0");
@@ -211,11 +218,11 @@ test("playground lazily loads the inspection data and renders an interactive res
   await menu.click();
   await expect(details).toBeHidden();
   await grouping.selectOption("topic");
-  await expect(groupLabels).toHaveCount(inspectionTopics.length);
   await expect(graph).toHaveAttribute("aria-busy", "false");
-  await expect(page.locator("#inspection-groups span:visible")).toHaveCount(1);
+  await expect(groupLabels).toHaveCount(1);
   await reset.click();
   await expect(graph).toHaveAttribute("data-visible-node-count", String(nodeCount));
+  await expect(groupLabels).toHaveCount(inspectionTopics.length);
   await expect(grouping).toHaveValue("topic");
   await expect(groupLabels.filter({ hasText: "Cleaning & sanitizing" })).toBeVisible();
   await grouping.selectOption("preparation");
@@ -243,6 +250,7 @@ test("playground lazily loads the inspection data and renders an interactive res
   await page.mouse.up();
   await expect(details).toBeHidden();
 
+  expect(csvRequests).toHaveLength(initialCsvRequests);
   expect(await graphResources()).toEqual(expect.arrayContaining([
     expect.stringMatching(/sigma/i),
     expect.stringMatching(/graphology/i),

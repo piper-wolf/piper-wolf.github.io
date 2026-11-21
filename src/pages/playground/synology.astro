@@ -221,10 +221,12 @@ const structuredData = {
 </style>
 
 <script>
-  import { createInspectionPairScorer } from "../../lib/inspection-graph";
-  import { filterBusinesses, groupBusinesses, layoutBounds, type GraphPosition, type InspectionFilters, type InspectionGrouping } from "../../lib/inspection-view";
+  import { createInspectionPairScorer, INSPECTION_NODE_LIMIT } from "../../lib/inspection-graph";
+  import {
+    defaultInspectionFilters, groupBusinesses, layoutBounds, spiralPosition, type GraphPosition, type InspectionFilters, type InspectionGrouping,
+  } from "../../lib/inspection-view";
   import type { LayoutBatch, LayoutResult } from "../../lib/inspection-layout";
-  import type { WorkerResult } from "../../workers/inspection-graph.worker";
+  import type { WorkerRequest, WorkerResult } from "../../workers/inspection-graph.worker";
   import { inspectionTopics, otherTopic } from "../../lib/inspection-features";
   import type { FragmentLayer } from "sigma/rendering";
   import type { SigmaEventPayload } from "sigma/types";
@@ -246,12 +248,11 @@ const structuredData = {
   let leaving = false;
   let initialized = false;
   let filterFrame = 0;
+  let filterTimer = 0;
   let layoutFrame = 0;
-  let layoutTimer = 0;
   let layoutWorker: Worker | undefined;
 
   function cancelLayout() {
-    window.clearTimeout(layoutTimer);
     cancelAnimationFrame(layoutFrame);
     layoutWorker?.terminate();
     layoutWorker = undefined;
@@ -313,32 +314,61 @@ const structuredData = {
         [...inspectionTopics, otherTopic].map(topic => [topic.id, topic]),
       );
       const strongThreshold = Number(container.dataset.strongThreshold);
-      const nameCounts = new Map<string, number>();
-      for (const { name } of message.nodes) nameCounts.set(name, (nameCounts.get(name) ?? 0) + 1);
-      for (const node of message.nodes) {
-        const topic = topics.get(node.topic)!;
-        graph.addNode(node.id, {
-          label: nameCounts.get(node.name)! > 1 ? `${node.name} · ${[node.address, node.city].filter(Boolean).join(", ") || node.businessId}` : node.name,
-          ...message.positions.get(node.id)!,
-          viewOpacity: 1,
-          size: container.clientWidth < 600 ? 2.5 : 3.5,
-          color: topic.color,
-          outlineColor: topic.outline,
-        });
-      }
-      for (const edge of message.edges) {
-        const strong = edge.score >= strongThreshold;
-        graph.addUndirectedEdge(edge.source, edge.target, {
-          size: 1.15 + edge.score * 0.65,
-          color: color(strong ? "edge-strong" : "edge-regular"),
-          baseOpacity: strong ? 0.73 : 0.55,
-          matchOpacity: strong ? 0.73 : 0.55,
-          viewOpacity: 1,
-        });
+      const worldBounds = layoutBounds(message.positions.values()) ?? layoutBounds([{ x: -100, y: -100 }, { x: 100, y: 100 }])!;
+      const worldCenter = { x: (worldBounds.x[0] + worldBounds.x[1]) / 2, y: (worldBounds.y[0] + worldBounds.y[1]) / 2 };
+      const worldRadius = Math.max(1, Math.min(worldBounds.x[1] - worldBounds.x[0], worldBounds.y[1] - worldBounds.y[0]) / 2);
+
+      type GraphView = Extract<WorkerResult, { type: "ready" | "filtered" }>;
+      let view: GraphView = message;
+      let businesses = new Map(message.nodes.map(node => [node.id, node]));
+      let visibleNodes = new Set(businesses.keys());
+
+      function mergeGraph(view: GraphView) {
+        const nameCounts = new Map<string, number>();
+        for (const { name } of view.nodes) nameCounts.set(name, (nameCounts.get(name) ?? 0) + 1);
+        for (const [index, node] of view.nodes.entries()) {
+          const topic = topics.get(node.topic)!;
+          const label = nameCounts.get(node.name)! > 1
+            ? `${node.name} · ${[node.address, node.city].filter(Boolean).join(", ") || node.businessId}`
+            : node.name;
+          if (graph.hasNode(node.id)) {
+            if (graph.getNodeAttribute(node.id, "label") !== label) graph.setNodeAttribute(node.id, "label", label);
+            continue;
+          }
+          const offset = spiralPosition(index, worldRadius / Math.sqrt(INSPECTION_NODE_LIMIT));
+          const position = message.positions.get(node.id) ?? { x: worldCenter.x + offset.x, y: worldCenter.y + offset.y };
+          graph.addNode(node.id, {
+            label,
+            ...position,
+            viewOpacity: view.type === "ready" ? 1 : 0,
+            size: container!.clientWidth < 600 ? 2.5 : 3.5,
+            color: topic.color,
+            outlineColor: topic.outline,
+          });
+        }
+
+        const keys = new Set<string>();
+        for (const { source, target, score } of view.edges) {
+          const strong = score >= strongThreshold;
+          const matchOpacity = strong ? 0.73 : 0.55;
+          const attributes = {
+            size: 1.15 + score * 0.65,
+            color: color(strong ? "edge-strong" : "edge-regular"),
+            baseOpacity: matchOpacity,
+            matchOpacity,
+          };
+          const edge = graph.edge(source, target);
+          if (edge !== undefined) {
+            graph.mergeEdgeAttributes(edge, attributes);
+            keys.add(edge);
+          } else {
+            keys.add(graph.addUndirectedEdge(source, target, { ...attributes, viewOpacity: view.type === "ready" ? 1 : 0 }));
+          }
+        }
+        return keys;
       }
 
-      container.dataset.nodeCount = String(graph.order);
-      container.dataset.edgeCount = String(graph.size);
+      let visibleEdges = mergeGraph(message);
       const sigma = new Sigma(graph, container, {
         settings: {
           enableNodeDrag: true,
@@ -391,50 +421,52 @@ const structuredData = {
         },
       });
       renderer = sigma;
-      const edgeKeys = graph.edges();
-      const nodeKeys = graph.nodes();
-      let visibleNodes = new Set(nodeKeys);
-      let visibleEdges = new Set(edgeKeys);
       let grouping: InspectionGrouping = "";
+      let groupedPositions = new Map<string, GraphPosition>();
       let groupById = new Map<string, string>();
-      let basePositions = message.positions;
       const draggedDuringLayout = new Set<string>();
-      let visibleGroups = new Set<string | undefined>();
-      let headings: Array<GraphPosition & { id: string; label: HTMLElement }> = [];
+      let headings: Array<GraphPosition & { label: HTMLElement }> = [];
 
-      function positionHeadings() {
-        for (const { id, label, x, y } of headings) {
+      sigma.on("afterRender", () => {
+        for (const { label, x, y } of headings) {
           const point = sigma.graphToViewport({ x, y });
-          label.hidden = !visibleGroups.has(id) || sigma.getCamera().ratio < 0.55;
+          label.hidden = sigma.getCamera().ratio < 0.55;
           label.style.left = `${Math.round(point.x)}px`;
           label.style.top = `${Math.round(point.y - 9)}px`;
         }
-      }
-      sigma.on("afterRender", positionHeadings);
+      });
+      sigma.setCustomBBox(worldBounds);
+      sigma.scheduleRefresh();
 
-      function updateGrouping(nextGrouping: InspectionGrouping) {
-        if (nextGrouping === grouping) return false;
-        grouping = nextGrouping;
-        const grouped = grouping ? groupBusinesses(message.nodes, message.edges, grouping) : null;
+      function updateGrouping() {
+        const grouped = grouping ? groupBusinesses(view.nodes, view.edges, grouping) : null;
+        const bounds = grouped && layoutBounds(grouped.positions.values());
         groupById = grouped?.groupById ?? new Map();
-        visibleGroups = new Set([...visibleNodes].map(id => groupById.get(id)));
-        basePositions = grouped?.positions ?? message.positions;
-        headings = (grouped?.headings ?? []).map(({ id, label: title, x, y }) => {
-          const label = document.createElement("span");
-          label.textContent = title;
-          if (grouping === "topic") label.style.setProperty("--topic-color", topics.get(id)!.color);
-          return { id, label, x, y };
-        });
+        groupedPositions = new Map();
+        headings = [];
+        if (grouped && bounds) {
+          const span = Math.max(1, bounds.x[1] - bounds.x[0], bounds.y[1] - bounds.y[0]);
+          const scale = worldRadius * 2 / span;
+          const centerX = (bounds.x[0] + bounds.x[1]) / 2;
+          const centerY = (bounds.y[0] + bounds.y[1]) / 2;
+          const place = ({ x, y }: GraphPosition) => ({
+            x: worldCenter.x + (x - centerX) * scale,
+            y: worldCenter.y + (y - centerY) * scale,
+          });
+          for (const [id, point] of grouped.positions) groupedPositions.set(id, place(point));
+          headings = grouped.headings.map(({ id, label: title, x, y }) => {
+            const label = document.createElement("span");
+            label.textContent = title;
+            if (grouping === "topic") label.style.setProperty("--topic-color", topics.get(id)!.color);
+            return { ...place({ x, y }), label };
+          });
+        }
         groupLabels?.replaceChildren(...headings.map(({ label }) => label));
-        graph.updateEachNodeAttributes((id, attributes) => ({ ...attributes, ...basePositions.get(id)! }), { attributes: ["x", "y"] });
-        graph.updateEachEdgeAttributes((_id, attributes, source, target) => {
+        graph.updateEachEdgeAttributes((id, attributes, source, target) => {
+          if (!visibleEdges.has(id)) return attributes;
           const crossesGroups = groupById.get(source) !== groupById.get(target);
           return { ...attributes, baseOpacity: crossesGroups ? 0.25 : attributes.matchOpacity };
         }, { attributes: ["baseOpacity"] });
-        sigma.setCustomBBox(grouped ? layoutBounds(basePositions.values()) : null);
-        sigma.getCamera().cancelAnimation().setState({ x: 0.5, y: 0.5, ratio: 1, angle: 0 });
-        sigma.scheduleRefresh();
-        return true;
       }
 
       function animatePositions(targets: Map<string, GraphPosition>) {
@@ -458,59 +490,54 @@ const structuredData = {
         else step(startedAt);
       }
 
-      function updateFilteredLayout(groupingChanged: boolean) {
+      function updateFilteredLayout() {
         cancelLayout();
         draggedDuringLayout.clear();
-        if (!visibleNodes.size || (groupingChanged && visibleNodes.size === graph.order)) {
+        if (!visibleNodes.size) {
           container!.setAttribute("aria-busy", "false");
           return;
         }
         container!.setAttribute("aria-busy", "true");
-        if (visibleNodes.size === graph.order) {
-          animatePositions(basePositions);
+        if (!grouping && visibleNodes.size === message.positions.size && [...visibleNodes].every(id => message.positions.has(id))) {
+          animatePositions(message.positions);
           return;
         }
 
-        layoutTimer = window.setTimeout(() => {
-          try {
-            const groupId = (id: string) => groupById.get(id) ?? "";
-            const nodesByGroup = Map.groupBy(nodeKeys, groupId);
-            const visibleByGroup = Map.groupBy(visibleNodes, groupId);
-            const edgesByGroup = Map.groupBy(
-              message.edges.filter(({ source, target }) => visibleNodes.has(source) && visibleNodes.has(target) &&
-                groupId(source) === groupId(target)),
-              ({ source }) => groupId(source),
-            );
-            const batches: LayoutBatch[] = [...visibleByGroup].map(([group, ids]) => {
-              const members = nodesByGroup.get(group)!;
-              const { x, y } = layoutBounds(members.map(id => basePositions.get(id)!))!;
-              const fraction = Math.max(0.22, Math.sqrt(ids.length / members.length));
-              const radius = Math.max(1, Math.min(x[1] - x[0], y[1] - y[0]) / 2) * fraction;
-              return {
-                nodes: ids.map(id => {
-                  const { x, y } = graph.getNodeAttributes(id);
-                  return { id, x, y };
-                }),
-                edges: edgesByGroup.get(group) ?? [],
-                frame: { x: (x[0] + x[1]) / 2, y: (y[0] + y[1]) / 2, radius },
-              };
-            });
-            const worker = new Worker(new URL("../../workers/inspection-layout.worker.ts", import.meta.url), { type: "module" });
-            layoutWorker = worker;
-            worker.onmessage = ({ data }: MessageEvent<LayoutResult>) => {
-              if (layoutWorker !== worker) return;
-              cancelLayout();
-              if ("positions" in data) animatePositions(data.positions);
-              else layoutFailed(data.error);
+        try {
+          const groupId = (id: string) => groupById.get(id) ?? "";
+          const visibleByGroup = Map.groupBy(visibleNodes, groupId);
+          const edgesByGroup = Map.groupBy(view.edges.filter(({ source, target }) => groupId(source) === groupId(target)),
+            ({ source }) => groupId(source));
+          const batches: LayoutBatch[] = [...visibleByGroup].map(([group, ids]) => {
+            let frame = { ...worldCenter, radius: worldRadius * Math.max(0.22, Math.sqrt(ids.length / INSPECTION_NODE_LIMIT)) };
+            if (grouping) {
+              const { x, y } = layoutBounds(ids.map(id => groupedPositions.get(id)!))!;
+              frame = { x: (x[0] + x[1]) / 2, y: (y[0] + y[1]) / 2, radius: Math.max(1, Math.max(x[1] - x[0], y[1] - y[0]) / 2) };
+            }
+            return {
+              nodes: ids.map(id => {
+                const { x, y } = graph.getNodeAttributes(id);
+                return { id, x, y };
+              }),
+              edges: edgesByGroup.get(group) ?? [],
+              frame,
             };
-            worker.onerror = event => {
-              if (layoutWorker === worker) layoutFailed(event.message);
-            };
-            worker.postMessage(batches);
-          } catch (error) {
-            layoutFailed(error instanceof Error ? error.message : String(error));
-          }
-        }, 100);
+          });
+          const worker = new Worker(new URL("../../workers/inspection-layout.worker.ts", import.meta.url), { type: "module" });
+          layoutWorker = worker;
+          worker.onmessage = ({ data }: MessageEvent<LayoutResult>) => {
+            if (layoutWorker !== worker) return;
+            cancelLayout();
+            if ("positions" in data) animatePositions(data.positions);
+            else layoutFailed(data.error);
+          };
+          worker.onerror = event => {
+            if (layoutWorker === worker) layoutFailed(event.message);
+          };
+          worker.postMessage(batches);
+        } catch (error) {
+          layoutFailed(error instanceof Error ? error.message : String(error));
+        }
       }
 
       function layoutFailed(message: string) {
@@ -522,26 +549,19 @@ const structuredData = {
       function reportVisibleCounts() {
         const count = `${visibleNodes.size.toLocaleString()} businesses · ${visibleEdges.size.toLocaleString()} links`;
         if (legendCount) legendCount.textContent = count;
-        if (settingsCount) settingsCount.textContent = `${visibleNodes.size.toLocaleString()} of ${graph.order.toLocaleString()} businesses shown`;
+        if (settingsCount) {
+          settingsCount.textContent = `${visibleNodes.size.toLocaleString()} of ${view.matchingCount.toLocaleString()} matching businesses shown`;
+        }
         if (empty) empty.hidden = visibleNodes.size > 0;
+        container!.dataset.nodeCount = String(visibleNodes.size);
+        container!.dataset.edgeCount = String(visibleEdges.size);
+        container!.dataset.matchingNodeCount = String(view.matchingCount);
         container!.dataset.visibleNodeCount = String(visibleNodes.size);
         container!.dataset.visibleEdgeCount = String(visibleEdges.size);
       }
 
-      function updateFilters(filters: InspectionFilters) {
-        const nextNodes = new Set(filterBusinesses(message.nodes, filters).map(({ id }) => id));
-        if (nextNodes.size === visibleNodes.size && [...nextNodes].every(id => visibleNodes.has(id))) return false;
-        visibleNodes = nextNodes;
-        visibleGroups = new Set([...visibleNodes].map(id => groupById.get(id)));
-        visibleEdges = new Set(edgeKeys.filter(id => graph.extremities(id).every(node => visibleNodes.has(node))));
-        reportVisibleCounts();
-        positionHeadings();
+      function animateVisibility() {
         cancelAnimationFrame(filterFrame);
-        const enteringNodes = [...visibleNodes].filter(id => sigma.getNodeState(id).isHidden);
-        const enteringEdges = [...visibleEdges].filter(id => sigma.getEdgeState(id).isHidden);
-        sigma.setNodesState(enteringNodes, { isHidden: false });
-        sigma.setEdgesState(enteringEdges, { isHidden: false });
-
         const nodeOpacity = new Map(graph.mapNodes((id, { viewOpacity }) => [id, viewOpacity]));
         const edgeOpacity = new Map(graph.mapEdges((id, { viewOpacity }) => [id, viewOpacity]));
         const startedAt = performance.now();
@@ -558,13 +578,12 @@ const structuredData = {
           if (progress < 1) {
             filterFrame = requestAnimationFrame(renderFade);
           } else {
-            sigma.setNodesState(nodeKeys.filter(id => !visibleNodes.has(id)), { isHidden: true });
-            sigma.setEdgesState(edgeKeys.filter(id => !visibleEdges.has(id)), { isHidden: true });
+            for (const id of graph.edges()) if (!visibleEdges.has(id)) graph.dropEdge(id);
+            for (const id of graph.nodes()) if (!visibleNodes.has(id)) graph.dropNode(id);
           }
         }
         if (duration) filterFrame = requestAnimationFrame(renderFade);
         else renderFade(startedAt);
-        return true;
       }
 
       let selectedNodes = new Set<string>();
@@ -585,12 +604,12 @@ const structuredData = {
         selectedNodes = nodes;
         highlightedEdges = nextEdges;
 
-        const restaurants = [...nodes].map(id => message.nodes[Number(id)]);
+        const restaurants = [...nodes].map(id => businesses.get(id)!);
         if (restaurants.length === 2) {
-          scorePair ??= createInspectionPairScorer(message.nodes);
+          scorePair ??= createInspectionPairScorer(view.nodes);
           const [first, second] = restaurants;
           renderInspectionDetails({
-            type: "pair", restaurants: [first, second], score: scorePair(Number(first.id), Number(second.id)),
+            type: "pair", restaurants: [first, second], score: scorePair(first.id, second.id),
           });
         } else if (restaurants.length > 2) {
           renderInspectionDetails({ type: "group", restaurants, remove: toggleNode });
@@ -648,18 +667,60 @@ const structuredData = {
       });
       if (settings && settingsButton && settingsForm) {
         const citySelect = settingsForm.querySelector<HTMLSelectElement>('select[name="city"]');
-        const cities = new Set(message.nodes.map(({ city }) => city.toUpperCase()).filter(Boolean));
-        for (const city of [...cities].sort((a, b) => a.localeCompare(b))) citySelect?.add(new Option(city, city));
+        for (const city of [...message.cities].sort((a, b) => a.localeCompare(b))) {
+          if (city !== defaultInspectionFilters.city) citySelect?.add(new Option(city, city));
+        }
+
+        let filters = defaultInspectionFilters;
+        let requestId = 0;
+        let pending = false;
+        dataWorker?.addEventListener("message", ({ data }: MessageEvent<WorkerResult>) => {
+          if ((data.type !== "filtered" && data.type !== "error") || data.requestId !== requestId) return;
+          pending = false;
+          if (data.type === "error") {
+            container!.setAttribute("aria-busy", "false");
+            if (settingsCount) settingsCount.textContent = "Filters could not be applied. Try changing a filter again.";
+            console.warn("Could not filter the inspection graph", data.message);
+            return;
+          }
+
+          view = data;
+          businesses = new Map(data.nodes.map(node => [node.id, node]));
+          visibleNodes = new Set(businesses.keys());
+          visibleEdges = mergeGraph(data);
+          sigma.refresh();
+          scorePair = undefined;
+          updateSelection(new Set([...selectedNodes].filter(id => visibleNodes.has(id))));
+          updateGrouping();
+          reportVisibleCounts();
+          animateVisibility();
+          updateFilteredLayout();
+        });
 
         function applySettings() {
           const form = new FormData(settingsForm!);
           const value = (name: string) => String(form.get(name) ?? "");
-          const groupingChanged = updateGrouping(value("grouping") as InspectionGrouping);
-          const filtersChanged = updateFilters({
+          const nextGrouping = value("grouping") as InspectionGrouping;
+          const groupingChanged = grouping !== nextGrouping;
+          grouping = nextGrouping;
+          const nextFilters: InspectionFilters = {
             query: value("query"), city: value("city"), preparation: value("preparation"),
             topic: value("topic"), pattern: value("pattern"),
-          });
-          if (filtersChanged || groupingChanged) updateFilteredLayout(groupingChanged);
+          };
+          if (JSON.stringify(filters) !== JSON.stringify(nextFilters)) {
+            filters = nextFilters;
+            pending = true;
+            requestId++;
+            cancelLayout();
+            container!.setAttribute("aria-busy", "true");
+            if (settingsCount) settingsCount.textContent = "Updating businesses…";
+            window.clearTimeout(filterTimer);
+            const request: WorkerRequest = { type: "filter", requestId, filters: nextFilters };
+            filterTimer = window.setTimeout(() => dataWorker?.postMessage(request), 100);
+          } else if (groupingChanged && !pending) {
+            updateGrouping();
+            updateFilteredLayout();
+          }
         }
         settingsForm.addEventListener("input", applySettings);
         settingsForm.addEventListener("submit", event => event.preventDefault());
@@ -679,7 +740,9 @@ const structuredData = {
           settingsButton.focus();
         });
         document.querySelector("#inspection-settings-reset")?.addEventListener("click", () => {
-          for (const field of settingsForm.querySelectorAll<HTMLInputElement | HTMLSelectElement>("fieldset input, fieldset select")) field.value = "";
+          const groupingSelect = settingsForm.querySelector<HTMLSelectElement>('select[name="grouping"]');
+          settingsForm.reset();
+          if (groupingSelect) groupingSelect.value = grouping;
           applySettings();
         });
       }
@@ -692,16 +755,6 @@ const structuredData = {
       container.setAttribute("aria-busy", "false");
       container.dataset.firstRenderMs = String(timeToFirstRenderMs);
       status.hidden = true;
-      console.info("Restaurant inspection graph rendered", {
-        ...message.aggregationStats,
-        ...message.similarityStats,
-        parseErrorCount: message.parseErrorCount,
-        compressedBytes: message.compressedBytes,
-        processingMs: message.processingMs,
-        scoringMs: message.scoringMs,
-        timeToFirstRenderMs,
-      });
-
     } catch (error) {
       showError(error instanceof Error ? error.message : "Graph rendering failed.");
     }
@@ -720,17 +773,13 @@ const structuredData = {
           updateProgress(message);
           return;
         }
-        if (message.type === "error") {
-          showError(message.message);
-          return;
-        }
-        void createGraph(message);
-        dataWorker?.terminate();
-        dataWorker = undefined;
+        if (message.type === "error" && message.requestId === undefined) showError(message.message);
+        if (message.type === "ready") void createGraph(message);
       };
       dataWorker.onerror = (event) => showError(event.message);
       const csvUrl = new URL("/playground/synology/inspection-data.csv.gz", window.location.href).href;
-      dataWorker.postMessage({ csvUrl });
+      const request: WorkerRequest = { type: "load", csvUrl };
+      dataWorker.postMessage(request);
     } catch (error) {
       showError(error instanceof Error ? error.message : "The graph worker could not start.");
     }
@@ -746,6 +795,7 @@ const structuredData = {
     leaving = true;
     dataWorker?.terminate();
     cancelAnimationFrame(filterFrame);
+    window.clearTimeout(filterTimer);
     cancelLayout();
     renderer?.kill();
   }, { once: true });

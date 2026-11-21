@@ -22,6 +22,12 @@ export interface InspectionFilters {
   pattern: string;
 }
 
+export const DEFAULT_INSPECTION_CITY = "SEATTLE";
+
+export const defaultInspectionFilters: InspectionFilters = {
+  query: "", city: DEFAULT_INSPECTION_CITY, preparation: "", topic: "", pattern: "",
+};
+
 export type InspectionGrouping = "" | "topic" | "preparation";
 export type GraphPosition = { x: number; y: number };
 
