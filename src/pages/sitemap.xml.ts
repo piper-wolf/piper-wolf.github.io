@@ -13,10 +13,10 @@ export const GET: APIRoute = ({ site }) => {
   const latestDate = pigeonPosts[0]?.dateTime;
   const pages = [
     { path: "/", lastmod: latestDate },
-    { path: "/pigeons/", lastmod: latestDate },
-    { path: "/copyright/", lastmod: "2026-10-11" },
-    { path: "/playground/synology/", lastmod: "2026-11-20" },
-    ...pigeonPosts.map((post) => ({ path: `/pigeons/${post.number}/`, lastmod: post.dateTime })),
+    { path: "/pigeons", lastmod: latestDate },
+    { path: "/copyright", lastmod: "2026-10-11" },
+    { path: "/playground/synology", lastmod: "2026-11-20" },
+    ...pigeonPosts.map((post) => ({ path: `/pigeons/${post.number}`, lastmod: post.dateTime })),
   ];
   const urls = pages
     .map(({ path, lastmod }) => {

@@ -3,7 +3,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import * as styles from "../styles/site.css";
 
 const description = "Copyright information for Piper Wolf’s photographs, full-resolution photo purchases, and commercial licensing inquiries.";
-const pageUrl = new URL("/copyright/", Astro.site ?? Astro.url).href;
+const pageUrl = new URL("/copyright", Astro.site ?? Astro.url).href;
 const structuredData = {
   "@context": "https://schema.org",
   "@type": "WebPage",

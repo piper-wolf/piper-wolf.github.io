@@ -1,6 +1,261 @@
 import { expect, test, blockExternalRequests } from "./helpers/browser";
+import sharp from "sharp";
+import { inspectionTopics } from "../src/lib/inspection-features";
 
-const pages = ["/", "/pigeons/", "/pigeons/016/", "/pigeons/001/"];
+const pages = ["/", "/pigeons", "/pigeons/016", "/pigeons/001"];
+
+test("playground lazily loads the inspection data and renders an interactive restaurant graph", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const csvRequests: string[] = [];
+  page.on("request", request => {
+    if (request.url().endsWith("/playground/synology/inspection-data.csv.gz")) csvRequests.push(request.url());
+  });
+  page.on("response", response => {
+    if (response.url().endsWith("/playground/synology/inspection-data.csv.gz")) {
+      expect([200, 206]).toContain(response.status());
+    }
+  });
+  await page.addInitScript(() => {
+    const testWindow = window as Window & { pendingGraphIdle?: IdleRequestCallback };
+    Object.defineProperty(window, "requestIdleCallback", {
+      configurable: true,
+      value: (callback: IdleRequestCallback) => {
+        testWindow.pendingGraphIdle = callback;
+        return 1;
+      },
+    });
+  });
+  await page.goto("/playground/synology", { waitUntil: "domcontentloaded" });
+  await expect(page.locator("[data-pigeon-landing], .pigeon-visitor, script[src*=goatcounter]")).toHaveCount(0);
+  await expect(page.locator("body > header, body > footer, h1")).toHaveCount(0);
+  const legend = page.getByRole("complementary", { name: "Graph key" });
+  await expect(legend).toBeHidden();
+  const preloadedGraphModules = await page.locator('link[rel="modulepreload"]').evaluateAll(links =>
+    links.map(link => link.getAttribute("href")).filter(href => href && /sigma|graphology/i.test(href)),
+  );
+  expect(preloadedGraphModules).toEqual([]);
+  expect(csvRequests).toEqual([]);
+  const graphResources = () => page.evaluate(() =>
+    performance.getEntriesByType("resource").map(({ name }) => name).filter((name) => /sigma|graphology|inspection-data\.csv/i.test(name)),
+  );
+  expect(await graphResources()).toEqual([]);
+
+  const graph = page.locator("#synology-graph");
+  const bounds = await graph.evaluate(element => {
+    const { x, y, width, height } = element.getBoundingClientRect();
+    return { x, y, width, height, busy: element.getAttribute("aria-busy") };
+  });
+  expect(bounds).toMatchObject({ x: 0, y: 0, width: 1440, height: 900 });
+
+  const csvResponse = page.waitForResponse(response => response.url().endsWith("/playground/synology/inspection-data.csv.gz"));
+  await page.evaluate(() => {
+    const testWindow = window as Window & { pendingGraphIdle?: IdleRequestCallback };
+    testWindow.pendingGraphIdle?.({ didTimeout: false, timeRemaining: () => 50 });
+  });
+  expect([200, 206]).toContain((await csvResponse).status());
+  const canvas = page.locator("#synology-graph canvas");
+  await expect(canvas).toBeVisible();
+  await expect(graph).toHaveAttribute("aria-busy", "false", { timeout: 120_000 });
+  const nodeCount = Number(await graph.getAttribute("data-node-count"));
+  const edgeCount = Number(await graph.getAttribute("data-edge-count"));
+  expect(nodeCount).toBe(2_000);
+  expect(Number(await graph.getAttribute("data-matching-node-count"))).toBeGreaterThan(nodeCount);
+  expect(edgeCount).toBeGreaterThan(0);
+  await expect(graph).toHaveAttribute("data-first-render-ms", /\d+/);
+  await expect(page.locator("#synology-graph-status")).toBeHidden();
+  expect(csvRequests.length).toBeGreaterThan(0);
+  const initialCsvRequests = csvRequests.length;
+  const groupLabels = page.locator("#inspection-groups span");
+  await expect(groupLabels).toHaveCount(0);
+
+  const screenshot = await canvas.screenshot();
+  const { data, info } = await sharp(screenshot).resize(64, 32).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const colors = new Set<string>();
+  for (let offset = 0; offset < data.length; offset += info.channels) {
+    colors.add(`${data[offset]},${data[offset + 1]},${data[offset + 2]}`);
+  }
+  expect(colors.size).toBeGreaterThan(10);
+
+  const { data: pixels, info: image } = await sharp(screenshot).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const canvasBounds = await canvas.boundingBox();
+  expect(canvasBounds).not.toBeNull();
+  const mouseLayer = graph.locator(".sigma-mouse");
+  const palette = (names: string[]) => graph.evaluate((element, names) => {
+    const theme = getComputedStyle(element);
+    return names.map(name => {
+      const hex = theme.getPropertyValue(`--graph-${name}`).trim();
+      const base = theme.getPropertyValue("--graph-background").trim();
+      const opacity = name === "edge-strong" ? 0.73 : 0.55;
+      return [1, 3, 5].map(offset =>
+        Math.round(Number.parseInt(hex.slice(offset, offset + 2), 16) * opacity +
+          Number.parseInt(base.slice(offset, offset + 2), 16) * (1 - opacity)),
+      );
+    });
+  }, names);
+  const rgb = (hex: string) => [1, 3, 5].map(offset => Number.parseInt(hex.slice(offset, offset + 2), 16));
+  const nodeColors = inspectionTopics.map(({ color }) => rgb(color));
+  const outlineColors = inspectionTopics.map(({ outline }) => rgb(outline));
+  const pixelMatches = ([red, green, blue]: Uint8Array, colors: number[][]) =>
+    colors.some(([r, g, b]) => Math.abs(red - r) + Math.abs(green - g) + Math.abs(blue - b) < 20);
+  expect(pixels.some((_, offset) => offset % image.channels === 0 && pixelMatches(pixels.subarray(offset, offset + 3), outlineColors))).toBe(true);
+
+  async function findGraphPoint(
+    palette: number[][], cursor: string, excluded: Array<{ x: number; y: number }> = [], screenshotPixels = pixels,
+  ) {
+    const candidates: Array<{ x: number; y: number }> = [];
+    for (let y = 0; y < image.height; y += 2) {
+      for (let x = 0; x < image.width; x += 2) {
+        const offset = (y * image.width + x) * image.channels;
+        if (!pixelMatches(screenshotPixels.subarray(offset, offset + 3), palette)) continue;
+        const point = {
+          x: canvasBounds!.x + x * canvasBounds!.width / image.width,
+          y: canvasBounds!.y + y * canvasBounds!.height / image.height,
+        };
+        if (point.x < 310 || point.x > 1_025) continue;
+        if (excluded.some(other => Math.hypot(point.x - other.x, point.y - other.y) < 24)) continue;
+        candidates.push(point);
+      }
+    }
+    const stride = Math.max(1, Math.floor(candidates.length / 35));
+    for (let i = 0; i < candidates.length; i += stride) {
+      const point = candidates[i];
+      await page.mouse.move(point.x, point.y);
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      if (await mouseLayer.evaluate(element => getComputedStyle(element).cursor) === cursor) return point;
+    }
+    throw new Error(`Could not find a graph item with cursor ${cursor}`);
+  }
+
+  await expect(legend).toContainText("2,000 businesses");
+  const point = await findGraphPoint(nodeColors, "grab");
+  await page.mouse.click(point.x, point.y);
+  const details = page.locator("#inspection-details");
+  await expect(details).toBeVisible();
+  await expect(details.getByRole("heading", { level: 3 })).toHaveCount(1);
+  await expect(details).toContainText("Latest inspection date");
+  await expect(details.getByRole("link", { name: "County permit guide" })).toBeVisible();
+  await expect(details).toContainText("Recent inspection profile");
+
+  const firstBusiness = await details.getByRole("heading", { level: 3 }).innerText();
+  const second = await findGraphPoint(nodeColors, "grab", [point]);
+  await page.mouse.click(second.x, second.y);
+  await expect(details.getByRole("heading", { level: 3 })).toHaveCount(1);
+
+  async function modifiedClick({ x, y }: { x: number; y: number }, key: "Shift" | "Meta") {
+    await page.keyboard.down(key);
+    try {
+      await page.mouse.click(x, y);
+    } finally {
+      await page.keyboard.up(key);
+    }
+  }
+  await modifiedClick(point, "Shift");
+  await expect(details.getByRole("heading", { name: "Business comparison" })).toBeVisible();
+  await expect(details.getByRole("heading", { level: 3 })).toHaveCount(2);
+  await expect(details).toContainText("similarity score");
+
+  const third = await findGraphPoint(nodeColors, "grab", [point, second]);
+  await modifiedClick(third, "Meta");
+  await expect(details.getByRole("heading", { name: "What these businesses share" })).toBeVisible();
+  await expect(details.getByRole("heading", { name: "3 businesses selected" })).toBeVisible();
+  await expect(details.getByRole("heading", { name: "Shared topics" })).toBeVisible();
+  await expect(details.getByRole("heading", { name: "Shared specific findings" })).toBeVisible();
+  await details.getByRole("button", { name: /^Remove / }).last().click();
+  await expect(details.getByRole("heading", { name: "Business comparison" })).toBeVisible();
+  await modifiedClick(third, "Meta");
+  await expect(details.getByRole("heading", { name: "3 businesses selected" })).toBeVisible();
+
+  const menu = page.getByRole("button", { name: "Graph settings", exact: true });
+  const settings = page.getByRole("dialog", { name: "Graph settings" });
+  const grouping = settings.getByRole("combobox", { name: "Group by" });
+  const city = settings.getByRole("combobox", { name: "City" });
+  const topic = settings.getByRole("combobox", { name: "Recorded topic" });
+  const pattern = settings.getByRole("combobox", { name: "Finding pattern" });
+  const query = settings.getByRole("searchbox", { name: "Business name or address" });
+  const reset = settings.getByRole("button", { name: "Reset filters" });
+
+  await menu.click();
+  await expect(menu).toHaveAttribute("aria-expanded", "true");
+  await expect(settings).toBeVisible();
+  await expect(details).toBeHidden();
+  await expect(grouping).toHaveValue("");
+  await expect(city).toHaveValue("SEATTLE");
+  await city.selectOption("BELLEVUE");
+  await expect(graph).toHaveAttribute("aria-busy", "true");
+  await expect(graph).toHaveAttribute("aria-busy", "false");
+  const cityMatches = Number(await graph.getAttribute("data-visible-node-count"));
+  expect(cityMatches).toBeGreaterThan(200);
+  expect(cityMatches).toBeLessThan(nodeCount);
+  await expect(graph).toHaveAttribute("data-matching-node-count", String(cityMatches));
+  const cityEdges = Number(await graph.getAttribute("data-visible-edge-count"));
+  await topic.selectOption("hygiene");
+  await pattern.selectOption("repeated-critical");
+  await expect(graph).toHaveAttribute("aria-busy", "false");
+  const patternMatches = Number(await graph.getAttribute("data-visible-node-count"));
+  expect(patternMatches).toBeGreaterThan(0);
+  expect(patternMatches).toBeLessThan(cityMatches);
+  expect(Number(await graph.getAttribute("data-visible-edge-count"))).toBeLessThan(cityEdges);
+
+  await reset.click();
+  await expect(city).toHaveValue("SEATTLE");
+  await query.fill("zzzzzz no matching business zzzzzz");
+  await expect(graph).toHaveAttribute("data-visible-node-count", "0");
+  await expect(graph).toHaveAttribute("data-visible-edge-count", "0");
+  await expect(page.locator("#inspection-empty")).toBeVisible();
+  await query.fill(firstBusiness);
+  await expect(page.locator("#inspection-empty")).toBeHidden();
+  await page.keyboard.press("Escape");
+  await expect(settings).toBeHidden();
+  await expect(menu).toBeFocused();
+
+  await expect(graph).toHaveAttribute("data-visible-node-count", "1");
+  await expect(graph).toHaveAttribute("aria-busy", "false");
+  const filteredPixels = await sharp(await canvas.screenshot()).removeAlpha().raw().toBuffer();
+  const filteredPoint = await findGraphPoint(nodeColors, "grab", [point], filteredPixels);
+  await page.mouse.click(filteredPoint.x, filteredPoint.y);
+  await expect(details.getByRole("heading", { level: 3 })).toHaveText(firstBusiness);
+  await menu.click();
+  await expect(details).toBeHidden();
+  await grouping.selectOption("topic");
+  await expect(graph).toHaveAttribute("aria-busy", "false");
+  await expect(groupLabels).toHaveCount(1);
+  await reset.click();
+  await expect(graph).toHaveAttribute("data-visible-node-count", String(nodeCount));
+  await expect(groupLabels).toHaveCount(inspectionTopics.length);
+  await expect(grouping).toHaveValue("topic");
+  await expect(groupLabels.filter({ hasText: "Cleaning & sanitizing" })).toBeVisible();
+  await grouping.selectOption("preparation");
+  await expect(groupLabels.filter({ hasText: "Complex food preparation" })).toBeVisible();
+  await grouping.selectOption("");
+  await expect(groupLabels).toHaveCount(0);
+  await settings.getByRole("button", { name: "Close graph settings" }).click();
+  await expect(settings).toBeHidden();
+  await expect(graph).toHaveAttribute("aria-busy", "false");
+
+  const edge = await findGraphPoint(await palette(["edge-strong", "edge-regular"]), "pointer");
+  await page.mouse.click(edge.x, edge.y);
+  await expect(details).toBeVisible();
+  await expect(details.getByRole("heading", { level: 3 })).toHaveCount(2);
+  await expect(details).toContainText("similarity score", { ignoreCase: true });
+  await expect(details.getByRole("table", { name: "Number of inspection dates each business had each shared finding" })
+    .or(details.getByText("No shared specific findings."))).toBeVisible();
+  await page.locator("#inspection-details-close").click();
+  await expect(details).toBeHidden();
+
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  await page.mouse.move(point.x + 70, point.y + 45, { steps: 6 });
+  await expect(mouseLayer).toHaveCSS("cursor", "grabbing");
+  await page.mouse.up();
+  await expect(details).toBeHidden();
+
+  expect(csvRequests).toHaveLength(initialCsvRequests);
+  expect(await graphResources()).toEqual(expect.arrayContaining([
+    expect.stringMatching(/sigma/i),
+    expect.stringMatching(/graphology/i),
+  ]));
+});
 
 for (const width of [320, 390, 768, 769, 1024, 1440]) {
   for (const path of pages) {
@@ -103,7 +358,7 @@ test("a touch phone uses its device width at high pixel density", async ({ brows
   try {
     await blockExternalRequests(context, baseURL!);
     const page = await context.newPage();
-    await page.goto("/pigeons/");
+    await page.goto("/pigeons");
     expect(await page.evaluate(() => document.documentElement.clientWidth)).toBe(390);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
     await page.getByRole("link", { name: /^View pigeon no\./ }).first().tap();

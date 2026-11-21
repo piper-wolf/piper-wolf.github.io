@@ -30,7 +30,7 @@ const socialImage = {
   height: Number(optimizedSocialImage.attributes.height),
 };
 const siteUrl = Astro.site ?? Astro.url;
-const detailUrl = new URL(`/pigeons/${post.number}/`, siteUrl).href;
+const detailUrl = new URL(`/pigeons/${post.number}`, siteUrl).href;
 const blueskyShareUrl = new URL("https://bsky.app/intent/compose");
 blueskyShareUrl.searchParams.set("text", `${post.title}\n${detailUrl}`);
 const structuredData = {
@@ -64,7 +64,7 @@ const structuredData = {
 >
   <article class={styles.detailPage} data-pigeon-queue-id={post.queueId}>
     <header class={styles.detailHeader}>
-      <a class={styles.backLink} href={`/pigeons/#${post.number}`}><Icon name="arrowLeft" /><span>All pigeons</span></a>
+      <a class={styles.backLink} href={`/pigeons#${post.number}`}><Icon name="arrowLeft" /><span>All pigeons</span></a>
       <div class={`${styles.postMeta} ${styles.detailMeta}`}>
         <span>Posted <time datetime={post.dateTime}>{post.date}</time></span>
       </div>
