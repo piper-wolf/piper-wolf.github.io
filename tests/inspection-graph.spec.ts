@@ -1,6 +1,7 @@
 import { expect, test } from "./helpers/browser";
 import { sharedInspectionFeatures } from "../src/lib/inspection-features";
-import { buildSimilarityGraph, InspectionAggregator, parseViolationDescription, type Restaurant } from "../src/lib/inspection-graph";
+import { filterBusinesses } from "../src/lib/inspection-view";
+import { buildSimilarityGraph, createInspectionPairScorer, InspectionAggregator, parseViolationDescription, type Restaurant } from "../src/lib/inspection-graph";
 
 test("inspection transforms keep separate businesses and preserve their most recent details", async () => {
   expect(parseViolationDescription("0600 - Cold holding - food prep area")).toEqual({
@@ -95,5 +96,15 @@ test("similarity connects recurring topics and the comparison intersects every p
   expect(sharedInspectionFeatures(profiles.slice(4, 6), "topics")).toEqual([
     { id: "hygiene", label: "Handwashing & hygiene", dates: [2, 2] },
   ]);
+  const scorePair = createInspectionPairScorer(nodes);
+  expect(scorePair(0, 2)).toBeCloseTo(edges[1].score);
+  expect(scorePair(0, 3)).toBeGreaterThan(0);
+  expect(scorePair(0, 4)).toBe(0);
+
+  const filters = { query: "", city: "", preparation: "", topic: "", pattern: "" };
+  expect(filterBusinesses(nodes, { ...filters, topic: "sanitation" }).map(({ name }) => name)).toEqual(["A", "B", "D"]);
+  expect(filterBusinesses(nodes, { ...filters, topic: "sanitation", pattern: "repeated-critical" })).toEqual([]);
+  expect(filterBusinesses(nodes, { ...filters, preparation: "2", topic: "hygiene", pattern: "repeated-critical" })
+    .map(({ name }) => name)).toEqual(["E", "F"]);
   expect(buildSimilarityGraph(restaurants, { neighborLimit: 1 }).edges).toHaveLength(2);
 });

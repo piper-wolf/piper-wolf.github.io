@@ -31,7 +31,7 @@
     display: none;
   }
 
-  #inspection-details[data-selection="edge"] {
+  #inspection-details[data-selection="pair"] {
     width: min(43rem, calc(100vw - 2rem));
   }
 
@@ -155,7 +155,7 @@
     overflow: hidden;
   }
 
-  #inspection-details[data-selection="edge"] #inspection-details-panels {
+  #inspection-details[data-selection="pair"] #inspection-details-panels {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -343,14 +343,14 @@
 
   @media (max-width: 760px) {
     #inspection-details,
-    #inspection-details[data-selection="edge"] {
+    #inspection-details[data-selection="pair"] {
       inset: auto 0.75rem 0.75rem;
       width: auto;
       max-height: 57vh;
       max-height: 57dvh;
     }
 
-    #inspection-details[data-selection="edge"] {
+    #inspection-details[data-selection="pair"] {
       max-height: 68vh;
       max-height: 68dvh;
     }
@@ -365,13 +365,13 @@
       width: 3.75rem;
     }
 
-    #inspection-details[data-selection="edge"] #inspection-details-panels {
+    #inspection-details[data-selection="pair"] #inspection-details-panels {
       grid-template-columns: minmax(0, 1fr);
       overflow: auto;
       overscroll-behavior: contain;
     }
 
-    #inspection-details[data-selection="edge"] .inspection-card {
+    #inspection-details[data-selection="pair"] .inspection-card {
       overflow: visible;
     }
 

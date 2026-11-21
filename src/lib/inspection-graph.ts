@@ -1,5 +1,5 @@
 import {
-  buildInspectionProfile, inspectionTopics, isScoredViolation, otherTopic, PROFILE_YEARS, yearsBefore,
+  buildInspectionProfile, isScoredViolation, otherTopic, PROFILE_YEARS, yearsBefore,
   type InspectionFeature, type InspectionProfile,
 } from "./inspection-features";
 
@@ -51,8 +51,6 @@ export interface AggregationStats {
 
 export interface GraphNode extends Restaurant {
   id: string;
-  x: number;
-  y: number;
   profile: InspectionProfile;
   topic: string;
 }
@@ -102,7 +100,6 @@ interface MutableRestaurant {
 }
 
 const NONE_VIOLATION: Violation = { violation_code: "None", description: "" };
-const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
 function compareStrings(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
@@ -309,55 +306,6 @@ export class InspectionAggregator {
   }
 }
 
-function assignDeterministicPositions(profiles: InspectionProfile[], topics: string[], edges: SimilarityEdge[]) {
-  const neighbors = profiles.map(() => [] as number[]);
-  for (const { source, target } of edges) {
-    const a = Number(source);
-    const b = Number(target);
-    if (topics[a] === topics[b]) {
-      neighbors[a].push(b);
-      neighbors[b].push(a);
-    }
-  }
-
-  const groups = Map.groupBy(profiles.keys(), index => topics[index]);
-  const groupKeys = [...inspectionTopics, otherTopic].map(({ id }) => id).filter(id => groups.has(id));
-  const columns = Math.min(3, groupKeys.length);
-  const spacing = Math.sqrt(Math.max(0, ...[...groups.values()].map(group => group.length))) * 2.55;
-  const positions = new Array<{ x: number; y: number }>(profiles.length);
-  const visited = new Set<number>();
-
-  groupKeys.forEach((groupKey, groupIndex) => {
-    const members = groups.get(groupKey)!;
-    const centerX = (groupIndex % columns) * spacing;
-    const centerY = -Math.floor(groupIndex / columns) * spacing;
-    const ordered: number[] = [];
-
-    for (const root of [...members].sort((a, b) => neighbors[b].length - neighbors[a].length)) {
-      if (visited.has(root)) continue;
-      visited.add(root);
-      const start = ordered.length;
-      ordered.push(root);
-      for (let i = start; i < ordered.length; i++) {
-        for (const neighbor of neighbors[ordered[i]]) {
-          if (visited.has(neighbor)) continue;
-          visited.add(neighbor);
-          ordered.push(neighbor);
-        }
-      }
-    }
-
-    ordered.forEach((index, rank) => {
-      const distance = Math.sqrt(rank + 0.5);
-      positions[index] = {
-        x: centerX + Math.cos(rank * GOLDEN_ANGLE) * distance,
-        y: centerY + Math.sin(rank * GOLDEN_ANGLE) * distance,
-      };
-    });
-  });
-  return positions;
-}
-
 function latestInspectionDate(restaurant: Restaurant): string {
   return restaurant.inspections.findLast(({ date }) => date !== "Unknown")?.date ?? "";
 }
@@ -427,6 +375,34 @@ function indexFeatures(profiles: InspectionProfile[], kind: FeatureKind) {
   return { index, totals };
 }
 
+function featureSimilarity(totals: Float64Array, source: number, target: number, shared: number): number {
+  return shared ? shared / (totals[source] + totals[target] - shared) : 0;
+}
+
+function combineSimilarity(topicScore: number, findingScore: number): number {
+  return Math.min(1, 0.65 * topicScore + 0.35 * findingScore);
+}
+
+export function createInspectionPairScorer(nodes: GraphNode[]) {
+  const profiles = nodes.map(({ profile }) => profile);
+  const topics = indexFeatures(profiles, "topics");
+  const findings = indexFeatures(profiles, "findings");
+
+  return (source: number, target: number) => {
+    function score(kind: FeatureKind) {
+      const { index, totals } = kind === "topics" ? topics : findings;
+      let shared = 0;
+      for (const feature of profiles[source][kind]) {
+        const bucket = index.get(feature.id)!;
+        const match = bucket.find(entry => entry.node === target);
+        if (match) shared += Math.min(match.weight, bucket.find(entry => entry.node === source)!.weight);
+      }
+      return featureSimilarity(totals, source, target, shared);
+    }
+    return combineSimilarity(score("topics"), score("findings"));
+  };
+}
+
 export function buildSimilarityGraph(
   restaurants: Restaurant[],
   { threshold = DEFAULT_SIMILARITY_THRESHOLD, neighborLimit = DEFAULT_NEIGHBOR_LIMIT,
@@ -476,9 +452,10 @@ export function buildSimilarityGraph(
       candidatePairsScored++;
       if (candidatePairsScored % 100_000 === 0) onProgress?.(candidatePairsScored);
 
-      const topicScore = sharedTopics ? sharedTopics / (topics.totals[source] + topics.totals[target] - sharedTopics) : 0;
-      const findingScore = sharedFindings ? sharedFindings / (findings.totals[source] + findings.totals[target] - sharedFindings) : 0;
-      const score = Math.min(1, 0.65 * topicScore + 0.35 * findingScore);
+      const score = combineSimilarity(
+        featureSimilarity(topics.totals, source, target, sharedTopics),
+        featureSimilarity(findings.totals, source, target, sharedFindings),
+      );
       if (score < threshold) continue;
       thresholdQualifiedPairs++;
       keepTopNeighbor(source, target, score);
@@ -498,9 +475,8 @@ export function buildSimilarityGraph(
   }
 
   const primaryTopics = profiles.map(profile => profile.topics[0]?.id ?? otherTopic.id);
-  const positions = assignDeterministicPositions(profiles, primaryTopics, edges);
   const nodes = restaurants.map((restaurant, index) => ({
-    ...restaurant, id: String(index), ...positions[index], topic: primaryTopics[index], profile: profiles[index],
+    ...restaurant, id: String(index), topic: primaryTopics[index], profile: profiles[index],
   }));
 
   return {

@@ -1,18 +1,21 @@
 import Papa from "papaparse";
 import { buildSimilarityGraph, InspectionAggregator, latestDataDate, selectRelevantRestaurants, type InspectionCsvRow } from "../lib/inspection-graph";
 
+import { layoutBySimilarity } from "../lib/inspection-layout";
+
 type WorkerRequest = { csvUrl: string };
 type WorkerProgress = {
   type: "progress";
-  phase: "reading" | "scoring";
+  phase: "reading" | "scoring" | "layout";
   rowCount: number;
   restaurantCount?: number;
   candidatePairsScored?: number;
 };
-type WorkerResult = WorkerProgress | {
+export type WorkerResult = WorkerProgress | {
   type: "ready";
   nodes: ReturnType<typeof buildSimilarityGraph>["nodes"];
   edges: ReturnType<typeof buildSimilarityGraph>["edges"];
+  positions: ReturnType<typeof layoutBySimilarity>;
   aggregationStats: ReturnType<InspectionAggregator["finish"]>["stats"];
   similarityStats: ReturnType<typeof buildSimilarityGraph>["stats"];
   parseErrorCount: number;
@@ -107,16 +110,20 @@ async function loadInspectionData(data: WorkerRequest) {
             });
           },
         });
+        const scoringMs = Math.round(performance.now() - scoringStartedAt);
+        workerScope.postMessage({ type: "progress", phase: "layout", rowCount });
+        const positions = layoutBySimilarity(graph.nodes, graph.edges);
         workerScope.postMessage({
           type: "ready",
           nodes: graph.nodes,
           edges: graph.edges,
+          positions,
           aggregationStats: processed.stats,
           similarityStats: graph.stats,
           parseErrorCount,
           compressedBytes,
           processingMs: Math.round(processingMs),
-          scoringMs: Math.round(performance.now() - scoringStartedAt),
+          scoringMs,
         });
       } catch (error) {
         workerScope.postMessage({

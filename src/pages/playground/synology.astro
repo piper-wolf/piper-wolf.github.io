@@ -1,8 +1,9 @@
 ---
 import PlaygroundLayout from "../../layouts/PlaygroundLayout.astro";
 import InspectionDetails from "../../components/playground/InspectionDetails.astro";
+import InspectionSettings from "../../components/playground/InspectionSettings.astro";
 import { DEFAULT_SIMILARITY_THRESHOLD, STRONG_SIMILARITY_THRESHOLD } from "../../lib/inspection-graph";
-import { PROFILE_YEARS } from "../../lib/inspection-features";
+import { inspectionTopics, PROFILE_YEARS } from "../../lib/inspection-features";
 
 const description = "Compare inspection patterns across King County food businesses.";
 const pageUrl = new URL("/playground/synology", Astro.site ?? Astro.url).href;
@@ -24,26 +25,46 @@ const structuredData = {
     <div
       id="synology-graph"
       role="img"
-      aria-label="King County food inspection graph. Each node represents one business. Position and color show its most frequent finding topic. Links show similar inspection profiles. Select businesses to compare what they share."
+      aria-label="King County food inspection graph. Each node represents one business. Links connect similar inspection profiles. Color shows the most frequent finding topic. Use Graph settings to filter or group businesses."
       data-strong-threshold={STRONG_SIMILARITY_THRESHOLD}
       aria-busy="true"
     ></div>
-    <div id="inspection-topics" aria-hidden="true"></div>
+    <div id="inspection-groups" aria-hidden="true"></div>
     <aside id="inspection-legend" class="graph-legend" aria-label="Graph key" hidden>
-      <strong>Inspection graph</strong>
-      <span id="inspection-legend-count" class="legend-count"></span>
+      <div class="legend-header">
+        <div>
+          <strong>Inspection graph</strong>
+          <span id="inspection-legend-count" class="legend-count"></span>
+        </div>
+        <button id="inspection-settings-toggle" type="button" aria-label="Graph settings" aria-haspopup="dialog" aria-expanded="false" aria-controls="inspection-settings">
+          <span class="legend-menu-icon" aria-hidden="true"></span>
+        </button>
+      </div>
       <details open>
         <summary>How to read the graph</summary>
-        <p>Color and position show each business’s most frequent topic in the last {PROFILE_YEARS} years of the export.</p>
+        <p>Links bring similar inspection profiles together. Color shows each business’s most frequent topic in the last {PROFILE_YEARS} years of the export.</p>
         <ul>
           <li><i class="edge-regular"></i> Similar profiles · {Math.round(DEFAULT_SIMILARITY_THRESHOLD * 100)}% to &lt;{Math.round(STRONG_SIMILARITY_THRESHOLD * 100)}%</li>
           <li><i class="edge-strong"></i> Stronger matches · {Math.round(STRONG_SIMILARITY_THRESHOLD * 100)}% and up</li>
           <li><i class="edge-selected"></i> Selected links</li>
         </ul>
       </details>
-      <p class="legend-instructions">Select businesses to compare them. Select again to remove.</p>
+      <details class="legend-topics">
+        <summary>Topic colors</summary>
+        <ul>
+          {inspectionTopics.map(({ label, color, outline }) => (
+            <li><i style={{ backgroundColor: color, borderColor: outline }}></i>{label}</li>
+          ))}
+        </ul>
+      </details>
+      <p class="legend-instructions">
+        Select a link to compare two businesses.
+        <span class="legend-modifiers">Shift-click or Command-click to add or remove individual businesses.</span>
+      </p>
     </aside>
+    <p id="inspection-empty" role="status" hidden>No businesses match these filters.</p>
     <InspectionDetails />
+    <InspectionSettings />
     <div id="synology-graph-status" role="status" aria-live="polite">Preparing restaurant inspection data…</div>
   </div>
 </PlaygroundLayout>
@@ -62,7 +83,6 @@ const structuredData = {
     --graph-risk-unknown: #777674;
     --graph-edge-regular: #988e83;
     --graph-edge-strong: #5c5148;
-    --graph-edge-cross-topic: #c3b9ad;
     --graph-font: system-ui, sans-serif;
     color: var(--graph-text);
     font-family: var(--graph-font);
@@ -79,14 +99,14 @@ const structuredData = {
     background-size: 20px 20px;
   }
 
-  #inspection-topics {
+  #inspection-groups {
     position: fixed;
     inset: 0;
     overflow: hidden;
     pointer-events: none;
   }
 
-  #inspection-topics :global(span) {
+  #inspection-groups :global(span) {
     position: absolute;
     max-width: min(11rem, 26vw);
     padding: 0.2rem 0.45rem;
@@ -115,6 +135,31 @@ const structuredData = {
     line-height: 1.4;
   }
 
+  .legend-header { display: flex; align-items: center; justify-content: space-between; gap: 0.3rem; }
+  #inspection-settings-toggle {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 1px solid var(--graph-border);
+    border-radius: 0.45rem;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  #inspection-settings-toggle:hover { background: color-mix(in srgb, var(--graph-accent) 9%, transparent); }
+  #inspection-settings-toggle:focus-visible { outline: 2px solid var(--graph-accent); outline-offset: 2px; }
+  .legend-menu-icon {
+    width: 1rem;
+    height: 2px;
+    border-radius: 1px;
+    background: currentColor;
+    box-shadow: 0 -5px currentColor, 0 5px currentColor;
+  }
+
   .graph-legend strong { display: block; font-size: 1rem; }
   .legend-count { display: block; color: var(--graph-muted); }
   .graph-legend details { margin-top: 0.55rem; }
@@ -126,11 +171,30 @@ const structuredData = {
   .graph-legend .edge-regular { background: var(--graph-edge-regular); }
   .graph-legend .edge-strong { background: var(--graph-edge-strong); }
   .graph-legend .edge-selected { background: var(--graph-accent); }
+  .legend-topics li i { width: 0.7rem; height: 0.7rem; border: 1px solid; border-radius: 50%; }
   .graph-legend .legend-instructions { color: var(--graph-muted); }
 
   @media (max-width: 760px) {
     .graph-legend { top: 0.5rem; left: 0.5rem; padding: 0.5rem 0.65rem; }
-    #inspection-topics :global(span) { font-size: 0.7rem; }
+    #inspection-groups :global(span) { font-size: 0.7rem; }
+  }
+
+  @media (hover: none) { .legend-modifiers { display: none; } }
+
+  #inspection-empty {
+    position: fixed;
+    inset: 50% auto auto 50%;
+    width: max-content;
+    max-width: calc(100% - 2rem);
+    margin: 0;
+    padding: 0.55rem 0.75rem;
+    transform: translate(-50%, -50%);
+    border: 1px solid var(--graph-border);
+    border-radius: 0.4rem;
+    background: var(--graph-surface);
+    color: var(--graph-muted);
+    text-align: center;
+    pointer-events: none;
   }
 
   #synology-graph-status {
@@ -157,7 +221,9 @@ const structuredData = {
 </style>
 
 <script>
-  import type { GraphNode, SimilarityEdge, SimilarityStats, AggregationStats } from "../../lib/inspection-graph";
+  import { createInspectionPairScorer } from "../../lib/inspection-graph";
+  import { filterBusinesses, groupBusinesses, type GraphPosition, type InspectionFilters, type InspectionGrouping } from "../../lib/inspection-view";
+  import type { WorkerResult } from "../../workers/inspection-graph.worker";
   import { inspectionTopics, otherTopic } from "../../lib/inspection-features";
   import type { FragmentLayer } from "sigma/rendering";
   import type { SigmaEventPayload } from "sigma/types";
@@ -167,27 +233,18 @@ const structuredData = {
   const status = document.querySelector<HTMLDivElement>("#synology-graph-status");
   const legend = document.querySelector<HTMLElement>("#inspection-legend");
   const legendCount = document.querySelector<HTMLElement>("#inspection-legend-count");
-  const topicLabels = document.querySelector<HTMLElement>("#inspection-topics");
+  const groupLabels = document.querySelector<HTMLElement>("#inspection-groups");
+  const settings = document.querySelector<HTMLDialogElement>("#inspection-settings");
+  const settingsButton = document.querySelector<HTMLButtonElement>("#inspection-settings-toggle");
+  const settingsForm = document.querySelector<HTMLFormElement>("#inspection-settings-form");
+  const settingsCount = document.querySelector<HTMLElement>("#inspection-settings-count");
+  const empty = document.querySelector<HTMLElement>("#inspection-empty");
   const initializationStartedAt = performance.now();
   let renderer: import("sigma").Sigma | undefined;
   let dataWorker: Worker | undefined;
   let leaving = false;
   let initialized = false;
-
-  type WorkerResponse =
-    | { type: "progress"; phase: "reading" | "scoring"; rowCount: number; restaurantCount?: number; candidatePairsScored?: number }
-    | {
-        type: "ready";
-        nodes: GraphNode[];
-        edges: SimilarityEdge[];
-        aggregationStats: AggregationStats;
-        similarityStats: SimilarityStats;
-        parseErrorCount: number;
-        compressedBytes: number;
-        processingMs: number;
-        scoringMs: number;
-      }
-    | { type: "error"; message: string };
+  let filterFrame = 0;
 
   function showError(message: string) {
     if (!container || !status) return;
@@ -198,10 +255,14 @@ const structuredData = {
     status.textContent = "Restaurant inspection data could not be loaded. Reload the page to try again.";
   }
 
-  function updateProgress(message: Extract<WorkerResponse, { type: "progress" }>) {
+  function updateProgress(message: Extract<WorkerResult, { type: "progress" }>) {
     if (!status) return;
     if (message.phase === "reading") {
       status.textContent = `Reading inspection records: ${message.rowCount.toLocaleString()}…`;
+      return;
+    }
+    if (message.phase === "layout") {
+      status.textContent = "Arranging businesses by similarity…";
       return;
     }
     const candidates = message.candidatePairsScored
@@ -210,7 +271,7 @@ const structuredData = {
     status.textContent = `Scoring similarities for ${(message.restaurantCount ?? 0).toLocaleString()} restaurants…${candidates}`;
   }
 
-  async function createGraph(message: Extract<WorkerResponse, { type: "ready" }>) {
+  async function createGraph(message: Extract<WorkerResult, { type: "ready" }>) {
     if (!container || !status) return;
     try {
       const [{ default: Sigma, DEFAULT_STYLES }, { default: Graph }] = await Promise.all([
@@ -247,21 +308,21 @@ const structuredData = {
         const topic = topics.get(node.topic)!;
         graph.addNode(node.id, {
           label: nameCounts.get(node.name)! > 1 ? `${node.name} · ${[node.address, node.city].filter(Boolean).join(", ") || node.businessId}` : node.name,
-          x: node.x,
-          y: node.y,
+          ...message.positions.get(node.id)!,
+          viewOpacity: 1,
           size: container.clientWidth < 600 ? 2.5 : 3.5,
           color: topic.color,
           outlineColor: topic.outline,
         });
       }
       for (const edge of message.edges) {
-        const sameTopic = message.nodes[Number(edge.source)].topic === message.nodes[Number(edge.target)].topic;
-        const edgeColor = edge.score >= strongThreshold ? "edge-strong" : "edge-regular";
+        const strong = edge.score >= strongThreshold;
         graph.addUndirectedEdge(edge.source, edge.target, {
           size: 1.15 + edge.score * 0.65,
-          color: color(sameTopic ? edgeColor : "edge-cross-topic"),
-          opacity: sameTopic ? (edge.score >= strongThreshold ? 0.73 : 0.55) : 0.25,
-          score: edge.score,
+          color: color(strong ? "edge-strong" : "edge-regular"),
+          baseOpacity: strong ? 0.73 : 0.55,
+          matchOpacity: strong ? 0.73 : 0.55,
+          viewOpacity: 1,
         });
       }
 
@@ -294,6 +355,7 @@ const structuredData = {
               cursor: "grab",
               outlineColor: { attribute: "outlineColor" },
               outlineWidth: 1,
+              opacity: { attribute: "viewOpacity" },
               labelColor: color("text"),
               labelVisibility: "hidden",
               backdropColor: color("surface"),
@@ -310,45 +372,122 @@ const structuredData = {
           ],
           edges: [
             DEFAULT_STYLES.edges,
-            { cursor: "pointer", opacity: { attribute: "opacity" } },
-            { whenState: "isHovered", then: { color: color("text"), size: 2.5, opacity: 1 } },
-            { whenState: "isHighlighted", then: { color: color("accent"), size: 3.3, opacity: 1 } },
+            { cursor: "pointer", opacity: attributes => attributes.baseOpacity * attributes.viewOpacity },
+            { whenState: "isHovered", then: { color: color("text"), size: 2.5, opacity: { attribute: "viewOpacity" } } },
+            { whenState: "isHighlighted", then: { color: color("accent"), size: 3.3, opacity: { attribute: "viewOpacity" } } },
           ],
           stage: [{ whenState: "isDragging", then: { cursor: "grabbing" } }],
         },
       });
       renderer = sigma;
-      const headings = [...Map.groupBy(message.nodes, ({ topic }) => topic)].map(([id, nodes]) => {
-        const topic = topics.get(id)!;
-        const label = document.createElement("span");
-        label.textContent = topic.label;
-        label.style.setProperty("--topic-color", topic.color);
-        topicLabels?.append(label);
-        const xs = nodes.map(({ x }) => x);
-        return { label, x: (Math.min(...xs) + Math.max(...xs)) / 2, y: Math.max(...nodes.map(({ y }) => y)) };
-      });
+      const edgeKeys = graph.edges();
+      const nodeKeys = graph.nodes();
+      let visibleNodes = new Set(nodeKeys);
+      let visibleEdges = new Set(edgeKeys);
+      let grouping: InspectionGrouping = "";
+      let groupById = new Map<string, string>();
+      let visibleGroups = new Set<string | undefined>();
+      let headings: Array<GraphPosition & { id: string; label: HTMLElement }> = [];
+
       function positionHeadings() {
-        for (const { label, x, y } of headings) {
+        for (const { id, label, x, y } of headings) {
           const point = sigma.graphToViewport({ x, y });
-          label.hidden = sigma.getCamera().ratio < 0.55;
+          label.hidden = !visibleGroups.has(id) || sigma.getCamera().ratio < 0.55;
           label.style.left = `${Math.round(point.x)}px`;
           label.style.top = `${Math.round(point.y - 9)}px`;
         }
       }
       sigma.on("afterRender", positionHeadings);
-      positionHeadings();
+
+      function updateGrouping(nextGrouping: InspectionGrouping) {
+        if (nextGrouping === grouping) return;
+        grouping = nextGrouping;
+        const grouped = grouping ? groupBusinesses(message.nodes, message.edges, grouping) : null;
+        groupById = grouped?.groupById ?? new Map();
+        visibleGroups = new Set([...visibleNodes].map(id => groupById.get(id)));
+        const positions = grouped?.positions ?? message.positions;
+        headings = (grouped?.headings ?? []).map(({ id, label: title, x, y }) => {
+          const label = document.createElement("span");
+          label.textContent = title;
+          if (grouping === "topic") label.style.setProperty("--topic-color", topics.get(id)!.color);
+          return { id, label, x, y };
+        });
+        groupLabels?.replaceChildren(...headings.map(({ label }) => label));
+        graph.updateEachNodeAttributes((id, attributes) => ({ ...attributes, ...positions.get(id)! }), { attributes: ["x", "y"] });
+        graph.updateEachEdgeAttributes((_id, attributes, source, target) => {
+          const crossesGroups = groupById.get(source) !== groupById.get(target);
+          return { ...attributes, baseOpacity: crossesGroups ? 0.25 : attributes.matchOpacity };
+        }, { attributes: ["baseOpacity"] });
+        if (grouped?.positions.size) {
+          const coordinates = [...positions.values()];
+          const xs = coordinates.map(({ x }) => x);
+          const ys = coordinates.map(({ y }) => y);
+          sigma.setCustomBBox({ x: [Math.min(...xs), Math.max(...xs)], y: [Math.min(...ys), Math.max(...ys)] });
+        } else {
+          sigma.setCustomBBox(null);
+        }
+        sigma.getCamera().cancelAnimation().setState({ x: 0.5, y: 0.5, ratio: 1, angle: 0 });
+        sigma.scheduleRefresh();
+      }
+
+      function reportVisibleCounts() {
+        const count = `${visibleNodes.size.toLocaleString()} businesses · ${visibleEdges.size.toLocaleString()} links`;
+        if (legendCount) legendCount.textContent = count;
+        if (settingsCount) settingsCount.textContent = `${visibleNodes.size.toLocaleString()} of ${graph.order.toLocaleString()} businesses shown`;
+        if (empty) empty.hidden = visibleNodes.size > 0;
+        container!.dataset.visibleNodeCount = String(visibleNodes.size);
+        container!.dataset.visibleEdgeCount = String(visibleEdges.size);
+      }
+
+      function updateFilters(filters: InspectionFilters) {
+        const nextNodes = new Set(filterBusinesses(message.nodes, filters).map(({ id }) => id));
+        if (nextNodes.size === visibleNodes.size && [...nextNodes].every(id => visibleNodes.has(id))) return;
+        visibleNodes = nextNodes;
+        visibleGroups = new Set([...visibleNodes].map(id => groupById.get(id)));
+        visibleEdges = new Set(edgeKeys.filter(id => graph.extremities(id).every(node => visibleNodes.has(node))));
+        reportVisibleCounts();
+        positionHeadings();
+        cancelAnimationFrame(filterFrame);
+        const enteringNodes = [...visibleNodes].filter(id => sigma.getNodeState(id).isHidden);
+        const enteringEdges = [...visibleEdges].filter(id => sigma.getEdgeState(id).isHidden);
+        sigma.setNodesState(enteringNodes, { isHidden: false });
+        sigma.setEdgesState(enteringEdges, { isHidden: false });
+
+        const nodeOpacity = new Map(graph.mapNodes((id, { viewOpacity }) => [id, viewOpacity]));
+        const edgeOpacity = new Map(graph.mapEdges((id, { viewOpacity }) => [id, viewOpacity]));
+        const startedAt = performance.now();
+        const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 180;
+        function renderFade(now: number) {
+          const progress = duration ? Math.max(0, Math.min(1, (now - startedAt) / duration)) : 1;
+          const opacity = (from: number, visible: boolean) => from + (Number(visible) - from) * progress;
+          graph.updateEachNodeAttributes((id, attributes) => ({
+            ...attributes, viewOpacity: opacity(nodeOpacity.get(id)!, visibleNodes.has(id)),
+          }), { attributes: ["viewOpacity"] });
+          graph.updateEachEdgeAttributes((id, attributes) => ({
+            ...attributes, viewOpacity: opacity(edgeOpacity.get(id)!, visibleEdges.has(id)),
+          }), { attributes: ["viewOpacity"] });
+          if (progress < 1) {
+            filterFrame = requestAnimationFrame(renderFade);
+          } else {
+            sigma.setNodesState(nodeKeys.filter(id => !visibleNodes.has(id)), { isHidden: true });
+            sigma.setEdgesState(edgeKeys.filter(id => !visibleEdges.has(id)), { isHidden: true });
+          }
+        }
+        if (duration) filterFrame = requestAnimationFrame(renderFade);
+        else renderFade(startedAt);
+      }
 
       let selectedNodes = new Set<string>();
       let highlightedEdges = new Set<string>();
-      function updateSelection(nodes: Set<string>, edge?: string) {
+      let scorePair: ReturnType<typeof createInspectionPairScorer> | undefined;
+      function updateSelection(nodes: Set<string>) {
         const [firstNode] = nodes;
         let edges: string[] = [];
-        if (edge !== undefined) edges = [edge];
-        else if (nodes.size === 1) edges = graph.edges(firstNode);
+        if (nodes.size === 1) edges = graph.edges(firstNode);
         else if (nodes.size > 1) {
           edges = graph.edges().filter(id => graph.extremities(id).every(node => nodes.has(node)));
         }
-        const nextEdges = new Set(edges);
+        const nextEdges = new Set(edges.filter(id => visibleEdges.has(id)));
         sigma.setNodesState([...selectedNodes].filter(id => !nodes.has(id)), { isHighlighted: false });
         sigma.setNodesState([...nodes].filter(id => !selectedNodes.has(id)), { isHighlighted: true });
         sigma.setEdgesState([...highlightedEdges].filter(id => !nextEdges.has(id)), { isHighlighted: false });
@@ -357,11 +496,13 @@ const structuredData = {
         highlightedEdges = nextEdges;
 
         const restaurants = [...nodes].map(id => message.nodes[Number(id)]);
-        if (edge !== undefined) {
+        if (restaurants.length === 2) {
+          scorePair ??= createInspectionPairScorer(message.nodes);
+          const [first, second] = restaurants;
           renderInspectionDetails({
-            type: "edge", restaurants: [restaurants[0], restaurants[1]], score: graph.getEdgeAttribute(edge, "score"),
+            type: "pair", restaurants: [first, second], score: scorePair(Number(first.id), Number(second.id)),
           });
-        } else if (restaurants.length > 1) {
+        } else if (restaurants.length > 2) {
           renderInspectionDetails({ type: "group", restaurants, remove: toggleNode });
         } else {
           renderInspectionDetails(restaurants.length ? { type: "node", restaurant: restaurants[0] } : null);
@@ -377,7 +518,7 @@ const structuredData = {
         updateSelection(nodes);
       }
       function selectEdge({ edge }: { edge: string }) {
-        updateSelection(new Set(graph.extremities(edge)), edge);
+        updateSelection(new Set(graph.extremities(edge)));
       }
       let dragRelease: Event | undefined;
       sigma.on("nodeDragEnd", ({ event }) => { dragRelease = event.original; });
@@ -385,10 +526,12 @@ const structuredData = {
         return event.original === dragRelease;
       }
       function handleNodeClick(event: SigmaEventPayload & { node: string }) {
-        if (!wasDrag(event)) toggleNode(event.node);
+        if (wasDrag(event) || !visibleNodes.has(event.node)) return;
+        if (event.event.original.shiftKey || event.event.original.metaKey) toggleNode(event.node);
+        else updateSelection(new Set([event.node]));
       }
       function handleEdgeClick(event: SigmaEventPayload & { edge: string }) {
-        if (!wasDrag(event)) selectEdge(event);
+        if (!wasDrag(event) && visibleEdges.has(event.edge)) selectEdge(event);
       }
       sigma.on("clickNode", handleNodeClick);
       sigma.on("clickEdge", handleEdgeClick);
@@ -410,8 +553,44 @@ const structuredData = {
       window.addEventListener("keydown", event => {
         if (event.key === "Escape" && selectedNodes.size) clearSelection();
       });
-      if (legend && legendCount) {
-        legendCount.textContent = `${graph.order.toLocaleString()} businesses · ${graph.size.toLocaleString()} links`;
+      if (settings && settingsButton && settingsForm) {
+        const citySelect = settingsForm.querySelector<HTMLSelectElement>('select[name="city"]');
+        const cities = new Set(message.nodes.map(({ city }) => city.toUpperCase()).filter(Boolean));
+        for (const city of [...cities].sort((a, b) => a.localeCompare(b))) citySelect?.add(new Option(city, city));
+
+        function applySettings() {
+          const form = new FormData(settingsForm!);
+          const value = (name: string) => String(form.get(name) ?? "");
+          updateGrouping(value("grouping") as InspectionGrouping);
+          updateFilters({
+            query: value("query"), city: value("city"), preparation: value("preparation"),
+            topic: value("topic"), pattern: value("pattern"),
+          });
+        }
+        settingsForm.addEventListener("input", applySettings);
+        settingsForm.addEventListener("submit", event => event.preventDefault());
+        settingsButton.addEventListener("click", () => {
+          clearSelection();
+          settingsButton.setAttribute("aria-expanded", "true");
+          settings.showModal();
+        });
+        document.querySelector("#inspection-settings-close")?.addEventListener("click", () => settings.close());
+        settings.addEventListener("keydown", event => {
+          if (event.key !== "Escape") return;
+          event.preventDefault();
+          settings.close();
+        });
+        settings.addEventListener("close", () => {
+          settingsButton.setAttribute("aria-expanded", "false");
+          settingsButton.focus();
+        });
+        document.querySelector("#inspection-settings-reset")?.addEventListener("click", () => {
+          for (const field of settingsForm.querySelectorAll<HTMLInputElement | HTMLSelectElement>("fieldset input, fieldset select")) field.value = "";
+          applySettings();
+        });
+      }
+      reportVisibleCounts();
+      if (legend) {
         if (window.matchMedia("(max-width: 760px)").matches) legend.querySelector("details")?.removeAttribute("open");
         legend.hidden = false;
       }
@@ -441,7 +620,7 @@ const structuredData = {
 
     try {
       dataWorker = new Worker(new URL("../../workers/inspection-graph.worker.ts", import.meta.url), { type: "module" });
-      dataWorker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+      dataWorker.onmessage = (event: MessageEvent<WorkerResult>) => {
         const message = event.data;
         if (message.type === "progress") {
           updateProgress(message);
@@ -472,6 +651,7 @@ const structuredData = {
   window.addEventListener("pagehide", () => {
     leaving = true;
     dataWorker?.terminate();
+    cancelAnimationFrame(filterFrame);
     renderer?.kill();
   }, { once: true });
 </script>

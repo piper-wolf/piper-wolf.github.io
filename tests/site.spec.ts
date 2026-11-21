@@ -64,8 +64,8 @@ test("playground lazily loads the inspection data and renders an interactive res
   await expect(graph).toHaveAttribute("data-first-render-ms", /\d+/);
   await expect(page.locator("#synology-graph-status")).toBeHidden();
   expect(csvRequests.length).toBeGreaterThan(0);
-  await expect(page.locator("#inspection-topics span")).toHaveCount(inspectionTopics.length);
-  await expect(page.locator("#inspection-topics span", { hasText: "Cleaning & sanitizing" })).toBeVisible();
+  const groupLabels = page.locator("#inspection-groups span");
+  await expect(groupLabels).toHaveCount(0);
 
   const screenshot = await canvas.screenshot();
   const { data, info } = await sharp(screenshot).resize(64, 32).removeAlpha().raw().toBuffer({ resolveWithObject: true });
@@ -110,6 +110,7 @@ test("playground lazily loads the inspection data and renders an interactive res
           x: canvasBounds!.x + x * canvasBounds!.width / image.width,
           y: canvasBounds!.y + y * canvasBounds!.height / image.height,
         };
+        if (point.x < 310 || point.x > 1_025) continue;
         if (excluded.some(other => Math.hypot(point.x - other.x, point.y - other.y) < 24)) continue;
         candidates.push(point);
       }
@@ -134,29 +135,96 @@ test("playground lazily loads the inspection data and renders an interactive res
   await expect(details.getByRole("link", { name: "County permit guide" })).toBeVisible();
   await expect(details).toContainText("Recent inspection profile");
 
+  const firstBusiness = await details.getByRole("heading", { level: 3 }).innerText();
   const second = await findGraphPoint(nodeColors, "grab", [point]);
   await page.mouse.click(second.x, second.y);
-  await expect(details.getByRole("heading", { name: "What these businesses share" })).toBeVisible();
-  await expect(details.getByRole("heading", { name: "2 businesses selected" })).toBeVisible();
-  await expect(details.getByRole("heading", { name: "Shared topics" })).toBeVisible();
-  await expect(details.getByRole("heading", { name: "Shared specific findings" })).toBeVisible();
+  await expect(details.getByRole("heading", { level: 3 })).toHaveCount(1);
+
+  async function modifiedClick({ x, y }: { x: number; y: number }, key: "Shift" | "Meta") {
+    await page.keyboard.down(key);
+    try {
+      await page.mouse.click(x, y);
+    } finally {
+      await page.keyboard.up(key);
+    }
+  }
+  await modifiedClick(point, "Shift");
+  await expect(details.getByRole("heading", { name: "Business comparison" })).toBeVisible();
+  await expect(details.getByRole("heading", { level: 3 })).toHaveCount(2);
+  await expect(details).toContainText("similarity score");
 
   const third = await findGraphPoint(nodeColors, "grab", [point, second]);
-  await page.mouse.click(third.x, third.y);
+  await modifiedClick(third, "Meta");
+  await expect(details.getByRole("heading", { name: "What these businesses share" })).toBeVisible();
   await expect(details.getByRole("heading", { name: "3 businesses selected" })).toBeVisible();
-  await page.mouse.click(third.x, third.y);
-  await expect(details.getByRole("heading", { name: "2 businesses selected" })).toBeVisible();
+  await expect(details.getByRole("heading", { name: "Shared topics" })).toBeVisible();
+  await expect(details.getByRole("heading", { name: "Shared specific findings" })).toBeVisible();
   await details.getByRole("button", { name: /^Remove / }).last().click();
-  await expect(details.getByRole("heading", { name: "Business details" })).toBeVisible();
-  await page.keyboard.press("Escape");
+  await expect(details.getByRole("heading", { name: "Business comparison" })).toBeVisible();
+  await modifiedClick(third, "Meta");
+  await expect(details.getByRole("heading", { name: "3 businesses selected" })).toBeVisible();
+
+  const menu = page.getByRole("button", { name: "Graph settings", exact: true });
+  const settings = page.getByRole("dialog", { name: "Graph settings" });
+  const grouping = settings.getByRole("combobox", { name: "Group by" });
+  const city = settings.getByRole("combobox", { name: "City" });
+  const topic = settings.getByRole("combobox", { name: "Recorded topic" });
+  const pattern = settings.getByRole("combobox", { name: "Finding pattern" });
+  const query = settings.getByRole("searchbox", { name: "Business name or address" });
+  const reset = settings.getByRole("button", { name: "Reset filters" });
+
+  await menu.click();
+  await expect(menu).toHaveAttribute("aria-expanded", "true");
+  await expect(settings).toBeVisible();
   await expect(details).toBeHidden();
+  await expect(grouping).toHaveValue("");
+  await city.selectOption("SEATTLE");
+  const cityMatches = Number(await graph.getAttribute("data-visible-node-count"));
+  expect(cityMatches).toBeGreaterThan(0);
+  expect(cityMatches).toBeLessThan(nodeCount);
+  await topic.selectOption("hygiene");
+  await pattern.selectOption("repeated-critical");
+  const patternMatches = Number(await graph.getAttribute("data-visible-node-count"));
+  expect(patternMatches).toBeGreaterThan(0);
+  expect(patternMatches).toBeLessThan(cityMatches);
+  expect(Number(await graph.getAttribute("data-visible-edge-count"))).toBeLessThan(edgeCount);
+
+  await reset.click();
+  await query.fill("zzzzzz no matching business zzzzzz");
+  await expect(graph).toHaveAttribute("data-visible-node-count", "0");
+  await expect(graph).toHaveAttribute("data-visible-edge-count", "0");
+  await expect(page.locator("#inspection-empty")).toBeVisible();
+  await query.fill(firstBusiness);
+  await expect(page.locator("#inspection-empty")).toBeHidden();
+  await page.keyboard.press("Escape");
+  await expect(settings).toBeHidden();
+  await expect(menu).toBeFocused();
+
+  // The matching business stays under the same pixel after filtering others out.
+  await page.mouse.click(point.x, point.y);
+  await expect(details.getByRole("heading", { level: 3 })).toHaveText(firstBusiness);
+  await menu.click();
+  await expect(details).toBeHidden();
+  await grouping.selectOption("topic");
+  await expect(groupLabels).toHaveCount(inspectionTopics.length);
+  await reset.click();
+  await expect(graph).toHaveAttribute("data-visible-node-count", String(nodeCount));
+  await expect(grouping).toHaveValue("topic");
+  await expect(groupLabels.filter({ hasText: "Cleaning & sanitizing" })).toBeVisible();
+  await grouping.selectOption("preparation");
+  await expect(groupLabels.filter({ hasText: "Complex food preparation" })).toBeVisible();
+  await grouping.selectOption("");
+  await expect(groupLabels).toHaveCount(0);
+  await settings.getByRole("button", { name: "Close graph settings" }).click();
+  await expect(settings).toBeHidden();
 
   const edge = await findGraphPoint(await palette(["edge-strong", "edge-regular"]), "pointer");
   await page.mouse.click(edge.x, edge.y);
   await expect(details).toBeVisible();
   await expect(details.getByRole("heading", { level: 3 })).toHaveCount(2);
   await expect(details).toContainText("similarity score", { ignoreCase: true });
-  await expect(details.getByRole("table", { name: "Number of inspection dates each business had each shared finding" })).toBeVisible();
+  await expect(details.getByRole("table", { name: "Number of inspection dates each business had each shared finding" })
+    .or(details.getByText("No shared specific findings."))).toBeVisible();
   await page.locator("#inspection-details-close").click();
   await expect(details).toBeHidden();
 

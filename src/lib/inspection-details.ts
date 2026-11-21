@@ -1,20 +1,14 @@
 import { PROFILE_YEARS, sharedInspectionFeatures, type SharedInspectionFeature } from "./inspection-features";
 import type { DatedInspection, GraphNode, Violation } from "./inspection-graph";
+import { preparationCategories } from "./inspection-view";
 
 export type InspectionSelection =
   | { type: "node"; restaurant: GraphNode }
-  | { type: "edge"; restaurants: [GraphNode, GraphNode]; score: number }
+  | { type: "pair"; restaurants: [GraphNode, GraphNode]; score: number }
   | { type: "group"; restaurants: GraphNode[]; remove: (id: string) => void };
 
 const countyPermitGuide = "https://kingcounty.gov/en/dept/dph/certificates-permits-licenses/food-business-permits/permanent-food-business-permit#what-is-a-food-establishment-risk-level";
 const countyInspectionGuide = "https://kingcounty.gov/en/dept/dph/health-safety/food-safety/inspection-rating-system/about#about-red-and-blue-violations";
-const preparationCategories = {
-  "1": { label: "Limited food preparation", example: "Examples include serving packaged food or making espresso drinks." },
-  "2": { label: "Basic food preparation", example: "Examples include making sandwiches, baking, or blending fresh fruit." },
-  "3": { label: "Complex food preparation", example: "Examples include cooking, cooling and reheating food, or handling raw meat or fish." },
-  Unknown: { label: "Food preparation category unavailable", example: "" },
-};
-
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeZone: "UTC",
@@ -178,7 +172,7 @@ function buildSharedTable(features: SharedInspectionFeature[]): HTMLElement {
   return tableScroll;
 }
 
-function buildScoreOverview(selection: Extract<InspectionSelection, { type: "edge" }>): HTMLElement[] {
+function buildScoreOverview(selection: Extract<InspectionSelection, { type: "pair" }>): HTMLElement[] {
   const profiles = selection.restaurants.map(({ profile }) => profile);
   const topics = sharedInspectionFeatures(profiles, "topics");
   const findings = sharedInspectionFeatures(profiles, "findings");
@@ -274,7 +268,7 @@ export function renderInspectionDetails(selection: InspectionSelection | null): 
   if (!sidebar || !title || !overview || !panels) return;
 
   sidebar.hidden = !selection;
-  overview.hidden = selection?.type !== "edge";
+  overview.hidden = selection?.type !== "pair";
   if (!selection) {
     delete sidebar.dataset.selection;
     overview.replaceChildren();
