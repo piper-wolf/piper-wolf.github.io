@@ -1,5 +1,5 @@
 import Papa from "papaparse";
-import { buildSimilarityGraph, InspectionAggregator, type InspectionCsvRow } from "../lib/inspection-graph";
+import { buildSimilarityGraph, InspectionAggregator, selectRelevantRestaurants, type InspectionCsvRow } from "../lib/inspection-graph";
 
 type WorkerRequest = { csvUrl: string };
 type WorkerProgress = {
@@ -86,21 +86,22 @@ async function loadInspectionData(data: WorkerRequest) {
     complete() {
       try {
         const processed = aggregator.finish();
+        const restaurants = selectRelevantRestaurants(processed.restaurants);
         const processingMs = performance.now() - startedAt;
         const scoringStartedAt = performance.now();
         workerScope.postMessage({
           type: "progress",
           phase: "scoring",
           rowCount: processed.stats.rowCount,
-          restaurantCount: processed.stats.restaurantCount,
+          restaurantCount: restaurants.length,
         });
-        const graph = buildSimilarityGraph(processed.restaurants, {
+        const graph = buildSimilarityGraph(restaurants, {
           onProgress(candidatePairsScored) {
             workerScope.postMessage({
               type: "progress",
               phase: "scoring",
               rowCount: processed.stats.rowCount,
-              restaurantCount: processed.stats.restaurantCount,
+              restaurantCount: restaurants.length,
               candidatePairsScored,
             });
           },

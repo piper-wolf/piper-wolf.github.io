@@ -314,6 +314,28 @@ function riskSimilarity(a: RiskCategory, b: RiskCategory): number {
   return difference === 0 ? 1 : difference === 1 ? 0.9 : 0.8;
 }
 
+export function selectRelevantRestaurants(restaurants: Restaurant[], limit = 1800): Restaurant[] {
+  const latestDate = (restaurant: Restaurant) =>
+    restaurant.inspections.findLast(({ date }) => date !== "Unknown")?.date ?? "";
+  const dated = restaurants.map((restaurant) => ({ restaurant, latest: latestDate(restaurant) }));
+  const snapshotDate = dated.reduce((latest, entry) => entry.latest > latest ? entry.latest : latest, "");
+  if (!snapshotDate) return [];
+
+  const cutoff = new Date(snapshotDate);
+  cutoff.setUTCDate(cutoff.getUTCDate() - 365);
+  const dateCutoff = cutoff.toISOString().slice(0, 10);
+  const datedCount = (restaurant: Restaurant) =>
+    restaurant.inspections.length - Number(restaurant.inspections[0]?.date === "Unknown");
+
+  return dated
+    .filter(({ restaurant, latest }) => latest >= dateCutoff && restaurant.realViolationCodes.length > 0)
+    .sort((a, b) => datedCount(b.restaurant) - datedCount(a.restaurant) ||
+      compareStrings(b.latest, a.latest) || compareStrings(a.restaurant.name, b.restaurant.name))
+    .slice(0, limit)
+    .map(({ restaurant }) => restaurant)
+    .sort((a, b) => compareStrings(a.name, b.name));
+}
+
 function pairIndex(a: number, b: number, nodeCount: number): number {
   return (a * (2 * nodeCount - a - 1)) / 2 + (b - a - 1);
 }

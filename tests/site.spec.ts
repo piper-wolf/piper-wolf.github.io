@@ -3,7 +3,7 @@ import sharp from "sharp";
 
 const pages = ["/", "/pigeons", "/pigeons/016", "/pigeons/001"];
 
-test("playground lazily loads the inspection data and renders a draggable restaurant graph", async ({ page }) => {
+test("playground lazily loads the inspection data and renders an interactive restaurant graph", async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   const csvRequests: string[] = [];
@@ -27,15 +27,16 @@ test("playground lazily loads the inspection data and renders a draggable restau
   });
   await page.goto("/playground/synology", { waitUntil: "domcontentloaded" });
   await expect(page.locator("[data-pigeon-landing], .pigeon-visitor, script[src*=goatcounter]")).toHaveCount(0);
-  const visibleCopy = await page.evaluate(() => document.querySelectorAll("h1, h2, header, footer, button, p, details").length);
-  expect(visibleCopy).toBe(0);
+  await expect(page.locator("body > header, body > footer, h1")).toHaveCount(0);
+  const legend = page.getByRole("complementary", { name: "Graph key" });
+  await expect(legend).toBeHidden();
   const preloadedGraphModules = await page.locator('link[rel="modulepreload"]').evaluateAll(links =>
     links.map(link => link.getAttribute("href")).filter(href => href && /sigma|graphology/i.test(href)),
   );
   expect(preloadedGraphModules).toEqual([]);
   expect(csvRequests).toEqual([]);
   const graphResources = () => page.evaluate(() =>
-    performance.getEntriesByType("resource").map(({ name }) => name).filter((name) => /sigma|graphology|inspection-data\.csv/i.test(name)),
+    performance.getEntriesByType("resource").map(({ name }) => name).filter((name) => /sigma|graphology|inspection-layout|inspection-data\.csv/i.test(name)),
   );
   expect(await graphResources()).toEqual([]);
 
@@ -57,11 +58,12 @@ test("playground lazily loads the inspection data and renders a draggable restau
   await expect(graph).toHaveAttribute("aria-busy", "false", { timeout: 120_000 });
   const nodeCount = Number(await graph.getAttribute("data-node-count"));
   const edgeCount = Number(await graph.getAttribute("data-edge-count"));
-  expect(nodeCount).toBeGreaterThan(9_000);
+  expect(nodeCount).toBe(1_800);
   expect(edgeCount).toBeGreaterThan(0);
   await expect(graph).toHaveAttribute("data-first-render-ms", /\d+/);
   await expect(page.locator("#synology-graph-status")).toBeHidden();
   expect(csvRequests.length).toBeGreaterThan(0);
+  await expect(graph).toHaveAttribute("data-layout-steps", "45", { timeout: 30_000 });
 
   const screenshot = await canvas.screenshot();
   const { data, info } = await sharp(screenshot).resize(64, 32).removeAlpha().raw().toBuffer({ resolveWithObject: true });
@@ -74,37 +76,54 @@ test("playground lazily loads the inspection data and renders a draggable restau
   const { data: pixels, info: image } = await sharp(screenshot).removeAlpha().raw().toBuffer({ resolveWithObject: true });
   const canvasBounds = await canvas.boundingBox();
   expect(canvasBounds).not.toBeNull();
-  const riskColors = [[166, 65, 40], [178, 138, 69], [36, 107, 101], [130, 144, 150]];
-  const draggablePixels: Array<{ x: number; y: number }> = [];
-  for (let y = 0; y < image.height; y++) {
-    for (let x = 0; x < image.width; x++) {
-      const offset = (y * image.width + x) * image.channels;
-      const [red, green, blue] = pixels.subarray(offset, offset + 3);
-      if (riskColors.some(([r, g, b]) => Math.abs(red - r) + Math.abs(green - g) + Math.abs(blue - b) < 18)) {
-        draggablePixels.push({
-          x: canvasBounds!.x + x * canvasBounds!.width / image.width,
-          y: canvasBounds!.y + y * canvasBounds!.height / image.height,
-        });
+  const mouseLayer = graph.locator(".sigma-mouse");
+  async function findGraphPoint(palette: number[][], cursor: string) {
+    const candidates: Array<{ x: number; y: number }> = [];
+    for (let y = 0; y < image.height; y += 2) {
+      for (let x = 0; x < image.width; x += 2) {
+        const offset = (y * image.width + x) * image.channels;
+        const [red, green, blue] = pixels.subarray(offset, offset + 3);
+        if (palette.some(([r, g, b]) => Math.abs(red - r) + Math.abs(green - g) + Math.abs(blue - b) < 20)) {
+          candidates.push({
+            x: canvasBounds!.x + x * canvasBounds!.width / image.width,
+            y: canvasBounds!.y + y * canvasBounds!.height / image.height,
+          });
+        }
       }
     }
-  }
-  expect(draggablePixels.length).toBeGreaterThan(0);
-  const mouseLayer = graph.locator(".sigma-mouse");
-  let draggablePoint: { x: number; y: number } | undefined;
-  for (const point of draggablePixels.slice(0, 40)) {
-    await page.mouse.move(point.x, point.y);
-    await page.waitForTimeout(50);
-    if (await mouseLayer.evaluate(element => getComputedStyle(element).cursor) === "grab") {
-      draggablePoint = point;
-      break;
+    const stride = Math.max(1, Math.floor(candidates.length / 35));
+    for (let i = 0; i < candidates.length; i += stride) {
+      const point = candidates[i];
+      await page.mouse.move(point.x, point.y);
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      if (await mouseLayer.evaluate(element => getComputedStyle(element).cursor) === cursor) return point;
     }
+    throw new Error(`Could not find a graph item with cursor ${cursor}`);
   }
-  expect(draggablePoint).toBeDefined();
-  const point = draggablePoint!;
+
+  await expect(legend).toContainText("1,800 restaurants");
+  const point = await findGraphPoint([[166, 65, 40], [153, 112, 34], [36, 107, 101], [101, 117, 125]], "grab");
+  await page.mouse.click(point.x, point.y);
+  const details = page.locator("#inspection-details");
+  await expect(details).toBeVisible();
+  await expect(details.getByRole("heading", { level: 3 })).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(details).toBeHidden();
+
+  const edge = await findGraphPoint([[83, 111, 99], [168, 183, 172]], "pointer");
+  await page.mouse.click(edge.x, edge.y);
+  await expect(details).toBeVisible();
+  await expect(details.getByRole("heading", { level: 3 })).toHaveCount(2);
+  await expect(details).toContainText("similarity score", { ignoreCase: true });
+  await page.locator("#inspection-details-close").click();
+  await expect(details).toBeHidden();
+
+  await page.mouse.move(point.x, point.y);
   await page.mouse.down();
   await page.mouse.move(point.x + 70, point.y + 45, { steps: 6 });
   await expect(mouseLayer).toHaveCSS("cursor", "grabbing");
   await page.mouse.up();
+  await expect(details).toBeHidden();
 
   expect(await graphResources()).toEqual(expect.arrayContaining([
     expect.stringMatching(/sigma/i),
