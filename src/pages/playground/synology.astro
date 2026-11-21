@@ -222,7 +222,8 @@ const structuredData = {
 
 <script>
   import { createInspectionPairScorer } from "../../lib/inspection-graph";
-  import { filterBusinesses, groupBusinesses, type GraphPosition, type InspectionFilters, type InspectionGrouping } from "../../lib/inspection-view";
+  import { filterBusinesses, groupBusinesses, layoutBounds, type GraphPosition, type InspectionFilters, type InspectionGrouping } from "../../lib/inspection-view";
+  import type { LayoutBatch, LayoutResult } from "../../lib/inspection-layout";
   import type { WorkerResult } from "../../workers/inspection-graph.worker";
   import { inspectionTopics, otherTopic } from "../../lib/inspection-features";
   import type { FragmentLayer } from "sigma/rendering";
@@ -245,6 +246,16 @@ const structuredData = {
   let leaving = false;
   let initialized = false;
   let filterFrame = 0;
+  let layoutFrame = 0;
+  let layoutTimer = 0;
+  let layoutWorker: Worker | undefined;
+
+  function cancelLayout() {
+    window.clearTimeout(layoutTimer);
+    cancelAnimationFrame(layoutFrame);
+    layoutWorker?.terminate();
+    layoutWorker = undefined;
+  }
 
   function showError(message: string) {
     if (!container || !status) return;
@@ -386,6 +397,8 @@ const structuredData = {
       let visibleEdges = new Set(edgeKeys);
       let grouping: InspectionGrouping = "";
       let groupById = new Map<string, string>();
+      let basePositions = message.positions;
+      const draggedDuringLayout = new Set<string>();
       let visibleGroups = new Set<string | undefined>();
       let headings: Array<GraphPosition & { id: string; label: HTMLElement }> = [];
 
@@ -400,12 +413,12 @@ const structuredData = {
       sigma.on("afterRender", positionHeadings);
 
       function updateGrouping(nextGrouping: InspectionGrouping) {
-        if (nextGrouping === grouping) return;
+        if (nextGrouping === grouping) return false;
         grouping = nextGrouping;
         const grouped = grouping ? groupBusinesses(message.nodes, message.edges, grouping) : null;
         groupById = grouped?.groupById ?? new Map();
         visibleGroups = new Set([...visibleNodes].map(id => groupById.get(id)));
-        const positions = grouped?.positions ?? message.positions;
+        basePositions = grouped?.positions ?? message.positions;
         headings = (grouped?.headings ?? []).map(({ id, label: title, x, y }) => {
           const label = document.createElement("span");
           label.textContent = title;
@@ -413,21 +426,97 @@ const structuredData = {
           return { id, label, x, y };
         });
         groupLabels?.replaceChildren(...headings.map(({ label }) => label));
-        graph.updateEachNodeAttributes((id, attributes) => ({ ...attributes, ...positions.get(id)! }), { attributes: ["x", "y"] });
+        graph.updateEachNodeAttributes((id, attributes) => ({ ...attributes, ...basePositions.get(id)! }), { attributes: ["x", "y"] });
         graph.updateEachEdgeAttributes((_id, attributes, source, target) => {
           const crossesGroups = groupById.get(source) !== groupById.get(target);
           return { ...attributes, baseOpacity: crossesGroups ? 0.25 : attributes.matchOpacity };
         }, { attributes: ["baseOpacity"] });
-        if (grouped?.positions.size) {
-          const coordinates = [...positions.values()];
-          const xs = coordinates.map(({ x }) => x);
-          const ys = coordinates.map(({ y }) => y);
-          sigma.setCustomBBox({ x: [Math.min(...xs), Math.max(...xs)], y: [Math.min(...ys), Math.max(...ys)] });
-        } else {
-          sigma.setCustomBBox(null);
-        }
+        sigma.setCustomBBox(grouped ? layoutBounds(basePositions.values()) : null);
         sigma.getCamera().cancelAnimation().setState({ x: 0.5, y: 0.5, ratio: 1, angle: 0 });
         sigma.scheduleRefresh();
+        return true;
+      }
+
+      function animatePositions(targets: Map<string, GraphPosition>) {
+        const starts = new Map(graph.mapNodes((id, { x, y }) => [id, { x, y }]));
+        const startedAt = performance.now();
+        const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 320;
+
+        function step(now: number) {
+          const progress = duration ? Math.max(0, Math.min(1, (now - startedAt) / duration)) : 1;
+          const eased = progress * progress * (3 - 2 * progress);
+          graph.updateEachNodeAttributes((id, attributes) => {
+            const target = targets.get(id);
+            if (!target || draggedDuringLayout.has(id)) return attributes;
+            const start = starts.get(id)!;
+            return { ...attributes, x: start.x + (target.x - start.x) * eased, y: start.y + (target.y - start.y) * eased };
+          }, { attributes: ["x", "y"] });
+          if (progress < 1) layoutFrame = requestAnimationFrame(step);
+          else container!.setAttribute("aria-busy", "false");
+        }
+        if (duration) layoutFrame = requestAnimationFrame(step);
+        else step(startedAt);
+      }
+
+      function updateFilteredLayout(groupingChanged: boolean) {
+        cancelLayout();
+        draggedDuringLayout.clear();
+        if (!visibleNodes.size || (groupingChanged && visibleNodes.size === graph.order)) {
+          container!.setAttribute("aria-busy", "false");
+          return;
+        }
+        container!.setAttribute("aria-busy", "true");
+        if (visibleNodes.size === graph.order) {
+          animatePositions(basePositions);
+          return;
+        }
+
+        layoutTimer = window.setTimeout(() => {
+          try {
+            const groupId = (id: string) => groupById.get(id) ?? "";
+            const nodesByGroup = Map.groupBy(nodeKeys, groupId);
+            const visibleByGroup = Map.groupBy(visibleNodes, groupId);
+            const edgesByGroup = Map.groupBy(
+              message.edges.filter(({ source, target }) => visibleNodes.has(source) && visibleNodes.has(target) &&
+                groupId(source) === groupId(target)),
+              ({ source }) => groupId(source),
+            );
+            const batches: LayoutBatch[] = [...visibleByGroup].map(([group, ids]) => {
+              const members = nodesByGroup.get(group)!;
+              const { x, y } = layoutBounds(members.map(id => basePositions.get(id)!))!;
+              const fraction = Math.max(0.22, Math.sqrt(ids.length / members.length));
+              const radius = Math.max(1, Math.min(x[1] - x[0], y[1] - y[0]) / 2) * fraction;
+              return {
+                nodes: ids.map(id => {
+                  const { x, y } = graph.getNodeAttributes(id);
+                  return { id, x, y };
+                }),
+                edges: edgesByGroup.get(group) ?? [],
+                frame: { x: (x[0] + x[1]) / 2, y: (y[0] + y[1]) / 2, radius },
+              };
+            });
+            const worker = new Worker(new URL("../../workers/inspection-layout.worker.ts", import.meta.url), { type: "module" });
+            layoutWorker = worker;
+            worker.onmessage = ({ data }: MessageEvent<LayoutResult>) => {
+              if (layoutWorker !== worker) return;
+              cancelLayout();
+              if ("positions" in data) animatePositions(data.positions);
+              else layoutFailed(data.error);
+            };
+            worker.onerror = event => {
+              if (layoutWorker === worker) layoutFailed(event.message);
+            };
+            worker.postMessage(batches);
+          } catch (error) {
+            layoutFailed(error instanceof Error ? error.message : String(error));
+          }
+        }, 100);
+      }
+
+      function layoutFailed(message: string) {
+        cancelLayout();
+        container!.setAttribute("aria-busy", "false");
+        console.warn("Could not arrange the filtered inspection graph", message);
       }
 
       function reportVisibleCounts() {
@@ -441,7 +530,7 @@ const structuredData = {
 
       function updateFilters(filters: InspectionFilters) {
         const nextNodes = new Set(filterBusinesses(message.nodes, filters).map(({ id }) => id));
-        if (nextNodes.size === visibleNodes.size && [...nextNodes].every(id => visibleNodes.has(id))) return;
+        if (nextNodes.size === visibleNodes.size && [...nextNodes].every(id => visibleNodes.has(id))) return false;
         visibleNodes = nextNodes;
         visibleGroups = new Set([...visibleNodes].map(id => groupById.get(id)));
         visibleEdges = new Set(edgeKeys.filter(id => graph.extremities(id).every(node => visibleNodes.has(node))));
@@ -475,6 +564,7 @@ const structuredData = {
         }
         if (duration) filterFrame = requestAnimationFrame(renderFade);
         else renderFade(startedAt);
+        return true;
       }
 
       let selectedNodes = new Set<string>();
@@ -521,6 +611,9 @@ const structuredData = {
         updateSelection(new Set(graph.extremities(edge)));
       }
       let dragRelease: Event | undefined;
+      sigma.on("nodeDragStart", ({ allDraggedNodes }) => {
+        for (const id of allDraggedNodes) draggedDuringLayout.add(id);
+      });
       sigma.on("nodeDragEnd", ({ event }) => { dragRelease = event.original; });
       function wasDrag({ event }: SigmaEventPayload) {
         return event.original === dragRelease;
@@ -561,11 +654,12 @@ const structuredData = {
         function applySettings() {
           const form = new FormData(settingsForm!);
           const value = (name: string) => String(form.get(name) ?? "");
-          updateGrouping(value("grouping") as InspectionGrouping);
-          updateFilters({
+          const groupingChanged = updateGrouping(value("grouping") as InspectionGrouping);
+          const filtersChanged = updateFilters({
             query: value("query"), city: value("city"), preparation: value("preparation"),
             topic: value("topic"), pattern: value("pattern"),
           });
+          if (filtersChanged || groupingChanged) updateFilteredLayout(groupingChanged);
         }
         settingsForm.addEventListener("input", applySettings);
         settingsForm.addEventListener("submit", event => event.preventDefault());
@@ -652,6 +746,7 @@ const structuredData = {
     leaving = true;
     dataWorker?.terminate();
     cancelAnimationFrame(filterFrame);
+    cancelLayout();
     renderer?.kill();
   }, { once: true });
 </script>

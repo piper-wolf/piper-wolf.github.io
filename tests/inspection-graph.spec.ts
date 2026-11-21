@@ -1,6 +1,7 @@
 import { expect, test } from "./helpers/browser";
 import { sharedInspectionFeatures } from "../src/lib/inspection-features";
 import { filterBusinesses } from "../src/lib/inspection-view";
+import { layoutFilteredBusinesses } from "../src/lib/inspection-layout";
 import { buildSimilarityGraph, createInspectionPairScorer, InspectionAggregator, parseViolationDescription, type Restaurant } from "../src/lib/inspection-graph";
 
 test("inspection transforms keep separate businesses and preserve their most recent details", async () => {
@@ -106,5 +107,18 @@ test("similarity connects recurring topics and the comparison intersects every p
   expect(filterBusinesses(nodes, { ...filters, topic: "sanitation", pattern: "repeated-critical" })).toEqual([]);
   expect(filterBusinesses(nodes, { ...filters, preparation: "2", topic: "hygiene", pattern: "repeated-critical" })
     .map(({ name }) => name)).toEqual(["E", "F"]);
+  const positions = layoutFilteredBusinesses([{
+    nodes: [{ id: "0", x: -90, y: 0 }, { id: "1", x: 90, y: 0 }, { id: "3", x: -88, y: 3 }],
+    edges: [edges[0]],
+    frame: { x: 300, y: -10, radius: 40 },
+  }]);
+  const a = positions.get("0")!;
+  const b = positions.get("1")!;
+  const isolated = positions.get("3")!;
+  expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeLessThan(Math.hypot(a.x - isolated.x, a.y - isolated.y));
+  for (const { x, y } of positions.values()) {
+    expect(Math.abs(x - 300)).toBeLessThanOrEqual(40);
+    expect(Math.abs(y + 10)).toBeLessThanOrEqual(40);
+  }
   expect(buildSimilarityGraph(restaurants, { neighborLimit: 1 }).edges).toHaveLength(2);
 });

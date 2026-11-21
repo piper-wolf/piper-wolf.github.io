@@ -25,6 +25,18 @@ export interface InspectionFilters {
 export type InspectionGrouping = "" | "topic" | "preparation";
 export type GraphPosition = { x: number; y: number };
 
+export function layoutBounds(positions: Iterable<GraphPosition>) {
+  const x: [number, number] = [Infinity, -Infinity];
+  const y: [number, number] = [Infinity, -Infinity];
+  for (const position of positions) {
+    x[0] = Math.min(x[0], position.x);
+    x[1] = Math.max(x[1], position.x);
+    y[0] = Math.min(y[0], position.y);
+    y[1] = Math.max(y[1], position.y);
+  }
+  return x[0] <= x[1] ? { x, y } : null;
+}
+
 export function filterBusinesses(businesses: GraphNode[], filters: InspectionFilters): GraphNode[] {
   const query = filters.query.toLowerCase().trim();
   return businesses.filter(business => {

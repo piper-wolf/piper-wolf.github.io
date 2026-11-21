@@ -99,13 +99,13 @@ test("playground lazily loads the inspection data and renders an interactive res
   expect(pixels.some((_, offset) => offset % image.channels === 0 && pixelMatches(pixels.subarray(offset, offset + 3), outlineColors))).toBe(true);
 
   async function findGraphPoint(
-    palette: number[][], cursor: string, excluded: Array<{ x: number; y: number }> = [],
+    palette: number[][], cursor: string, excluded: Array<{ x: number; y: number }> = [], screenshotPixels = pixels,
   ) {
     const candidates: Array<{ x: number; y: number }> = [];
     for (let y = 0; y < image.height; y += 2) {
       for (let x = 0; x < image.width; x += 2) {
         const offset = (y * image.width + x) * image.channels;
-        if (!pixelMatches(pixels.subarray(offset, offset + 3), palette)) continue;
+        if (!pixelMatches(screenshotPixels.subarray(offset, offset + 3), palette)) continue;
         const point = {
           x: canvasBounds!.x + x * canvasBounds!.width / image.width,
           y: canvasBounds!.y + y * canvasBounds!.height / image.height,
@@ -182,6 +182,8 @@ test("playground lazily loads the inspection data and renders an interactive res
   const cityMatches = Number(await graph.getAttribute("data-visible-node-count"));
   expect(cityMatches).toBeGreaterThan(0);
   expect(cityMatches).toBeLessThan(nodeCount);
+  await expect(graph).toHaveAttribute("aria-busy", "true");
+  await expect(graph).toHaveAttribute("aria-busy", "false");
   await topic.selectOption("hygiene");
   await pattern.selectOption("repeated-critical");
   const patternMatches = Number(await graph.getAttribute("data-visible-node-count"));
@@ -200,13 +202,18 @@ test("playground lazily loads the inspection data and renders an interactive res
   await expect(settings).toBeHidden();
   await expect(menu).toBeFocused();
 
-  // The matching business stays under the same pixel after filtering others out.
-  await page.mouse.click(point.x, point.y);
+  await expect(graph).toHaveAttribute("data-visible-node-count", "1");
+  await expect(graph).toHaveAttribute("aria-busy", "false");
+  const filteredPixels = await sharp(await canvas.screenshot()).removeAlpha().raw().toBuffer();
+  const filteredPoint = await findGraphPoint(nodeColors, "grab", [point], filteredPixels);
+  await page.mouse.click(filteredPoint.x, filteredPoint.y);
   await expect(details.getByRole("heading", { level: 3 })).toHaveText(firstBusiness);
   await menu.click();
   await expect(details).toBeHidden();
   await grouping.selectOption("topic");
   await expect(groupLabels).toHaveCount(inspectionTopics.length);
+  await expect(graph).toHaveAttribute("aria-busy", "false");
+  await expect(page.locator("#inspection-groups span:visible")).toHaveCount(1);
   await reset.click();
   await expect(graph).toHaveAttribute("data-visible-node-count", String(nodeCount));
   await expect(grouping).toHaveValue("topic");
@@ -217,6 +224,7 @@ test("playground lazily loads the inspection data and renders an interactive res
   await expect(groupLabels).toHaveCount(0);
   await settings.getByRole("button", { name: "Close graph settings" }).click();
   await expect(settings).toBeHidden();
+  await expect(graph).toHaveAttribute("aria-busy", "false");
 
   const edge = await findGraphPoint(await palette(["edge-strong", "edge-regular"]), "pointer");
   await page.mouse.click(edge.x, edge.y);
