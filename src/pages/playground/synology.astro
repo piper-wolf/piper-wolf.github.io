@@ -1,20 +1,21 @@
 ---
 import PlaygroundLayout from "../../layouts/PlaygroundLayout.astro";
 import InspectionDetails from "../../components/playground/InspectionDetails.astro";
+import { DEFAULT_SIMILARITY_THRESHOLD, STRONG_SIMILARITY_THRESHOLD } from "../../lib/inspection-graph";
 
-const description = "A full-screen graph of Seattle food establishments connected by similar inspection histories.";
+const description = "Explore recurring and shared food safety violations across King County food businesses.";
 const pageUrl = new URL("/playground/synology", Astro.site ?? Astro.url).href;
 const structuredData = {
   "@context": "https://schema.org",
   "@type": "WebPage",
   url: pageUrl,
-  name: "Seattle Restaurant Inspection Similarity Graph",
+  name: "King County Food Inspection Graph",
   description,
 };
 ---
 
 <PlaygroundLayout
-  title="Seattle Restaurant Inspection Similarity Graph"
+  title="King County Food Inspection Graph"
   description={description}
   structuredData={structuredData}
 >
@@ -22,7 +23,8 @@ const structuredData = {
     <div
       id="synology-graph"
       role="img"
-      aria-label="Restaurant inspection similarity graph. Shows up to 1,800 restaurant names with a violation on record and an inspection in the year ending on the latest inspection date in the data. Names with more inspection dates rank first. Locations sharing an exact name form one node. Edges compare lifetime violation codes weighted by the latest known risk category. Node color shows risk category."
+      aria-label="King County food inspection graph. Each node represents one county business ID. The graph shows up to 1,800 recently inspected businesses with a violation in the last three years, sampled in proportion to the eligible businesses in each preparation category. Links connect businesses with similar recent violations. Node color shows food preparation complexity."
+      data-strong-threshold={STRONG_SIMILARITY_THRESHOLD}
       aria-busy="true"
     ></div>
     <aside id="inspection-legend" class="graph-legend" aria-label="Graph key" hidden>
@@ -30,23 +32,24 @@ const structuredData = {
       <span id="inspection-legend-count" class="legend-count"></span>
       <div class="legend-groups">
         <div>
-          <span class="legend-label">Restaurant risk</span>
+          <span class="legend-label">Food preparation</span>
           <ul>
-            <li><i class="risk-1"></i> Level 1</li>
-            <li><i class="risk-2"></i> Level 2</li>
-            <li><i class="risk-3"></i> Level 3</li>
+            <li><i class="risk-1"></i> Limited prep</li>
+            <li><i class="risk-2"></i> Basic prep</li>
+            <li><i class="risk-3"></i> Complex prep</li>
             <li><i class="risk-unknown"></i> Unknown</li>
           </ul>
         </div>
         <div>
-          <span class="legend-label">Similarity score</span>
+          <span class="legend-label">Violation similarity</span>
           <ul>
-            <li><i class="edge-regular"></i> 55% to &lt;75%</li>
-            <li><i class="edge-strong"></i> 75% to 100%</li>
+            <li><i class="edge-regular"></i> {Math.round(DEFAULT_SIMILARITY_THRESHOLD * 100)}% to &lt;{Math.round(STRONG_SIMILARITY_THRESHOLD * 100)}%</li>
+            <li><i class="edge-strong"></i> {Math.round(STRONG_SIMILARITY_THRESHOLD * 100)}% to 100%</li>
             <li><i class="edge-selected"></i> Selected</li>
           </ul>
         </div>
       </div>
+      <span class="legend-count">Links use the last 3 years of violations.</span>
     </aside>
     <InspectionDetails />
     <div id="synology-graph-status" role="status" aria-live="polite">Preparing restaurant inspection data…</div>
@@ -61,12 +64,12 @@ const structuredData = {
     --graph-muted: #535c56;
     --graph-border: #d9ddd2;
     --graph-accent: #643c80;
-    --graph-risk-1: #a64128;
-    --graph-risk-2: #997022;
-    --graph-risk-3: #246b65;
-    --graph-risk-unknown: #65757d;
-    --graph-edge-regular: #a8b7ac;
-    --graph-edge-strong: #536f63;
+    --graph-risk-1: #5b8d94;
+    --graph-risk-2: #2d6875;
+    --graph-risk-3: #153e52;
+    --graph-risk-unknown: #777674;
+    --graph-edge-regular: #908173;
+    --graph-edge-strong: #625348;
     --graph-font: system-ui, sans-serif;
     color: var(--graph-text);
     font-family: var(--graph-font);
@@ -214,15 +217,17 @@ const structuredData = {
       const riskColors = { "1": color("risk-1"), "2": color("risk-2"), "3": color("risk-3"), Unknown: color("risk-unknown") };
       const regularEdge = color("edge-regular");
       const strongEdge = color("edge-strong");
+      const strongThreshold = Number(container.dataset.strongThreshold);
+      const nameCounts = new Map<string, number>();
+      for (const { name } of message.nodes) nameCounts.set(name, (nameCounts.get(name) ?? 0) + 1);
       for (const node of message.nodes) {
         graph.addNode(node.id, {
-          label: node.name,
+          label: nameCounts.get(node.name)! > 1 ? `${node.name} · ${[node.address, node.city].filter(Boolean).join(", ") || node.businessId}` : node.name,
           x: node.x,
           y: node.y,
           size: 2.1 + Math.min(1.2, degree[Number(node.id)] * 0.2),
           color: riskColors[node.riskCategory],
           riskCategory: node.riskCategory,
-          businessIdCount: node.businessIdCount,
           inspections: node.inspections,
           lifetimeViolationCodes: node.lifetimeViolationCodes,
           realViolationCodes: node.realViolationCodes,
@@ -231,8 +236,9 @@ const structuredData = {
       for (const edge of message.edges) {
         graph.addUndirectedEdge(edge.source, edge.target, {
           size: 0.8 + edge.score * 0.6,
-          color: edge.score >= 0.75 ? strongEdge : regularEdge,
+          color: edge.score >= strongThreshold ? strongEdge : regularEdge,
           score: edge.score,
+          sharedViolations: edge.sharedViolations,
         });
       }
 
@@ -303,6 +309,7 @@ const structuredData = {
           source: message.nodes[Number(source)],
           target: message.nodes[Number(target)],
           score: graph.getEdgeAttribute(edge, "score"),
+          sharedViolations: graph.getEdgeAttribute(edge, "sharedViolations"),
         });
       }
       sigma.on("clickNode", selectNode);
@@ -322,7 +329,7 @@ const structuredData = {
         if (event.key === "Escape" && selectedNodes.length) clearSelection();
       });
       if (legend && legendCount) {
-        legendCount.textContent = `${graph.order.toLocaleString()} restaurants · ${graph.size.toLocaleString()} links`;
+        legendCount.textContent = `${graph.order.toLocaleString()} businesses · ${graph.size.toLocaleString()} links`;
         legend.hidden = false;
       }
       const timeToFirstRenderMs = Math.round(performance.now() - initializationStartedAt);

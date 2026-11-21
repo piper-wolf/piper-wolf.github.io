@@ -77,6 +77,13 @@ test("playground lazily loads the inspection data and renders an interactive res
   const canvasBounds = await canvas.boundingBox();
   expect(canvasBounds).not.toBeNull();
   const mouseLayer = graph.locator(".sigma-mouse");
+  const palette = (names: string[]) => graph.evaluate((element, names) => {
+    const theme = getComputedStyle(element);
+    return names.map(name => {
+      const hex = theme.getPropertyValue(`--graph-${name}`).trim();
+      return [1, 3, 5].map(offset => Number.parseInt(hex.slice(offset, offset + 2), 16));
+    });
+  }, names);
   async function findGraphPoint(palette: number[][], cursor: string) {
     const candidates: Array<{ x: number; y: number }> = [];
     for (let y = 0; y < image.height; y += 2) {
@@ -101,20 +108,23 @@ test("playground lazily loads the inspection data and renders an interactive res
     throw new Error(`Could not find a graph item with cursor ${cursor}`);
   }
 
-  await expect(legend).toContainText("1,800 restaurants");
-  const point = await findGraphPoint([[166, 65, 40], [153, 112, 34], [36, 107, 101], [101, 117, 125]], "grab");
+  await expect(legend).toContainText("1,800 businesses");
+  const point = await findGraphPoint(await palette(["risk-1", "risk-2", "risk-3", "risk-unknown"]), "grab");
   await page.mouse.click(point.x, point.y);
   const details = page.locator("#inspection-details");
   await expect(details).toBeVisible();
   await expect(details.getByRole("heading", { level: 3 })).toHaveCount(1);
+  await expect(details).toContainText("Latest inspection date");
+  await expect(details.getByRole("link", { name: "County permit guide" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(details).toBeHidden();
 
-  const edge = await findGraphPoint([[83, 111, 99], [168, 183, 172]], "pointer");
+  const edge = await findGraphPoint(await palette(["edge-strong", "edge-regular"]), "pointer");
   await page.mouse.click(edge.x, edge.y);
   await expect(details).toBeVisible();
   await expect(details.getByRole("heading", { level: 3 })).toHaveCount(2);
   await expect(details).toContainText("similarity score", { ignoreCase: true });
+  await expect(details.getByRole("table", { name: "Number of inspection dates each business had each shared finding" })).toBeVisible();
   await page.locator("#inspection-details-close").click();
   await expect(details).toBeHidden();
 

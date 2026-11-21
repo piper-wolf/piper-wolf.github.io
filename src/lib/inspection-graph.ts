@@ -2,9 +2,12 @@ export type RiskCategory = "1" | "2" | "3" | "Unknown";
 
 export interface InspectionCsvRow {
   Name?: string;
+  Address?: string;
+  City?: string;
   "Inspection Date"?: string;
   "Risk Category"?: string;
   "Violation Description"?: string;
+  "Violation Type"?: string;
   Inspection_Serial_Num?: string;
   Business_ID?: string;
 }
@@ -12,6 +15,7 @@ export interface InspectionCsvRow {
 export interface Violation {
   violation_code: string;
   description: string;
+  type?: "RED" | "BLUE";
 }
 
 export interface DatedInspection {
@@ -20,9 +24,11 @@ export interface DatedInspection {
 }
 
 export interface Restaurant {
+  businessId: string;
   name: string;
+  address: string;
+  city: string;
   riskCategory: RiskCategory;
-  businessIdCount: number;
   inspections: DatedInspection[];
   lifetimeViolationCodes: string[];
   realViolationCodes: string[];
@@ -30,8 +36,9 @@ export interface Restaurant {
 
 export interface AggregationStats {
   rowCount: number;
+  missingBusinessIdRowCount: number;
   restaurantCount: number;
-  nameDateGroupCount: number;
+  businessDateGroupCount: number;
   multiBusinessNameCount: number;
   perfectInspectionCount: number;
   restaurantsWithPerfectInspectionCount: number;
@@ -43,34 +50,28 @@ export interface GraphNode extends Restaurant {
   y: number;
 }
 
+export interface SharedViolation extends Violation {
+  sourceDates: number;
+  targetDates: number;
+}
+
 export interface SimilarityEdge {
   source: string;
   target: string;
   score: number;
+  sharedViolations: SharedViolation[];
 }
 
 export interface SimilarityStats {
-  candidateCodeFrequencyCutoff: number;
-  excludedCodeCount: number;
-  excludedCodeRestaurantMemberships: number;
-  candidatePairMemberships: number;
-  sizeRatioPrunedPairs: number;
   candidatePairsScored: number;
   thresholdQualifiedPairs: number;
   edgeCount: number;
   maximumDegree: number;
 }
 
-export interface SimilarityOptions {
-  threshold?: number;
-  codeFrequencyCutoff?: number;
-  neighborLimit?: number;
-  onProgress?: (candidatePairsScored: number) => void;
-}
-
-export const DEFAULT_SIMILARITY_THRESHOLD = 0.55;
-export const DEFAULT_CODE_FREQUENCY_CUTOFF = 1000;
-export const DEFAULT_NEIGHBOR_LIMIT = 5;
+export const DEFAULT_SIMILARITY_THRESHOLD = 0.35;
+export const STRONG_SIMILARITY_THRESHOLD = 0.55;
+const DEFAULT_NEIGHBOR_LIMIT = 5;
 
 interface ParsedDate {
   key: string;
@@ -84,10 +85,17 @@ interface MutableInspection {
   violations: Map<string, Violation>;
 }
 
+interface RecordedText {
+  value: string;
+  dateOrder: number;
+}
+
 interface MutableRestaurant {
-  name: string;
+  businessId: string;
+  name?: RecordedText;
+  address?: RecordedText;
+  city?: RecordedText;
   inspectionsBySerial: Map<string, MutableInspection>;
-  businessIds: Set<string>;
   latestRiskOrder: number;
   riskCategory: RiskCategory;
 }
@@ -140,6 +148,23 @@ function violationKey(violation: Violation): string {
   return `${violation.violation_code}\u0000${violation.description}`;
 }
 
+function recordViolation(violations: Map<string, Violation>, violation: Violation): void {
+  const key = violationKey(violation);
+  const existing = violations.get(key);
+  if (!existing || (violation.type && !existing.type) || violation.type === "RED") {
+    violations.set(key, violation);
+  }
+}
+
+function latestRecordedText(current: RecordedText | undefined, raw: string | undefined, dateOrder: number): RecordedText | undefined {
+  const value = raw?.trim();
+  if (!value) return current;
+  if (!current || dateOrder > current.dateOrder || (dateOrder === current.dateOrder && value < current.value)) {
+    return { value, dateOrder };
+  }
+  return current;
+}
+
 function normalizedRisk(value: string): RiskCategory {
   return value === "1" || value === "2" || value === "3" ? value : "Unknown";
 }
@@ -147,28 +172,32 @@ function normalizedRisk(value: string): RiskCategory {
 export class InspectionAggregator {
   private readonly restaurants = new Map<string, MutableRestaurant>();
   private rowCount = 0;
+  private missingBusinessIdRowCount = 0;
 
   addRow(row: InspectionCsvRow): void {
     this.rowCount++;
-    const name = row.Name ?? "";
-    if (!name) return;
+    const businessId = row.Business_ID?.trim();
+    if (!businessId) {
+      this.missingBusinessIdRowCount++;
+      return;
+    }
 
-    let restaurant = this.restaurants.get(name);
+    let restaurant = this.restaurants.get(businessId);
     if (!restaurant) {
       restaurant = {
-        name,
+        businessId,
         inspectionsBySerial: new Map(),
-        businessIds: new Set(),
         latestRiskOrder: Number.NEGATIVE_INFINITY,
         riskCategory: "Unknown",
       };
-      this.restaurants.set(name, restaurant);
+      this.restaurants.set(businessId, restaurant);
     }
 
-    const businessId = row.Business_ID?.trim();
-    if (businessId) restaurant.businessIds.add(businessId);
-
     const date = parseInspectionDate(row["Inspection Date"]);
+    restaurant.name = latestRecordedText(restaurant.name, row.Name, date.order);
+    restaurant.address = latestRecordedText(restaurant.address, row.Address, date.order);
+    restaurant.city = latestRecordedText(restaurant.city, row.City, date.order);
+
     const serial = row.Inspection_Serial_Num ?? "";
     const serialKey = `${date.key}\u0000${serial}`;
     let inspection = restaurant.inspectionsBySerial.get(serialKey);
@@ -187,7 +216,9 @@ export class InspectionAggregator {
       inspection.hadBlankDescription = true;
     } else {
       inspection.hasCodedViolation = true;
-      inspection.violations.set(violationKey(violation), violation);
+      const type = row["Violation Type"]?.trim().toUpperCase();
+      if (type === "RED" || type === "BLUE") violation.type = type;
+      recordViolation(inspection.violations, violation);
     }
 
     const riskValue = row["Risk Category"]?.trim() ?? "";
@@ -202,9 +233,11 @@ export class InspectionAggregator {
   }
 
   finish(): { restaurants: Restaurant[]; stats: AggregationStats } {
-    const mutableRestaurants = [...this.restaurants.values()].sort((a, b) => compareStrings(a.name, b.name));
-    let nameDateGroupCount = 0;
-    let multiBusinessNameCount = 0;
+    const mutableRestaurants = [...this.restaurants.values()].sort((a, b) =>
+      compareStrings(a.name?.value ?? a.businessId, b.name?.value ?? b.businessId) ||
+      compareStrings(a.businessId, b.businessId));
+    const businessCountsByName = new Map<string, number>();
+    let businessDateGroupCount = 0;
     let perfectInspectionCount = 0;
     let restaurantsWithPerfectInspectionCount = 0;
 
@@ -220,7 +253,7 @@ export class InspectionAggregator {
         }
 
         if (serialInspection.hasCodedViolation) {
-          for (const [key, violation] of serialInspection.violations) dated.violations.set(key, violation);
+          for (const violation of serialInspection.violations.values()) recordViolation(dated.violations, violation);
         } else if (serialInspection.hadBlankDescription) {
           const key = violationKey(NONE_VIOLATION);
           dated.violations.set(key, NONE_VIOLATION);
@@ -230,7 +263,8 @@ export class InspectionAggregator {
       }
 
       if (restaurantHasPerfectInspection) restaurantsWithPerfectInspectionCount++;
-      if (restaurant.businessIds.size > 1) multiBusinessNameCount++;
+      const name = restaurant.name?.value ?? `Business ${restaurant.businessId}`;
+      businessCountsByName.set(name, (businessCountsByName.get(name) ?? 0) + 1);
 
       const inspections = [...byDate.values()]
         .sort((a, b) => a.date.order - b.date.order || compareStrings(a.date.key, b.date.key))
@@ -239,7 +273,7 @@ export class InspectionAggregator {
           violations: [...violations.values()].sort((a, b) =>
             compareStrings(a.violation_code, b.violation_code) || compareStrings(a.description, b.description)),
         }));
-      nameDateGroupCount += inspections.length;
+      businessDateGroupCount += inspections.length;
 
       const lifetimeViolationCodes = new Set<string>();
       for (const inspection of inspections) {
@@ -248,9 +282,11 @@ export class InspectionAggregator {
       const lifetimeCodes = [...lifetimeViolationCodes].sort(compareStrings);
 
       return {
-        name: restaurant.name,
+        businessId: restaurant.businessId,
+        name,
+        address: restaurant.address?.value ?? "",
+        city: restaurant.city?.value ?? "",
         riskCategory: restaurant.riskCategory,
-        businessIdCount: restaurant.businessIds.size,
         inspections,
         lifetimeViolationCodes: lifetimeCodes,
         realViolationCodes: lifetimeCodes.filter((code) => code !== "None"),
@@ -261,9 +297,10 @@ export class InspectionAggregator {
       restaurants,
       stats: {
         rowCount: this.rowCount,
+        missingBusinessIdRowCount: this.missingBusinessIdRowCount,
         restaurantCount: restaurants.length,
-        nameDateGroupCount,
-        multiBusinessNameCount,
+        businessDateGroupCount,
+        multiBusinessNameCount: Array.from(businessCountsByName.values()).filter((count) => count > 1).length,
         perfectInspectionCount,
         restaurantsWithPerfectInspectionCount,
       },
@@ -271,13 +308,9 @@ export class InspectionAggregator {
   }
 }
 
-function assignDeterministicPositions(restaurants: Restaurant[], codeFrequencies: Map<string, number>): Array<{ x: number; y: number }> {
+function assignDeterministicPositions(primaryCodes: string[]): Array<{ x: number; y: number }> {
   const groups = new Map<string, number[]>();
-  restaurants.forEach((restaurant, index) => {
-    const primaryCode = restaurant.realViolationCodes.length
-      ? [...restaurant.realViolationCodes].sort((a, b) =>
-          (codeFrequencies.get(a) ?? 0) - (codeFrequencies.get(b) ?? 0) || compareStrings(a, b))[0]
-      : `None:${restaurant.riskCategory}`;
+  primaryCodes.forEach((primaryCode, index) => {
     const group = groups.get(primaryCode) ?? [];
     group.push(index);
     groups.set(primaryCode, group);
@@ -287,7 +320,7 @@ function assignDeterministicPositions(restaurants: Restaurant[], codeFrequencies
   const columns = Math.ceil(Math.sqrt(groupKeys.length));
   const rows = Math.ceil(groupKeys.length / columns);
   const cellSpacing = 110;
-  const positions = new Array<{ x: number; y: number }>(restaurants.length);
+  const positions = new Array<{ x: number; y: number }>(primaryCodes.length);
 
   groupKeys.forEach((groupKey, groupIndex) => {
     const members = groups.get(groupKey)!;
@@ -308,151 +341,206 @@ function assignDeterministicPositions(restaurants: Restaurant[], codeFrequencies
   return positions;
 }
 
-function riskSimilarity(a: RiskCategory, b: RiskCategory): number {
-  if (a === "Unknown" || b === "Unknown") return 0.9;
-  const difference = Math.abs(Number(a) - Number(b));
-  return difference === 0 ? 1 : difference === 1 ? 0.9 : 0.8;
+function latestInspectionDate(restaurant: Restaurant): string {
+  return restaurant.inspections.findLast(({ date }) => date !== "Unknown")?.date ?? "";
+}
+
+export function latestDataDate(restaurants: Restaurant[]): string {
+  return restaurants.reduce((latest, restaurant) => {
+    const date = latestInspectionDate(restaurant);
+    return date > latest ? date : latest;
+  }, "");
+}
+
+function yearsBefore(date: string, years: number): string {
+  if (!date) return "";
+  const cutoff = new Date(date);
+  cutoff.setUTCFullYear(cutoff.getUTCFullYear() - years);
+  return cutoff.toISOString().slice(0, 10);
 }
 
 export function selectRelevantRestaurants(restaurants: Restaurant[], limit = 1800): Restaurant[] {
-  const latestDate = (restaurant: Restaurant) =>
-    restaurant.inspections.findLast(({ date }) => date !== "Unknown")?.date ?? "";
-  const dated = restaurants.map((restaurant) => ({ restaurant, latest: latestDate(restaurant) }));
-  const snapshotDate = dated.reduce((latest, entry) => entry.latest > latest ? entry.latest : latest, "");
-  if (!snapshotDate) return [];
+  const snapshot = latestDataDate(restaurants);
+  if (!snapshot) return [];
+  const activeCutoff = yearsBefore(snapshot, 1);
+  const evidenceCutoff = yearsBefore(snapshot, 3);
 
-  const cutoff = new Date(snapshotDate);
-  cutoff.setUTCDate(cutoff.getUTCDate() - 365);
-  const dateCutoff = cutoff.toISOString().slice(0, 10);
-  const datedCount = (restaurant: Restaurant) =>
-    restaurant.inspections.length - Number(restaurant.inspections[0]?.date === "Unknown");
+  const ranked = restaurants
+    .map((restaurant) => ({ restaurant, latest: latestInspectionDate(restaurant) }))
+    .filter(({ latest }) => latest >= activeCutoff)
+    .map((entry) => {
+      const recent = entry.restaurant.inspections.filter(({ date }) => date !== "Unknown" && date >= evidenceCutoff);
+      return {
+        ...entry,
+        dates: recent.length,
+        datesWithViolations: recent.filter(({ violations }) =>
+          violations.some(isScoredViolation)).length,
+      };
+    })
+    .filter(({ datesWithViolations }) => datesWithViolations > 0)
+    .sort((a, b) => b.dates - a.dates || compareStrings(b.latest, a.latest) ||
+      compareStrings(a.restaurant.businessId, b.restaurant.businessId));
 
-  return dated
-    .filter(({ restaurant, latest }) => latest >= dateCutoff && restaurant.realViolationCodes.length > 0)
-    .sort((a, b) => datedCount(b.restaurant) - datedCount(a.restaurant) ||
-      compareStrings(b.latest, a.latest) || compareStrings(a.restaurant.name, b.restaurant.name))
-    .slice(0, limit)
-    .map(({ restaurant }) => restaurant)
-    .sort((a, b) => compareStrings(a.name, b.name));
+  const byPreparation = Map.groupBy(ranked, ({ restaurant }) => restaurant.riskCategory);
+  const target = Math.min(limit, ranked.length);
+  const selected: Restaurant[] = [];
+  let includedInQuota = 0;
+  // Round cumulative quotas so the groups add up to the cap.
+  for (const group of byPreparation.values()) {
+    includedInQuota += group.length;
+    const count = Math.round(includedInQuota * target / ranked.length) - selected.length;
+    selected.push(...group.slice(0, count).map(({ restaurant }) => restaurant));
+  }
+  return selected.sort((a, b) => compareStrings(a.businessId, b.businessId));
 }
 
-function pairIndex(a: number, b: number, nodeCount: number): number {
-  return (a * (2 * nodeCount - a - 1)) / 2 + (b - a - 1);
+interface ProfileIssue {
+  violation: Violation;
+  dates: number;
+  weight: number;
+}
+
+type Profile = Map<string, ProfileIssue>;
+
+function isScoredViolation({ violation_code: code }: Violation): boolean {
+  return code !== "None" && code !== "5000" && code !== "5100";
+}
+
+function comparisonFinding(violation: Violation): Violation {
+  // The county export splits these two handling problems into temperature bands.
+  const code = violation.violation_code;
+  if (code === "1710" || code === "1720") {
+    return { ...violation, violation_code: "1710 / 1720", description: "Food held hot below the required temperature" };
+  }
+  if (code === "2110" || code === "2120") {
+    return { ...violation, violation_code: "2110 / 2120", description: "Food held cold above the required temperature" };
+  }
+  return violation;
+}
+
+function recentProfiles(restaurants: Restaurant[], referenceDate: string): Profile[] {
+  const cutoff = yearsBefore(referenceDate, 3);
+  return restaurants.map(({ inspections }) => {
+    const profile: Profile = new Map();
+    for (const { date, violations } of inspections) {
+      if (date === "Unknown" || date < cutoff) continue;
+      const codesOnDate = new Set<string>();
+      for (const raw of violations) {
+        if (!isScoredViolation(raw)) continue;
+        const violation = comparisonFinding(raw);
+        const code = violation.violation_code;
+        if (codesOnDate.has(code)) continue;
+        codesOnDate.add(code);
+        const previous = profile.get(code);
+        profile.set(code, { violation, dates: (previous?.dates ?? 0) + 1, weight: 0 });
+      }
+    }
+    return profile;
+  });
 }
 
 export function buildSimilarityGraph(
   restaurants: Restaurant[],
-  options: SimilarityOptions = {},
+  { threshold = DEFAULT_SIMILARITY_THRESHOLD, neighborLimit = DEFAULT_NEIGHBOR_LIMIT,
+    referenceDate = latestDataDate(restaurants), onProgress }:
+    { threshold?: number; neighborLimit?: number; referenceDate?: string; onProgress?: (pairs: number) => void } = {},
 ): { nodes: GraphNode[]; edges: SimilarityEdge[]; stats: SimilarityStats } {
-  const threshold = options.threshold ?? DEFAULT_SIMILARITY_THRESHOLD;
-  const codeFrequencyCutoff = options.codeFrequencyCutoff ?? DEFAULT_CODE_FREQUENCY_CUTOFF;
-  const neighborLimit = options.neighborLimit ?? DEFAULT_NEIGHBOR_LIMIT;
-  const codeFrequencies = new Map<string, number>();
-
-  restaurants.forEach((restaurant) => {
-    for (const code of restaurant.realViolationCodes) {
-      codeFrequencies.set(code, (codeFrequencies.get(code) ?? 0) + 1);
-    }
-  });
-
-  const positions = assignDeterministicPositions(restaurants, codeFrequencies);
-  const nodes: GraphNode[] = restaurants.map((restaurant, index) => ({
-    ...restaurant,
-    id: String(index),
-    ...positions[index],
-  }));
-
+  const profiles = recentProfiles(restaurants, referenceDate);
   const buckets = new Map<string, number[]>();
-  restaurants.forEach((restaurant, index) => {
-    for (const code of restaurant.realViolationCodes) {
+  profiles.forEach((profile, index) => {
+    for (const code of profile.keys()) {
       const bucket = buckets.get(code) ?? [];
       bucket.push(index);
       buckets.set(code, bucket);
     }
   });
-
-  const candidateBuckets = [...buckets.entries()]
-    .filter(([, members]) => members.length <= codeFrequencyCutoff)
-    .sort(([a], [b]) => compareStrings(a, b));
-  const excludedBuckets = [...buckets.values()].filter((members) => members.length > codeFrequencyCutoff);
-  const seenPairs = new Uint8Array(Math.ceil((restaurants.length * (restaurants.length - 1) / 2) / 8));
-  const realCodeSets = restaurants.map((restaurant) => new Set(restaurant.realViolationCodes));
-  const topNeighbors = Array.from({ length: restaurants.length }, () => [] as Array<{ neighbor: number; score: number }>);
-
-  let candidatePairMemberships = 0;
-  let sizeRatioPrunedPairs = 0;
+  const totals = profiles.map((profile) => {
+    let total = 0;
+    for (const [code, issue] of profile) {
+      const prevalenceWeight = 1 + Math.log((restaurants.length + 1) / (buckets.get(code)!.length + 1));
+      issue.weight = prevalenceWeight * (1 + Math.log(issue.dates)) * (issue.violation.type === "RED" ? 1.5 : 1);
+      total += issue.weight;
+    }
+    return total;
+  });
+  const topNeighbors = profiles.map(() => [] as Array<{ neighbor: number; score: number }>);
   let candidatePairsScored = 0;
   let thresholdQualifiedPairs = 0;
 
-  const keepTopNeighbor = (node: number, neighbor: number, score: number) => {
+  function keepTopNeighbor(node: number, neighbor: number, score: number) {
     const list = topNeighbors[node];
-    let insertAt = list.findIndex((candidate) => score > candidate.score ||
+    const insertAt = list.findIndex((candidate) => score > candidate.score ||
       (score === candidate.score && neighbor < candidate.neighbor));
-    if (insertAt < 0) insertAt = list.length;
-    list.splice(insertAt, 0, { neighbor, score });
+    list.splice(insertAt < 0 ? list.length : insertAt, 0, { neighbor, score });
     if (list.length > neighborLimit) list.pop();
-  };
+  }
 
-  for (const [, members] of candidateBuckets) {
-    for (let left = 0; left < members.length; left++) {
-      const a = members[left];
-      const setA = realCodeSets[a];
-      for (let right = left + 1; right < members.length; right++) {
-        candidatePairMemberships++;
-        const b = members[right];
-        const setB = realCodeSets[b];
-        const smaller = Math.min(setA.size, setB.size);
-        const larger = Math.max(setA.size, setB.size);
-        if (!larger || smaller / larger < threshold) {
-          sizeRatioPrunedPairs++;
-          continue;
+  // Accumulate the weighted intersection along the code's index, one source at a time.
+  const overlap = new Float64Array(profiles.length);
+  const sharedCounts = new Uint16Array(profiles.length);
+  const repeatedCritical = new Uint8Array(profiles.length);
+  for (const [source, profile] of profiles.entries()) {
+    const candidates: number[] = [];
+    for (const [code, issue] of profile) {
+      for (const target of buckets.get(code)!) {
+        if (target <= source) continue;
+        const other = profiles[target].get(code)!;
+        if (!sharedCounts[target]++) candidates.push(target);
+        overlap[target] += Math.min(issue.weight, other.weight);
+        if (issue.violation.type === "RED" && other.violation.type === "RED" && issue.dates > 1 && other.dates > 1) {
+          repeatedCritical[target] = 1;
         }
-
-        const index = pairIndex(a, b, restaurants.length);
-        const byteIndex = Math.floor(index / 8);
-        const mask = 1 << (index % 8);
-        if (seenPairs[byteIndex] & mask) continue;
-        seenPairs[byteIndex] |= mask;
-        candidatePairsScored++;
-
-        let intersection = 0;
-        const smallerSet = setA.size <= setB.size ? setA : setB;
-        const largerSet = smallerSet === setA ? setB : setA;
-        for (const code of smallerSet) if (largerSet.has(code)) intersection++;
-        const jaccard = intersection / (setA.size + setB.size - intersection);
-        const score = jaccard * riskSimilarity(restaurants[a].riskCategory, restaurants[b].riskCategory);
-        if (score < threshold) continue;
-
-        thresholdQualifiedPairs++;
-        keepTopNeighbor(a, b, score);
-        keepTopNeighbor(b, a, score);
-        if (candidatePairsScored % 250_000 === 0) options.onProgress?.(candidatePairsScored);
       }
+    }
+    for (const target of candidates) {
+      const count = sharedCounts[target];
+      const qualifies = count > 1 || repeatedCritical[target];
+      const sharedWeight = overlap[target];
+      sharedCounts[target] = overlap[target] = repeatedCritical[target] = 0;
+      if (!qualifies) continue;
+      candidatePairsScored++;
+      if (candidatePairsScored % 100_000 === 0) onProgress?.(candidatePairsScored);
+
+      const unionWeight = totals[source] + totals[target] - sharedWeight;
+      const score = Math.min(1, sharedWeight / unionWeight) * (count === 1 ? 0.75 : 1);
+      if (score < threshold) continue;
+      thresholdQualifiedPairs++;
+      keepTopNeighbor(source, target, score);
+      keepTopNeighbor(target, source, score);
     }
   }
 
   const edges: SimilarityEdge[] = [];
   const degrees = new Uint8Array(restaurants.length);
-  for (let source = 0; source < topNeighbors.length; source++) {
-    for (const candidate of topNeighbors[source]) {
-      if (source >= candidate.neighbor) continue;
-      if (!topNeighbors[candidate.neighbor].some((reverse) => reverse.neighbor === source)) continue;
-      edges.push({ source: String(source), target: String(candidate.neighbor), score: candidate.score });
-      degrees[source]++;
-      degrees[candidate.neighbor]++;
+  const strongestLinks = profiles.map(() => ({ score: 0, code: "" }));
+  for (const [source, neighbors] of topNeighbors.entries()) {
+    for (const { neighbor: target, score } of neighbors) {
+      if (source >= target || !topNeighbors[target].some(({ neighbor }) => neighbor === source)) continue;
+      const sharedViolations = [...profiles[source].values()]
+        .filter(({ violation }) => profiles[target].has(violation.violation_code))
+        .map(({ violation, dates, weight }) => {
+          const other = profiles[target].get(violation.violation_code)!;
+          return { evidence: { ...violation, sourceDates: dates, targetDates: other.dates }, weight: Math.min(weight, other.weight) };
+        })
+        .sort((a, b) => b.weight - a.weight || compareStrings(a.evidence.violation_code, b.evidence.violation_code))
+        .map(({ evidence }) => evidence);
+      edges.push({ source: String(source), target: String(target), score, sharedViolations });
+      for (const node of [source, target]) {
+        degrees[node]++;
+        if (score > strongestLinks[node].score) strongestLinks[node] = { score, code: sharedViolations[0].violation_code };
+      }
     }
   }
-  edges.sort((a, b) => Number(a.source) - Number(b.source) || Number(a.target) - Number(b.target));
+
+  const positions = assignDeterministicPositions(profiles.map((profile, index) =>
+    strongestLinks[index].code ||
+    [...profile.values()].sort((a, b) => b.weight - a.weight)[0]?.violation.violation_code || "None"));
+  const nodes = restaurants.map((restaurant, index) => ({ ...restaurant, id: String(index), ...positions[index] }));
 
   return {
     nodes,
     edges,
     stats: {
-      candidateCodeFrequencyCutoff: codeFrequencyCutoff,
-      excludedCodeCount: excludedBuckets.length,
-      excludedCodeRestaurantMemberships: excludedBuckets.reduce((sum, members) => sum + members.length, 0),
-      candidatePairMemberships,
-      sizeRatioPrunedPairs,
       candidatePairsScored,
       thresholdQualifiedPairs,
       edgeCount: edges.length,

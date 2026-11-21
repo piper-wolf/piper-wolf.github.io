@@ -1,5 +1,5 @@
 import Papa from "papaparse";
-import { buildSimilarityGraph, InspectionAggregator, selectRelevantRestaurants, type InspectionCsvRow } from "../lib/inspection-graph";
+import { buildSimilarityGraph, InspectionAggregator, latestDataDate, selectRelevantRestaurants, type InspectionCsvRow } from "../lib/inspection-graph";
 
 type WorkerRequest = { csvUrl: string };
 type WorkerProgress = {
@@ -96,6 +96,7 @@ async function loadInspectionData(data: WorkerRequest) {
           restaurantCount: restaurants.length,
         });
         const graph = buildSimilarityGraph(restaurants, {
+          referenceDate: latestDataDate(processed.restaurants),
           onProgress(candidatePairsScored) {
             workerScope.postMessage({
               type: "progress",
