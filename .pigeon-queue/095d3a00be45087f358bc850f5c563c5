@@ -1,0 +1,14 @@
+{
+  "queueId": "095d3a00be45087f358bc850f5c563c5",
+  "permanentUrl": "https://piper-wolf.com/pigeons/089/",
+  "publicationDate": "2026-11-23",
+  "snapshot": {
+    "queueId": "095d3a00be45087f358bc850f5c563c5",
+    "number": "089",
+    "dateTime": "2026-11-23",
+    "caption": "I'm naming these two Squiggy and Bob",
+    "alt": "Close-up of two pigeons standing on a paved surface, with one in the foreground and another behind it.",
+    "asset": "src/assets/2026-11-23.jpg",
+    "imageSha256": "79f29f712c4525777e768505ca4afc60254c4a4d22f8ee7ac16d666ffec604f3"
+  }
+}
