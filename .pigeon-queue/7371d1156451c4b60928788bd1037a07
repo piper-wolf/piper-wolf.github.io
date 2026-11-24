@@ -1,0 +1,14 @@
+{
+  "queueId": "7371d1156451c4b60928788bd1037a07",
+  "permanentUrl": "https://piper-wolf.com/pigeons/090/",
+  "publicationDate": "2026-11-24",
+  "snapshot": {
+    "queueId": "7371d1156451c4b60928788bd1037a07",
+    "number": "090",
+    "dateTime": "2026-11-24",
+    "caption": "The guy in the background is so round.",
+    "alt": "A gray pigeon with iridescent green neck feathers pecks at scattered food on pavement, with other pigeons blurred behind it.",
+    "asset": "src/assets/2026-11-24.jpg",
+    "imageSha256": "f7f3a594230910b1f34c09f9a78cb83d625bf17cb3ce85dec5437ec8b5f6f3df"
+  }
+}
