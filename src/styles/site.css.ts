@@ -1,4 +1,4 @@
-import { globalStyle, style } from "@vanilla-extract/css";
+import { globalStyle, keyframes, style } from "@vanilla-extract/css";
 
 import { layout } from "./layout";
 
@@ -13,6 +13,89 @@ const actionLink = {
   gap: "0.6em",
   minHeight: touchTarget,
 } as const;
+const notFoundBreathing = keyframes({
+  "0%, 100%": { transform: "none" },
+  "50%": { transform: "scaleY(1.025)" },
+});
+const notFoundBlink = keyframes({
+  "0%, 95%, 98%, 100%": { transform: "scaleY(1)" },
+  "97%": { transform: "scaleY(0.12)" },
+});
+const notFoundLook = keyframes({
+  "0%, 22%, 76%, 100%": { transform: "none" },
+  "30%, 48%": { transform: "rotate(10deg)" },
+  "56%, 70%": { transform: "rotate(-7deg)" },
+});
+const notFoundPeckBody = keyframes({
+  "0%, 8%, 31%, 58%, 100%": { transform: "none" },
+  "14%, 24%": { transform: "rotate(18deg)" },
+  "39%, 50%": { transform: "rotate(18deg)" },
+  "66%, 80%": { transform: "rotate(18deg)" },
+});
+const notFoundPeckHead = keyframes({
+  "0%, 8%, 31%, 58%, 100%": { transform: "none" },
+  "14%, 24%": { transform: "translate(-2px, 7px) rotate(32deg)" },
+  "39%, 50%": { transform: "translate(-2px, 7px) rotate(32deg)" },
+  "66%, 80%": { transform: "translate(-2px, 7px) rotate(32deg)" },
+});
+const notFoundPeckNeck = keyframes({
+  "0%, 8%, 31%, 58%, 100%": { transform: "none" },
+  "14%, 24%": { transform: "rotate(25deg) scaleY(0.7)" },
+  "39%, 50%": { transform: "rotate(25deg) scaleY(0.7)" },
+  "66%, 80%": { transform: "rotate(25deg) scaleY(0.7)" },
+});
+const notFoundPeckEye = keyframes({
+  "0%, 12%, 25%, 37%, 51%, 64%, 82%, 100%": { transform: "scaleY(1)" },
+  "17%, 23%, 42%, 49%, 69%, 79%": { transform: "scaleY(0.35)" },
+});
+const notFoundStretchWing = keyframes({
+  "0%, 12%, 82%, 100%": { transform: "none" },
+  "25%, 70%": { transform: "rotate(22deg) scaleX(1.12)" },
+});
+const notFoundStretchFoot = keyframes({
+  "0%, 12%, 82%, 100%": { transform: "none" },
+  "25%, 70%": { transform: "translate(-12px, -2px) rotate(32deg) scaleY(1.15)" },
+});
+const notFoundStretchTail = keyframes({
+  "0%, 12%, 82%, 100%": { transform: "none" },
+  "25%, 70%": { transform: "rotate(-9deg)" },
+});
+const notFoundPreenHead = keyframes({
+  "0%, 12%, 31%, 52%, 72%, 100%": { transform: "none" },
+  "18%, 26%": { transform: "translate(-3px, -1px) rotate(110deg)" },
+  "38%, 46%": { transform: "translate(-3px, -1px) rotate(110deg)" },
+  "60%, 67%": { transform: "translate(-3px, -1px) rotate(110deg)" },
+});
+const notFoundPreenNeck = keyframes({
+  "0%, 12%, 31%, 52%, 72%, 100%": { transform: "none" },
+  "18%, 26%": { transform: "rotate(25deg) scaleY(0.7)" },
+  "38%, 46%": { transform: "rotate(25deg) scaleY(0.7)" },
+  "60%, 67%": { transform: "rotate(25deg) scaleY(0.7)" },
+});
+const notFoundPreenWing = keyframes({
+  "0%, 12%, 31%, 52%, 72%, 100%": { transform: "none" },
+  "18%, 26%": { transform: "rotate(8deg)" },
+  "38%, 46%": { transform: "rotate(8deg)" },
+  "60%, 67%": { transform: "rotate(8deg)" },
+});
+const notFoundRuffleBody = keyframes({
+  "0%, 18%, 100%": { transform: "none" },
+  "30%": { transform: "scale(1.07, 1.05)" },
+  "46%": { transform: "scale(1.02, 1.01)" },
+  "62%": { transform: "scale(1.06, 1.04)" },
+});
+const notFoundRuffleWing = keyframes({
+  "0%, 18%, 100%": { transform: "none" },
+  "30%": { transform: "rotate(6deg)" },
+  "46%": { transform: "rotate(-3deg)" },
+  "62%": { transform: "rotate(4deg)" },
+});
+const notFoundRuffleTail = keyframes({
+  "0%, 18%, 100%": { transform: "none" },
+  "30%": { transform: "rotate(-8deg)" },
+  "46%": { transform: "rotate(6deg)" },
+  "62%": { transform: "rotate(-4deg)" },
+});
 
 export const iconLabel = style({ display: "inline-flex", alignItems: "center", gap: "0.6em" });
 
@@ -307,6 +390,108 @@ export const detailHeader = style({
       marginBottom: "2.75rem",
     },
   },
+});
+
+export const notFound = style({
+  maxWidth: "74rem",
+  margin: "0 auto",
+});
+
+export const notFoundArt = style({
+  position: "relative",
+  display: "grid",
+  placeItems: "center",
+  minHeight: "clamp(17rem, 43svh, 29rem)",
+  marginBottom: "clamp(1.5rem, 4vw, 3rem)",
+  overflow: "hidden",
+  background: "#eeeee5",
+  borderBlock: "1px solid #cfd2c8",
+});
+
+export const notFoundCode = style({
+  margin: 0,
+  color: "#1d2826",
+  fontFamily: "Arial, Helvetica, sans-serif",
+  fontSize: "clamp(8rem, 37vw, 35rem)",
+  fontWeight: "900",
+  letterSpacing: "-0.09em",
+  lineHeight: 0.8,
+  whiteSpace: "nowrap",
+});
+
+export const notFoundPigeon = style({
+  position: "absolute",
+  top: "36%",
+  left: "42%",
+  zIndex: 1,
+  overflow: "visible",
+  transform: "translateX(-50%) rotate(-5deg)",
+  "@media": {
+    [`screen and (max-width: ${layout.breakpoint})`]: { top: "8%", left: "61%" },
+  },
+});
+
+globalStyle(`${notFoundPigeon} .pigeon-body`, { transformBox: "view-box", transformOrigin: "88px 108px" });
+globalStyle(`${notFoundPigeon} .pigeon-tail`, { transformBox: "view-box", transformOrigin: "32px 101px" });
+globalStyle(`${notFoundPigeon} .pigeon-wing`, { transformBox: "view-box", transformOrigin: "76px 91px" });
+globalStyle(`${notFoundPigeon} .pigeon-neck`, { transformBox: "view-box", transformOrigin: "111px 76px" });
+globalStyle(`${notFoundPigeon} .pigeon-head`, { transformBox: "view-box", transformOrigin: "132px 49px" });
+globalStyle(`${notFoundPigeon} .pigeon-eye`, { transformBox: "view-box", transformOrigin: "139px 43px" });
+globalStyle(`${notFoundPigeon} .pigeon-foot-front`, { transformBox: "view-box", transformOrigin: "104px 113px" });
+globalStyle(`${notFoundPigeon} .pigeon-foot-back`, { transformBox: "view-box", transformOrigin: "76px 115px" });
+globalStyle(`${notFoundPigeon} .pigeon-breath`, {
+  transformBox: "view-box",
+  transformOrigin: "88px 108px",
+  animation: `${notFoundBreathing} 4s ease-in-out infinite`,
+  "@media": { "(prefers-reduced-motion: reduce)": { animation: "none" } },
+});
+globalStyle(`${notFoundPigeon} .pigeon-blink`, {
+  transformBox: "view-box",
+  transformOrigin: "139px 43px",
+  animation: `${notFoundBlink} 7s linear infinite`,
+  "@media": { "(prefers-reduced-motion: reduce)": { animation: "none" } },
+});
+globalStyle(`${notFoundPigeon}[data-idle="look"] .pigeon-head`, { animation: `${notFoundLook} 1.6s ease-in-out both` });
+globalStyle(`${notFoundPigeon}[data-idle="peck"] .pigeon-body`, { animation: `${notFoundPeckBody} 1.9s linear both` });
+globalStyle(`${notFoundPigeon}[data-idle="peck"] .pigeon-head`, { animation: `${notFoundPeckHead} 1.9s linear both` });
+globalStyle(`${notFoundPigeon}[data-idle="peck"] .pigeon-neck`, { animation: `${notFoundPeckNeck} 1.9s linear both` });
+globalStyle(`${notFoundPigeon}[data-idle="peck"] .pigeon-eye`, { animation: `${notFoundPeckEye} 1.9s linear both` });
+globalStyle(`${notFoundPigeon}[data-idle="stretch"] .pigeon-wing`, { animation: `${notFoundStretchWing} 2s ease-in-out both` });
+globalStyle(`${notFoundPigeon}[data-idle="stretch"] .pigeon-foot-front`, { animation: `${notFoundStretchFoot} 2s ease-in-out both` });
+globalStyle(`${notFoundPigeon}[data-idle="stretch"] .pigeon-tail`, { animation: `${notFoundStretchTail} 2s ease-in-out both` });
+globalStyle(`${notFoundPigeon}[data-idle="preen"] .pigeon-head`, { animation: `${notFoundPreenHead} 2.5s ease-in-out both` });
+globalStyle(`${notFoundPigeon}[data-idle="preen"] .pigeon-neck`, { animation: `${notFoundPreenNeck} 2.5s ease-in-out both` });
+globalStyle(`${notFoundPigeon}[data-idle="preen"] .pigeon-wing`, { animation: `${notFoundPreenWing} 2.5s ease-in-out both` });
+globalStyle(`${notFoundPigeon}[data-idle="ruffle"] .pigeon-body`, { animation: `${notFoundRuffleBody} 1.3s ease-in-out both` });
+globalStyle(`${notFoundPigeon}[data-idle="ruffle"] .pigeon-wing`, { animation: `${notFoundRuffleWing} 1.3s ease-in-out both` });
+globalStyle(`${notFoundPigeon}[data-idle="ruffle"] .pigeon-tail`, { animation: `${notFoundRuffleTail} 1.3s ease-in-out both` });
+
+export const notFoundHeader = style({
+  textAlign: "center",
+});
+
+export const notFoundTitle = style({
+  margin: "0.25rem 0 0",
+  fontSize: headingSize,
+  fontWeight: "400",
+  letterSpacing: "-0.035em",
+  lineHeight: 1.15,
+});
+
+export const notFoundIntro = style({
+  maxWidth: "34rem",
+  margin: "0.75rem auto 0",
+  color: "#53635d",
+  fontSize: "1rem",
+  lineHeight: 1.55,
+});
+
+export const notFoundActions = style({
+  display: "flex",
+  flexWrap: "wrap",
+  justifyContent: "center",
+  gap: "0.5rem 1.5rem",
+  marginTop: "1rem",
 });
 
 export const detailTitle = style({

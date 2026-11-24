@@ -8,6 +8,7 @@ interface Props {
   title: string;
   description?: string;
   noindex?: boolean;
+  showPigeonVisitors?: boolean;
   type?: "website" | "article";
   publishedTime?: string;
   socialImage?: {
@@ -24,6 +25,7 @@ const {
   description = "Piper Wolf — notes, photographs, and pigeons from Seattle.",
   type = "website",
   noindex = false,
+  showPigeonVisitors = true,
   publishedTime,
   socialImage,
   socialImageAlt = "Seattle pigeon photograph by Piper Wolf",
@@ -91,7 +93,7 @@ const serializedStructuredData = structuredData
         <span class={styles.copyright}><a class={styles.copyrightLink} href="/copyright/">© {new Date().getFullYear()} Piper Wolf</a></span>
       </div>
     </footer>
-    <PigeonVisitor />
+    {showPigeonVisitors && <PigeonVisitor />}
     <script is:inline data-goatcounter="https://piperwolf.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
     <script>
       // Client navigation needs an explicit pageview after the initial count.js load.
