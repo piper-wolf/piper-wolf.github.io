@@ -52,7 +52,7 @@ export async function enter(page: Page) {
 
 export async function start(page: Page, options: Parameters<typeof prepare>[1] = {}) {
   await prepare(page, options);
-  await page.goto('/pigeons/');
+  await page.goto('/pigeons');
   await enter(page);
   await expect(page.locator('.pigeon-visitor').first()).toHaveAttribute('data-state', 'flying');
   for (let index = 1; index < (options.count ?? 1); index++) {
@@ -143,7 +143,7 @@ export async function settleGeometry(page: Page) {
 }
 
 export async function perchScene(page: Page) {
-  await page.goto('/pigeons/');
+  await page.goto('/pigeons');
   await page.evaluate(() => {
     Math.random = () => .25;
     document.querySelectorAll('[data-pigeon-landing]').forEach(el => el.removeAttribute('data-pigeon-landing'));

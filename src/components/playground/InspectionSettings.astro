@@ -1,0 +1,195 @@
+---
+import { inspectionTopics } from "../../lib/inspection-features";
+import { DEFAULT_INSPECTION_CITY, findingPatterns, preparationCategories } from "../../lib/inspection-view";
+---
+
+<dialog id="inspection-settings" aria-labelledby="inspection-settings-title">
+  <div class="settings-header">
+    <h2 id="inspection-settings-title">Graph settings</h2>
+    <button id="inspection-settings-close" class="settings-close" type="button" aria-label="Close graph settings">
+      <span aria-hidden="true">×</span>
+    </button>
+  </div>
+  <p id="inspection-settings-count" class="settings-count" role="status"></p>
+  <form id="inspection-settings-form">
+    <label>
+      Group by
+      <select name="grouping">
+        <option value="">None</option>
+        <option value="topic">Most frequent finding topic</option>
+        <option value="preparation">Food preparation category</option>
+      </select>
+    </label>
+    <fieldset>
+      <legend>Filter businesses</legend>
+      <label>
+        Business name or address
+        <input type="search" name="query" autocomplete="off" />
+      </label>
+      <label>
+        City
+        <select name="city">
+          <option value="">All cities</option>
+          <option value={DEFAULT_INSPECTION_CITY} selected>Seattle</option>
+        </select>
+      </label>
+      <label>
+        Food preparation category
+        <select name="preparation">
+          <option value="">All categories</option>
+          {Object.entries(preparationCategories).map(([id, { label }]) => <option value={id}>{label}</option>)}
+        </select>
+      </label>
+      <label>
+        Recorded topic
+        <select name="topic">
+          <option value="">Any topic</option>
+          {inspectionTopics.map(({ id, label }) => <option value={id}>{label}</option>)}
+        </select>
+      </label>
+      <label>
+        Finding pattern
+        <select name="pattern" aria-describedby="finding-pattern-description">
+          <option value="">Any pattern</option>
+          {findingPatterns.map(({ value, label }) => <option value={value}>{label}</option>)}
+        </select>
+      </label>
+      <p id="finding-pattern-description">Applies to the chosen topic or to any specific finding if no topic is chosen.</p>
+    </fieldset>
+    <button id="inspection-settings-reset" class="settings-reset" type="button">Reset filters</button>
+  </form>
+</dialog>
+
+<style>
+  dialog {
+    position: fixed;
+    inset: 1rem 1rem 1rem auto;
+    margin: 0;
+    max-height: none;
+    max-width: none;
+    width: min(23rem, calc(100vw - 2rem));
+    padding: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--graph-border);
+    border-radius: 0.85rem;
+    color: var(--graph-text);
+    background: var(--graph-surface);
+    box-shadow: 0 10px 38px #14251f24;
+  }
+
+  dialog::backdrop { background: #242c2a12; }
+
+  .settings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.4rem 0.7rem 0.4rem 1rem;
+    border-bottom: 1px solid var(--graph-border);
+  }
+
+  h2 { margin: 0; font-size: 1rem; }
+
+  .settings-close {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0.4rem;
+    background: transparent;
+    color: inherit;
+    font: 400 1.45rem/1 system-ui, sans-serif;
+    cursor: pointer;
+  }
+
+  .settings-close:hover,
+  .settings-reset:hover {
+    background: color-mix(in srgb, var(--graph-accent) 9%, transparent);
+  }
+
+  .settings-count { margin: 0; padding: 0.65rem 1rem 0; color: var(--graph-muted); font-size: 0.875rem; }
+
+  form {
+    display: grid;
+    gap: 0.9rem;
+    padding: 0.65rem 1rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  fieldset {
+    display: grid;
+    gap: 0.7rem;
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    border: 0;
+  }
+
+  legend {
+    width: 100%;
+    margin-bottom: 0.55rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--graph-border);
+    font-size: 1rem;
+    font-weight: 650;
+  }
+
+  label { display: grid; gap: 0.2rem; min-width: 0; font-weight: 600; }
+
+  input,
+  select {
+    width: 100%;
+    min-height: 2.65rem;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid #a6afa8;
+    border-radius: 0.4rem;
+    color: inherit;
+    background: var(--graph-surface);
+    font: inherit;
+    font-weight: 400;
+  }
+
+  select {
+    appearance: none;
+    padding-inline-end: 1.85rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='10' viewBox='0 0 14 10'%3E%3Cpath d='m2 2 5 5 5-5' fill='none' stroke='%23535c56' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-position: right 0.6rem center;
+    background-repeat: no-repeat;
+    cursor: pointer;
+  }
+
+  #finding-pattern-description { margin: -0.25rem 0 0; color: var(--graph-muted); font-size: 0.8125rem; }
+
+  .settings-reset {
+    justify-self: start;
+    min-height: 2.65rem;
+    padding-inline: 0.65rem;
+    border: 1px solid var(--graph-border);
+    border-radius: 0.4rem;
+    background: transparent;
+    color: var(--graph-accent);
+    font: inherit;
+    font-weight: 650;
+    cursor: pointer;
+  }
+
+  :is(button, input, select):focus-visible {
+    outline: 2px solid var(--graph-accent);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 760px) {
+    dialog {
+      inset: auto 0.5rem 0.5rem;
+      width: auto;
+      max-height: 75vh;
+      max-height: 75dvh;
+    }
+
+    input, select { font-size: 1rem; }
+  }
+</style>

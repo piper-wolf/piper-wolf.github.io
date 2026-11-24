@@ -3,7 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 
 test("missing pages return an accessible 404 with working recovery links", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 844 });
-  const response = await page.goto("/a-page-that-does-not-exist/");
+  const response = await page.goto("/a-page-that-does-not-exist");
   expect(response?.status()).toBe(404);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Page not found");
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, follow");
@@ -11,7 +11,7 @@ test("missing pages return an accessible 404 with working recovery links", async
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
   await page.getByRole("link", { name: "Browse pigeon photos" }).click();
-  await expect(page).toHaveURL("/pigeons/");
+  await expect(page).toHaveURL("/pigeons");
 });
 
 test("sitemap pages, internal links, fragments, images, and metadata are valid", async ({ page, request }) => {
@@ -20,6 +20,9 @@ test("sitemap pages, internal links, fragments, images, and metadata are valid",
   expect(sitemap.ok()).toBeTruthy();
   const urls = [...(await sitemap.text()).matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => new URL(match[1]));
   expect(urls.length).toBeGreaterThan(2);
+  for (const path of ["/pigeons/", "/playground/synology/"]) {
+    expect((await request.get(path)).status(), path).toBe(200);
+  }
   const robots = await request.get("/robots.txt");
   expect(await robots.text()).toContain("Sitemap: https://piper-wolf.com/sitemap.xml");
   const pages = new Map<string, string[]>();
@@ -28,6 +31,7 @@ test("sitemap pages, internal links, fragments, images, and metadata are valid",
   await page.goto("/");
   for (const url of urls) {
     expect(url.origin).toBe("https://piper-wolf.com");
+    expect(url.pathname === "/" || !url.pathname.endsWith("/")).toBeTruthy();
     const response = await request.get(url.pathname);
     expect(response.status(), url.pathname).toBe(200);
     const result = await page.evaluate((html) => {
@@ -44,10 +48,10 @@ test("sitemap pages, internal links, fragments, images, and metadata are valid",
         missingAlt: doc.querySelectorAll('img:not([alt]), img[alt=""]').length,
       };
     }, await response.text());
-    expect(result.headings).toBe(1);
+    expect(result.headings, url.pathname).toBe(url.pathname === "/playground/synology" ? 0 : 1);
     if (url.pathname === "/") {
       expect(result.title).toBe("Seattle Pigeon Photography — Piper Wolf");
-    } else if (/^\/pigeons\/\d+\/$/.test(url.pathname)) {
+    } else if (/^\/pigeons\/\d+$/.test(url.pathname)) {
       expect(result.title).toMatch(/^Seattle pigeons: .+ — Pigeon no\. \d+ — Piper Wolf$/);
     }
     expect(result.canonical).toBe(url.href);
@@ -71,7 +75,7 @@ test("sitemap pages, internal links, fragments, images, and metadata are valid",
 });
 
 test("pigeon RSS includes every post with photos and can be discovered", async ({ page, request }) => {
-  await page.goto("/pigeons/");
+  await page.goto("/pigeons");
   const feedPath = "/pigeons/rss.xml";
   await expect(page.getByRole("link", { name: "Subscribe via RSS" })).toHaveAttribute("href", feedPath);
   await expect(page.locator('link[rel="alternate"][type="application/rss+xml"]')).toHaveAttribute("href", `https://piper-wolf.com${feedPath}`);
@@ -114,7 +118,7 @@ test("pigeon RSS includes every post with photos and can be discovered", async (
 });
 
 test("photos without EXIF retain their post date and omit photography details", async ({ page }) => {
-  await page.goto("/pigeons/015/");
+  await page.goto("/pigeons/015");
   const details = page.getByRole("region", { name: "Behind the photograph" });
   await expect(details).toHaveCount(0);
   await expect(page.locator('time[datetime="2026-09-06"]')).toHaveText("September 6, 2026");
@@ -158,7 +162,7 @@ test("existing pigeon URLs retain their original publication dates", async ({ re
     "007": "2026-08-13", "008": "2026-08-17", "026": "2026-09-20",
   };
   for (const [number, date] of Object.entries(originals)) {
-    const response = await request.get(`/pigeons/${number}/`);
+    const response = await request.get(`/pigeons/${number}`);
     expect(response.status()).toBe(200);
     expect(await response.text()).toContain(`datetime="${date}"`);
   }

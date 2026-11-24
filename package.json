@@ -4,10 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/compress-inspection-data.mjs",
     "dev": "astro dev",
+    "prebuild": "node scripts/compress-inspection-data.mjs",
     "build": "astro build",
     "preview": "astro preview",
+    "pretest": "node scripts/compress-inspection-data.mjs",
     "test": "npm run check && playwright test",
+    "pretest:browser": "node scripts/compress-inspection-data.mjs",
     "test:browser": "playwright test",
     "check": "astro check"
   },
@@ -19,12 +23,15 @@
     "astro": "^7.3.2",
     "exifr": "^7.1.3",
     "graphology": "^0.26.0",
+    "graphology-layout-forceatlas2": "^0.10.1",
+    "papaparse": "^5.7.1",
     "sigma": "^4.0.6"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.63.0",
+    "@types/papaparse": "^5.5.2",
     "@vanilla-extract/css": "^1.21.2",
     "@vanilla-extract/vite-plugin": "^5.2.6",
     "typescript": "^6.0.3"

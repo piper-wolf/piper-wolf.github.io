@@ -10,7 +10,7 @@ test.describe('loading and motion preferences', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const requests: string[] = [];
     page.on('request', r => { if (runtime.test(r.url())) requests.push(r.url()); });
-    await page.goto('/pigeons/');
+    await page.goto('/pigeons');
     await page.clock.runFor(2000);
     expect(requests).toHaveLength(0);
     await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -91,7 +91,7 @@ test.describe('actions and transitions', () => {
     const entrances: { travel: number; duration: number; acceleration: number }[] = [];
     for (const facing of ['right', 'left']) {
       if (facing === 'left') {
-        await page.goto('/pigeons/');
+        await page.goto('/pigeons');
         await page.evaluate(() => {
           // Choose one bird and the first landing, then a left-facing entrance.
           let choices = 0;
@@ -240,7 +240,7 @@ test.describe('actions and transitions', () => {
       expect(action.some(track => track.part.includes('wing'))).toBe(false);
     }
     await prepare(page);
-    await page.goto('/pigeons/');
+    await page.goto('/pigeons');
     await page.evaluate(() => {
       document.querySelectorAll('[data-pigeon-landing]').forEach(el => el.removeAttribute('data-pigeon-landing'));
       const main = document.querySelector<HTMLElement>('main')!;
@@ -757,7 +757,7 @@ test.describe('actions and transitions', () => {
       { dx: -19, dy: 0 },
       { dx: 30, dy: 0, fallback: true },
     ]) {
-      await page.goto('/pigeons/');
+      await page.goto('/pigeons');
       await page.evaluate(fallback => {
         let choices = 0;
         Math.random = () => choices++ < 2 ? 0 : .25;
@@ -950,7 +950,7 @@ test.describe('actions and transitions', () => {
     const entrances: number[] = [];
     const returns: number[] = [];
     for (const random of [0, 0.999]) {
-      await page.goto('/pigeons/');
+      await page.goto('/pigeons');
       // Isolate one real edge so choosing another perch cannot mask a fixed x.
       await page.evaluate((value) => {
         Math.random = () => value;
@@ -998,7 +998,7 @@ test.describe('actions and transitions', () => {
     for (const edge of ['header', 'photo', 'details', 'footer']) {
       test(`lands safely on the ${edge} divider at ${width}px`, async ({ page }) => {
         await prepare(page, { width });
-        await page.goto('/pigeons/047/');
+        await page.goto('/pigeons/047');
         const target = page.locator(`[data-pigeon-landing="${edge}"]`);
         await expect(target).toHaveCount(1);
         if (edge === 'photo' && width < 768) {
@@ -1063,7 +1063,7 @@ test.describe('actions and transitions', () => {
         }, { once: true, capture: true });
         return saved;
       });
-      const destination = new URL(page.url()).pathname === '/pigeons/' ? '/' : '/pigeons/';
+      const destination = new URL(page.url()).pathname === '/pigeons' ? '/' : '/pigeons';
       await page.locator(`header a[href="${destination}"]`).first().evaluate((link: HTMLAnchorElement) => link.click());
       await expect.poll(async () => {
         await page.clock.runFor(16);
@@ -1104,7 +1104,7 @@ test.describe('actions and transitions', () => {
     await bird.evaluate(el => el.getAnimations({ subtree: true })
       .filter(animation => Number.isFinite(animation.effect!.getTiming().iterations))
       .forEach(animation => { animation.currentTime = Number(animation.effect!.getTiming().duration) * .4; }));
-    if (new URL(page.url()).pathname === '/pigeons/') await scrollTo(page, 500);
+    if (new URL(page.url()).pathname === '/pigeons') await scrollTo(page, 500);
     await navigate();
     // Back/forward uses the same retained scene and perches.
     await page.goBack();
@@ -1113,7 +1113,7 @@ test.describe('actions and transitions', () => {
     await expectSafePerch(page);
     expect(await original!.evaluate(el => el.isConnected)).toBe(true);
     expect(await page.evaluate(() => (window as Window & { pageviews?: string[] }).pageviews)).toEqual([
-      '/', '/pigeons/', '/', '/pigeons/', '/', '/pigeons/', '/', '/pigeons/', '/',
+      '/', '/pigeons', '/', '/pigeons', '/', '/pigeons', '/', '/pigeons', '/',
     ]);
   });
 
@@ -1203,7 +1203,7 @@ test.describe('actions and transitions', () => {
         await expectSafePerch(page);
         const returnedFeet = await bird.evaluate(el => { const r = el.getBoundingClientRect(); return r.top + 58 * r.height / 64; });
         expect([photoTop, headerLine].some(line => Math.abs(returnedFeet - line) < .5)).toBe(true);
-        await page.goto('/pigeons/');
+        await page.goto('/pigeons');
         await enter(page);
         await land(page);
         await expectSafePerch(page);
@@ -1228,7 +1228,7 @@ test.describe('actions and transitions', () => {
       });
       expect(unchanged).toBe(true);
       if (width === 390) {
-        await page.goto('/pigeons/');
+        await page.goto('/pigeons');
         // Force no eligible perches instead of relying on font-dependent layout.
         await page.locator('[data-pigeon-landing]').evaluateAll(edges => edges.forEach(edge => edge.removeAttribute('data-pigeon-landing')));
         await enter(page);
@@ -1432,7 +1432,7 @@ test.describe('independent birds and layout', () => {
     await expectSafePerch(page);
     // Exercise every catalog entry through real scene selection and both wing poses.
     for (const [index, name] of companionAppearances.entries()) {
-      await page.goto('/pigeons/');
+      await page.goto('/pigeons');
       await page.evaluate(value => { Math.random = () => value; }, (index + .5) / companionAppearances.length);
       await enter(page);
       const firstAppearance = commonAppearances[Math.floor((index + .5) / companionAppearances.length * commonAppearances.length)];
