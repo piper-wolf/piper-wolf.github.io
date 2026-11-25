@@ -1,0 +1,14 @@
+{
+  "queueId": "8de2972c27ed0cb51333381da6b41cf4",
+  "permanentUrl": "https://piper-wolf.com/pigeons/091/",
+  "publicationDate": "2026-11-25",
+  "snapshot": {
+    "queueId": "8de2972c27ed0cb51333381da6b41cf4",
+    "number": "091",
+    "dateTime": "2026-11-25",
+    "caption": "And sliiide to the left!",
+    "alt": "A gray pigeon with an iridescent neck and red feet stands on pavement scattered with crumbs, with another pigeon blurred behind it.",
+    "asset": "src/assets/2026-11-25.jpg",
+    "imageSha256": "f89037f340ad9569796a570e43e05311a28210017ee35edfaa703ebed02bdd64"
+  }
+}
