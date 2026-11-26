@@ -1,0 +1,14 @@
+{
+  "queueId": "f6082971e18a545258279d96138681ff",
+  "permanentUrl": "https://piper-wolf.com/pigeons/092/",
+  "publicationDate": "2026-11-26",
+  "snapshot": {
+    "queueId": "f6082971e18a545258279d96138681ff",
+    "number": "092",
+    "dateTime": "2026-11-26",
+    "caption": "Another photo featuring Squiggy",
+    "alt": "A group of pigeons gathers on a concrete surface scattered with seeds.",
+    "asset": "src/assets/2026-11-26.jpg",
+    "imageSha256": "6ad86b1843f7a27d2b80d2621e12cf0f79b3b55c13a97f89a7d8aa7fee1920a4"
+  }
+}
