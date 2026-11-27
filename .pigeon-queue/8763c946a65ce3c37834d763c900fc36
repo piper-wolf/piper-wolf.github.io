@@ -1,0 +1,14 @@
+{
+  "queueId": "8763c946a65ce3c37834d763c900fc36",
+  "permanentUrl": "https://piper-wolf.com/pigeons/093/",
+  "publicationDate": "2026-11-27",
+  "snapshot": {
+    "queueId": "8763c946a65ce3c37834d763c900fc36",
+    "number": "093",
+    "dateTime": "2026-11-27",
+    "caption": "This is what a pigeon looks like!",
+    "alt": "A pigeon walks toward the camera on a paved surface, with blurred pigeons and greenery in the background.",
+    "asset": "src/assets/2026-11-27.jpg",
+    "imageSha256": "402a4dc04422329f29bbc90952fb36100582ae00392ada5bcd9b5bbf7f51ddf4"
+  }
+}
